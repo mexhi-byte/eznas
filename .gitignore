@@ -1,0 +1,20 @@
+# Dependencies and build output
+node_modules/
+dist/
+dist.prev/
+
+# Everything this install knows about itself.
+#
+# data/ holds the encrypted API keys and NAS account password, the console's
+# own user accounts and their password hashes and 2FA secrets, and the preview
+# cache. .env holds the seed password and the session secret that the
+# encryption key is derived from. None of it belongs in a public repository,
+# and a single accidental commit of it cannot be undone by deleting the file
+# in a later one.
+data/
+.env
+*.env
+
+# Local scratch
+*.log
+probe*.mjs

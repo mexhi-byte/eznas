@@ -1,0 +1,254 @@
+/*
+ * Four themes, each a complete set of the same variables.
+ *
+ * They are attribute-scoped rather than class-scoped so the choice can be
+ * stamped on <html> before React mounts — otherwise every load flashes the
+ * default palette and then repaints.
+ */
+
+:root[data-theme="midnight"] {
+  --bg: #080b10;
+  --panel: rgba(255, 255, 255, 0.032);
+  --panel-solid: #10151d;
+  --modal-bg: #121821;
+  --line: rgba(255, 255, 255, 0.075);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --text: #e8edf4;
+  --muted: #8a97a8;
+  --faint: #5d6875;
+  --accent: #45b8f5;
+  --accent-dim: rgba(69, 184, 245, 0.14);
+  --accent-ink: #04121c;
+  --ok: #3ddc97;
+  --warn: #f5b23d;
+  --bad: #f76a6a;
+  --glow-a: rgba(69, 184, 245, 0.09);
+  --glow-b: rgba(61, 220, 151, 0.055);
+  --sidebar-bg: rgba(8, 11, 16, 0.72);
+  --input-bg: rgba(0, 0, 0, 0.3);
+  --hover: rgba(255, 255, 255, 0.045);
+  color-scheme: dark;
+}
+
+/* A warm, low-contrast dark for long sessions in a dim room. */
+:root[data-theme="ember"] {
+  --bg: #12100e;
+  --panel: rgba(255, 244, 230, 0.035);
+  --panel-solid: #1b1815;
+  --modal-bg: #1e1a16;
+  --line: rgba(255, 236, 214, 0.085);
+  --line-strong: rgba(255, 236, 214, 0.17);
+  --text: #f2e9df;
+  --muted: #a8998a;
+  --faint: #776a5e;
+  --accent: #f0a24a;
+  --accent-dim: rgba(240, 162, 74, 0.15);
+  --accent-ink: #1c1206;
+  --ok: #a8c86a;
+  --warn: #e8b44c;
+  --bad: #e8705c;
+  --glow-a: rgba(240, 162, 74, 0.10);
+  --glow-b: rgba(232, 112, 92, 0.05);
+  --sidebar-bg: rgba(18, 16, 14, 0.76);
+  --input-bg: rgba(0, 0, 0, 0.26);
+  --hover: rgba(255, 244, 230, 0.05);
+  color-scheme: dark;
+}
+
+/* Cool and desaturated — closer to a Nord palette. */
+:root[data-theme="glacier"] {
+  --bg: #1a2029;
+  --panel: rgba(216, 232, 248, 0.04);
+  --panel-solid: #222a35;
+  --modal-bg: #262f3b;
+  --line: rgba(216, 232, 248, 0.1);
+  --line-strong: rgba(216, 232, 248, 0.2);
+  --text: #e2e9f2;
+  --muted: #9aa8ba;
+  --faint: #6d7c8e;
+  --accent: #8fc0e0;
+  --accent-dim: rgba(143, 192, 224, 0.16);
+  --accent-ink: #101720;
+  --ok: #9dc99b;
+  --warn: #e7ce8c;
+  --bad: #d98a8a;
+  --glow-a: rgba(143, 192, 224, 0.10);
+  --glow-b: rgba(157, 201, 155, 0.06);
+  --sidebar-bg: rgba(26, 32, 41, 0.78);
+  --input-bg: rgba(0, 0, 0, 0.2);
+  --hover: rgba(216, 232, 248, 0.055);
+  color-scheme: dark;
+}
+
+/* Light. Not an inversion — the greys are picked so text stays comfortable. */
+:root[data-theme="daylight"] {
+  --bg: #f4f6f9;
+  --panel: rgba(255, 255, 255, 0.85);
+  --panel-solid: #ffffff;
+  --modal-bg: #ffffff;
+  --line: rgba(16, 32, 52, 0.1);
+  --line-strong: rgba(16, 32, 52, 0.2);
+  --text: #16202c;
+  --muted: #5a6779;
+  --faint: #8c98a8;
+  --accent: #1c7fc4;
+  --accent-dim: rgba(28, 127, 196, 0.11);
+  --accent-ink: #ffffff;
+  --ok: #1a9c68;
+  --warn: #b5781a;
+  --bad: #cf4747;
+  --glow-a: rgba(28, 127, 196, 0.09);
+  --glow-b: rgba(26, 156, 104, 0.06);
+  --sidebar-bg: rgba(255, 255, 255, 0.82);
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --hover: rgba(16, 32, 52, 0.045);
+  color-scheme: light;
+}
+
+/* Light needs shadow where dark used a lighter surface, or panels vanish. */
+:root[data-theme="daylight"] .card,
+:root[data-theme="daylight"] .app-card,
+:root[data-theme="daylight"] .cat-card {
+  box-shadow: 0 1px 2px rgba(16, 32, 52, 0.05), 0 6px 16px -10px rgba(16, 32, 52, 0.16);
+}
+:root[data-theme="daylight"] .modal { box-shadow: 0 24px 60px -18px rgba(16, 32, 52, 0.35); }
+:root[data-theme="daylight"] .bar { background: rgba(16, 32, 52, 0.09); }
+:root[data-theme="daylight"] .skeleton {
+  background: linear-gradient(90deg, rgba(16,32,52,.05), rgba(16,32,52,.1), rgba(16,32,52,.05));
+  background-size: 200% 100%;
+}
+:root[data-theme="daylight"] select.input option { background: #ffffff; }
+
+/* Theme swatches on the settings page. */
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.theme-card {
+  border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 11px; cursor: pointer; background: var(--panel);
+  display: flex; flex-direction: column; gap: 9px;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.theme-card:hover { transform: translateY(-1px); border-color: var(--line-strong); }
+.theme-card.on { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.theme-swatch { height: 46px; border-radius: 9px; display: flex; overflow: hidden; border: 1px solid var(--line); }
+.theme-swatch i { flex: 1; }
+.theme-name { font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; }
+.theme-name small { font-weight: 400; color: var(--faint); font-size: 11.5px; }
+
+/* Settings tabs. */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; flex-wrap: wrap; }
+.tab {
+  background: none; border: none; padding: 9px 13px; color: var(--muted);
+  font-size: 13.5px; font-weight: 500; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; border-radius: 8px 8px 0 0;
+}
+.tab:hover { color: var(--text); background: var(--hover); }
+.tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Notification bell + panel. */
+.bell { position: relative; }
+.bell-dot {
+  position: absolute; top: 2px; right: 2px;
+  min-width: 15px; height: 15px; padding: 0 4px;
+  border-radius: 999px; background: var(--bad); color: #fff;
+  font-size: 10px; font-weight: 700; display: grid; place-items: center;
+}
+.notif {
+  display: flex; gap: 11px; align-items: flex-start;
+  padding: 11px 0; border-top: 1px solid var(--line);
+}
+.notif:first-child { border-top: none; }
+
+/* Terminal. */
+.term-wrap {
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  overflow: hidden; background: #05080c; padding: 10px;
+}
+.term-wrap .xterm { height: 100%; }
+
+/*
+ * Light-mode text.
+ *
+ * The pills, the active nav item and the primary button all carried colours
+ * chosen to glow on a near-black panel — pale mint, pale amber, pale blue. On
+ * white those are barely visible, which is what made the light theme unreadable
+ * rather than merely pale. Each gets an ink colour dark enough to read while
+ * the tinted background still carries the meaning.
+ */
+:root[data-theme="daylight"] {
+  --ok-ink: #0d6b45;
+  --warn-ink: #8a5806;
+  --bad-ink: #a52c2c;
+  --info-ink: #10557f;
+}
+
+:root[data-theme="daylight"] .pill.ok   { color: var(--ok-ink);   background: rgba(26, 156, 104, 0.13); border-color: rgba(26, 156, 104, 0.3); }
+:root[data-theme="daylight"] .pill.warn { color: var(--warn-ink); background: rgba(181, 120, 26, 0.14); border-color: rgba(181, 120, 26, 0.32); }
+:root[data-theme="daylight"] .pill.bad  { color: var(--bad-ink);  background: rgba(207, 71, 71, 0.12);  border-color: rgba(207, 71, 71, 0.3); }
+:root[data-theme="daylight"] .pill.info { color: var(--info-ink); background: rgba(28, 127, 196, 0.12); border-color: rgba(28, 127, 196, 0.3); }
+:root[data-theme="daylight"] .pill.mute { color: #4a5768; background: rgba(16, 32, 52, 0.06); border-color: rgba(16, 32, 52, 0.14); }
+
+:root[data-theme="daylight"] .nav a.active { color: #0f5b8c; background: rgba(28, 127, 196, 0.12); }
+:root[data-theme="daylight"] .btn.primary  { color: #0f5b8c; background: rgba(28, 127, 196, 0.12); border-color: rgba(28, 127, 196, 0.34); }
+:root[data-theme="daylight"] .btn.primary:hover:not(:disabled) { background: rgba(28, 127, 196, 0.2); }
+:root[data-theme="daylight"] .btn.danger-solid { color: #8f2020; background: rgba(207, 71, 71, 0.13); border-color: rgba(207, 71, 71, 0.36); }
+:root[data-theme="daylight"] .btn.danger-solid:hover:not(:disabled) { background: rgba(207, 71, 71, 0.22); color: #6d1717; }
+:root[data-theme="daylight"] .btn.danger:hover:not(:disabled) { color: #8f2020; background: rgba(207, 71, 71, 0.12); border-color: rgba(207, 71, 71, 0.32); }
+
+:root[data-theme="daylight"] .error-banner { color: #8f2020; background: rgba(207, 71, 71, 0.08); border-color: rgba(207, 71, 71, 0.3); }
+:root[data-theme="daylight"] .job-error,
+:root[data-theme="daylight"] .login .err { color: #a52c2c; }
+:root[data-theme="daylight"] .nav-badge { color: #fff; background: #cf4747; }
+:root[data-theme="daylight"] .bell-dot { background: #cf4747; }
+:root[data-theme="daylight"] .job.done { border-color: rgba(26, 156, 104, 0.38); background: rgba(26, 156, 104, 0.06); }
+:root[data-theme="daylight"] .job.failed { border-color: rgba(207, 71, 71, 0.4); background: rgba(207, 71, 71, 0.05); }
+:root[data-theme="daylight"] .login button { color: #fff; }
+:root[data-theme="daylight"] .tab.on { color: #0f5b8c; border-bottom-color: var(--accent); }
+
+/* Body text and the quieter greys need more weight on white than on black. */
+:root[data-theme="daylight"] { --muted: #4d5a6c; --faint: #6f7d8e; }
+:root[data-theme="daylight"] .stat-foot,
+:root[data-theme="daylight"] .field-hint,
+:root[data-theme="daylight"] .modal-text,
+:root[data-theme="daylight"] .app-meta { color: #556375; }
+:root[data-theme="daylight"] th { color: #67748a; }
+
+/* Glacier and Ember reuse the dark inks but need their own accent contrast. */
+:root[data-theme="glacier"] .nav a.active,
+:root[data-theme="glacier"] .btn.primary { color: #d7ecf9; }
+:root[data-theme="ember"] .nav a.active,
+:root[data-theme="ember"] .btn.primary { color: #ffd9a8; }
+
+/* Tab badge, used by the sub-navigation. */
+.tab-badge {
+  margin-left: 7px; font-size: 11px; font-weight: 700;
+  background: var(--bad); color: #fff; padding: 1px 6px; border-radius: 999px;
+}
+
+/* Top bar holding the menu and bell. */
+.topbar { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.topbar .bell { margin-left: auto; display: grid; }
+@media (min-width: 901px) { .topbar .menu-btn:not(.bell) { display: none; } }
+.topbar .bell { display: grid !important; place-items: center; width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--line); background: var(--panel); }
+.topbar .bell:hover { border-color: var(--line-strong); }
+
+/*
+ * The home screen and drive map in light mode.
+ *
+ * These surfaces are near-white panels on a near-white page: without the same
+ * shadow the cards get, they read as one flat sheet and the grouping that the
+ * whole layout depends on disappears.
+ */
+:root[data-theme="daylight"] .launcher,
+:root[data-theme="daylight"] .pool-card,
+:root[data-theme="daylight"] .health-card,
+:root[data-theme="daylight"] .app-tile,
+:root[data-theme="daylight"] .map-pool,
+:root[data-theme="daylight"] .drive {
+  box-shadow: 0 1px 2px rgba(16, 32, 52, 0.05), 0 6px 16px -10px rgba(16, 32, 52, 0.16);
+}
+:root[data-theme="daylight"] .fat-bar,
+:root[data-theme="daylight"] .tile-icon { background: rgba(16, 32, 52, 0.07); }
+:root[data-theme="daylight"] .tile-dot { border-color: #ffffff; }
+:root[data-theme="daylight"] .health { background: rgba(16, 32, 52, 0.035); }
+:root[data-theme="daylight"] .tile-badge { color: #ffffff; }
+:root[data-theme="daylight"] .seg button.on { color: var(--accent); }
