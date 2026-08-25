@@ -77,3 +77,38 @@ export function underMnt(raw: string): string {
   }
   return path;
 }
+
+/**
+ * An error that already knows how it should be reported.
+ *
+ * Everything used to be classified by matching the message text, which works
+ * until a message happens to contain one of the words being matched for. An
+ * upload whose connection to the NAS dropped said "socket hang up", was read
+ * as "this console cannot reach the NAS", and went out as a 502 — where a
+ * proxy replaced the body with its own error page and the reason was lost.
+ * The browser could only say "Upload failed (502)".
+ */
+export class HttpError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "HttpError";
+  }
+}
+
+/**
+ * 4xx unless this console genuinely could not reach the NAS.
+ *
+ * The distinction is not academic. A reverse proxy may replace a 5xx body with
+ * its own HTML — Cloudflare does — so a 5xx arrives at the browser as markup
+ * the client then fails to parse as JSON, and the reason never reaches the
+ * person who could act on it. 502 is kept for the one case it describes.
+ */
+export function statusForError(e: unknown): number {
+  const chosen = (e as { status?: unknown } | null)?.status;
+  // A status the thrower picked beats anything guessed from the wording.
+  if (typeof chosen === "number" && chosen >= 100 && chosen <= 599) return chosen;
+  const message = e instanceof Error ? e.message : String(e);
+  return /not reachable|ECONNREFUSED|ETIMEDOUT|socket hang up|certificate|WebSocket|no TrueNAS server/i.test(message)
+    ? 502
+    : 400;
+}

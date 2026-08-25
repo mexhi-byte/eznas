@@ -228,7 +228,17 @@ td.num, th.num { text-align: right; }
 }
 .app-name { font-weight: 600; font-size: 14px; }
 .app-meta { font-size: 11.5px; color: var(--faint); }
-.app-actions { display: flex; gap: 7px; margin-top: auto; }
+/*
+ * Wrapping, because the row could not.
+ *
+ * Seven controls in a non-wrapping flex row overlapped one another, and a
+ * button drawn on top of another button makes the one underneath unclickable —
+ * which is why Details appeared to do nothing.
+ */
+.app-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: auto; }
+.app-actions .btn { flex: 1 1 auto; min-width: 72px; text-align: center; }
+/* The delete stays small: it is the one action nobody is hunting for. */
+.app-actions .app-remove { flex: 0 0 auto; min-width: 0; padding: 6px 10px; }
 
 .btn {
   flex: 1; padding: 6px 10px; border-radius: 8px;

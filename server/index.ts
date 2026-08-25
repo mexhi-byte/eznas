@@ -19,7 +19,7 @@ import { CHANNEL, VERSION } from "./version.js";
 import { appTitle, isCustomApp } from "./apps.js";
 
 export { VERSION };
-import { bodyOf, confirmed, json, optStr, str, underMnt } from "./http.js";
+import { bodyOf, confirmed, json, optStr, statusForError, str, underMnt } from "./http.js";
 import { levelToPerms, type AclEntry } from "./acl.js";
 import { handleFileRoutes } from "./routes/files.js";
 import { diskVerdict, failedTestCount, temperatureOf, testsForDisk } from "./disk-verdict.js";
@@ -1984,9 +1984,7 @@ const server = createServer(async (req, res) => {
        * 502 is kept for the one case it describes: this console could not
        * reach the NAS at all.
        */
-      const unreachable = /not reachable|ECONNREFUSED|ETIMEDOUT|socket hang up|certificate|WebSocket|no TrueNAS server/i
-        .test(message);
-      json(res, unreachable ? 502 : 400, { error: message });
+      json(res, statusForError(e), { error: message });
     } else {
       res.end();
     }
