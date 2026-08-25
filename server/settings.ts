@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { encrypt, decrypt } from "./store.js";
+import type { Webhook } from "./webhooks.js";
 
 /**
  * Console settings — everything that belongs to this dashboard rather than to
@@ -40,6 +41,10 @@ export interface Settings {
     };
     /** Only email about things at least this serious. */
     emailLevel: "info" | "warn" | "bad";
+    /** Push targets — Discord, Telegram, ntfy, or anything that takes a POST. */
+    webhooks: Webhook[];
+    /** Put a name in the message, so a push reads like a person wrote it. */
+    greetName: string;
   };
   /**
    * What the household calls this server and its pools.
@@ -70,6 +75,8 @@ const DEFAULTS: Settings = {
       zfsErrors: true, apps: true, scrubs: true, updates: true, reachability: true,
     },
     emailLevel: "warn",
+    webhooks: [],
+    greetName: "",
   },
   names: { server: "", pools: {} },
 };
@@ -93,6 +100,7 @@ export function load(): void {
         ...DEFAULTS.notify,
         ...(disk.notify ?? {}),
         watch: { ...DEFAULTS.notify.watch, ...((disk.notify as Partial<Settings["notify"]>)?.watch ?? {}) },
+        webhooks: (disk.notify as Partial<Settings["notify"]>)?.webhooks ?? [],
       },
       names: { ...DEFAULTS.names, ...(disk.names ?? {}) },
     };
@@ -130,7 +138,15 @@ export function publicView() {
   return {
     theme: current.theme,
     mfa: { enabled: current.mfa.enabled, recoveryRemaining: current.mfa.recoveryHashes.length },
-    notify: current.notify,
+    notify: {
+      ...current.notify,
+      // A Telegram bot token is a credential: anybody holding it can post as
+      // that bot. The browser gets to see that a hook exists, not its secret.
+      webhooks: current.notify.webhooks.map((w) => ({
+        ...w,
+        botToken: w.botToken ? "********" : undefined,
+      })),
+    },
     names: current.names,
   };
 }

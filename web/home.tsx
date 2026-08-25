@@ -143,6 +143,7 @@ export function HomePage({ go }: { go: Go }) {
         <div className="health-cards">
           <HealthCard
             label="Processor"
+            metric="cpu"
             value={`${cpu.toFixed(0)}%`}
             verdict={cpuVerdict(cpu)}
             points={history.cpu}
@@ -151,6 +152,7 @@ export function HomePage({ go }: { go: Go }) {
           />
           <HealthCard
             label="Memory"
+            metric="memory"
             value={`${memPct.toFixed(0)}%`}
             verdict={memVerdict(memPct, mem?.arc_size ?? 0, mem?.physical_memory_total ?? 1)}
             points={history.mem}
@@ -159,6 +161,8 @@ export function HomePage({ go }: { go: Go }) {
           />
           <HealthCard
             label="Network"
+            metric="network"
+            unit="rate"
             value={rate(rx + tx)}
             verdict={rx + tx > 1024 ** 2 ? "Moving data right now." : "Quiet."}
             points={history.rx}
@@ -329,21 +333,73 @@ const memVerdict = (pct: number, arc: number, total: number): string => {
   return pct > 90 ? "Genuinely full." : "Plenty spare.";
 };
 
-function HealthCard({ label, value, verdict, points, color, foot }: {
-  label: string; value: string; verdict: string; points: number[]; color: string; foot: string;
+interface History {
+  series: string[];
+  points: Array<{ t: number; v: number[] }>;
+  summary: { min: number; max: number; mean: number; from: number; to: number } | null;
+}
+
+/**
+ * One live figure, with the option of seeing the last day instead.
+ *
+ * The live line answers "what is it doing now", which is no use for something
+ * that went wrong while everybody was asleep. Switching to 24 hours reads the
+ * history TrueNAS already keeps, so a container that leaked memory overnight
+ * shows up as a shape rather than having to be caught in the act.
+ */
+function HealthCard({ label, metric, value, verdict, points, color, foot, unit }: {
+  label: string; metric: string; value: string; verdict: string;
+  points: number[]; color: string; foot: string; unit?: string;
 }) {
+  const [range, setRange] = useState<"live" | "day">("live");
+  // Only fetched once the toggle is used: three history calls on every home
+  // screen load would be three seconds of NAS work nobody asked for.
+  const { data, loading } = useResource<History>(
+    range === "day" ? `/api/history?metric=${metric}&unit=DAY` : "",
+    0,
+  );
+
+  const historic = (data?.points ?? []).map((p) => p.v[0] ?? 0);
+  const summary = data?.summary;
+
   return (
     <div className="health-card">
       <div className="health-card-top">
         <span>{label}</span>
-        <b>{value}</b>
+        <b>{range === "live" ? value : summary ? `${fmt(summary.mean, unit)} avg` : "…"}</b>
       </div>
-      <Sparkline points={points} max={label === "Network" ? undefined : 100} color={color} />
-      <div className="health-verdict">{verdict}</div>
-      <div className="stat-foot">{foot}</div>
+
+      {range === "live" ? (
+        <Sparkline points={points} max={metric === "network" ? undefined : 100} color={color} />
+      ) : loading && !data ? (
+        <div className="spark-placeholder">reading the last day…</div>
+      ) : historic.length ? (
+        <Sparkline points={historic} max={metric === "network" ? undefined : 100} color={color} />
+      ) : (
+        <div className="spark-placeholder">no history kept for this yet</div>
+      )}
+
+      <div className="health-verdict">
+        {range === "live"
+          ? verdict
+          : summary
+            ? `Between ${fmt(summary.min, unit)} and ${fmt(summary.max, unit)} over the day.`
+            : "Nothing recorded."}
+      </div>
+
+      <div className="card-foot-row">
+        <span className="stat-foot">{range === "live" ? foot : "last 24 hours"}</span>
+        <button className="range-toggle" onClick={() => setRange(range === "live" ? "day" : "live")}>
+          {range === "live" ? "24 hours" : "Live"}
+        </button>
+      </div>
     </div>
   );
 }
+
+/** Percentages to one place; throughput back to human units. */
+const fmt = (n: number, unit?: string): string =>
+  unit === "rate" ? rate(n * 1024) : `${n.toFixed(0)}%`;
 
 function AppTile({ app }: { app: App }) {
   const portal = Object.values(app.portals ?? {})[0];

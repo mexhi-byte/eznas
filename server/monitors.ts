@@ -1,6 +1,7 @@
 import * as store from "./store.js";
 import * as settings from "./settings.js";
 import type { TrueNas } from "./truenas.js";
+import * as webhooks from "./webhooks.js";
 
 /**
  * What the console watches, on its own behalf.
@@ -56,11 +57,24 @@ async function raise(
   console.log(`[watch] ${conn.name}: ${n.title}`);
 
   const cfg = settings.get().notify;
-  if (!cfg.email || !cfg.recipients.length) return;
 
   // Rank so "only tell me about problems" is a setting rather than an
   // all-or-nothing switch.
   const rank = { info: 0, warn: 1, bad: 2 };
+
+  // Push first: it is the one somebody will actually see tonight, and it must
+  // not be held up by an SMTP server that is slow or misconfigured.
+  for (const hook of cfg.webhooks ?? []) {
+    if (!hook.enabled || rank[n.level] < rank[hook.level]) continue;
+    try {
+      await webhooks.deliver(hook, { ...n, server: conn.name }, cfg.greetName || undefined);
+    } catch (e) {
+      // One dead webhook must not stop the others, or the email.
+      console.error(`[watch] webhook ${hook.kind} failed:`, e instanceof Error ? e.message : e);
+    }
+  }
+
+  if (!cfg.email || !cfg.recipients.length) return;
   if (rank[n.level] < rank[cfg.emailLevel]) return;
 
   try {

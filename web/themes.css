@@ -80,6 +80,127 @@
   color-scheme: dark;
 }
 
+/*
+ * Four presets the self-hosted community already knows by name.
+ *
+ * Each is a complete token set rather than a hue shift, because the palettes
+ * differ in more than colour: Nord and Cozy are low-contrast and need lighter
+ * lines to stay legible, Cyberpunk is near-black and needs its accents held
+ * back from full saturation or every pill glows. Every one keeps ok/warn/bad
+ * distinguishable — a theme that makes a failing drive look decorative is a
+ * bug, not a style.
+ */
+
+/* Nord. Sleek slate blues and soft pastels. */
+:root[data-theme="nord"] {
+  --bg: #2e3440;
+  --panel: rgba(236, 239, 244, 0.045);
+  --panel-solid: #3b4252;
+  --modal-bg: #3b4252;
+  --line: rgba(236, 239, 244, 0.11);
+  --line-strong: rgba(236, 239, 244, 0.22);
+  --text: #eceff4;
+  --muted: #a9b3c4;
+  --faint: #7b8797;
+  --accent: #88c0d0;
+  --accent-dim: rgba(136, 192, 208, 0.17);
+  --accent-ink: #2e3440;
+  --ok: #a3be8c;
+  --warn: #ebcb8b;
+  --bad: #bf616a;
+  --glow-a: rgba(136, 192, 208, 0.10);
+  --glow-b: rgba(163, 190, 140, 0.06);
+  --sidebar-bg: rgba(46, 52, 64, 0.8);
+  --input-bg: rgba(0, 0, 0, 0.2);
+  --hover: rgba(236, 239, 244, 0.06);
+  color-scheme: dark;
+}
+
+/* Dracula. Vibrant purples and dark pinks. */
+:root[data-theme="dracula"] {
+  --bg: #282a36;
+  --panel: rgba(248, 248, 242, 0.045);
+  --panel-solid: #343746;
+  --modal-bg: #343746;
+  --line: rgba(248, 248, 242, 0.11);
+  --line-strong: rgba(248, 248, 242, 0.22);
+  --text: #f8f8f2;
+  --muted: #a9aec4;
+  --faint: #6272a4;
+  --accent: #bd93f9;
+  --accent-dim: rgba(189, 147, 249, 0.18);
+  --accent-ink: #21222c;
+  --ok: #50fa7b;
+  --warn: #f1fa8c;
+  --bad: #ff5555;
+  --glow-a: rgba(189, 147, 249, 0.12);
+  --glow-b: rgba(255, 121, 198, 0.07);
+  --sidebar-bg: rgba(40, 42, 54, 0.82);
+  --input-bg: rgba(0, 0, 0, 0.24);
+  --hover: rgba(248, 248, 242, 0.06);
+  color-scheme: dark;
+}
+
+/* Cyberpunk. Deep black with neon. */
+:root[data-theme="cyberpunk"] {
+  --bg: #07070b;
+  --panel: rgba(0, 255, 170, 0.035);
+  --panel-solid: #101018;
+  --modal-bg: #12121c;
+  --line: rgba(0, 255, 170, 0.13);
+  --line-strong: rgba(0, 255, 170, 0.26);
+  --text: #e6faf3;
+  --muted: #7f9b93;
+  --faint: #55706a;
+  --accent: #00e5a0;
+  --accent-dim: rgba(0, 229, 160, 0.14);
+  --accent-ink: #04120d;
+  --ok: #00e5a0;
+  --warn: #ffb627;
+  --bad: #ff2e63;
+  --glow-a: rgba(0, 229, 160, 0.12);
+  --glow-b: rgba(255, 46, 99, 0.06);
+  --sidebar-bg: rgba(7, 7, 11, 0.85);
+  --input-bg: rgba(0, 0, 0, 0.4);
+  --hover: rgba(0, 255, 170, 0.06);
+  color-scheme: dark;
+}
+
+/* Cozy. Warm browns, for a room with the lights off. */
+:root[data-theme="cozy"] {
+  --bg: #1c1714;
+  --panel: rgba(255, 236, 214, 0.04);
+  --panel-solid: #26201b;
+  --modal-bg: #2a231d;
+  --line: rgba(255, 236, 214, 0.1);
+  --line-strong: rgba(255, 236, 214, 0.2);
+  --text: #f0e4d6;
+  --muted: #b3a08c;
+  --faint: #85735f;
+  --accent: #e0a878;
+  --accent-dim: rgba(224, 168, 120, 0.16);
+  --accent-ink: #1c1714;
+  --ok: #a8c08a;
+  --warn: #e8c07a;
+  --bad: #d98070;
+  --glow-a: rgba(224, 168, 120, 0.10);
+  --glow-b: rgba(168, 192, 138, 0.05);
+  --sidebar-bg: rgba(28, 23, 20, 0.82);
+  --input-bg: rgba(0, 0, 0, 0.22);
+  --hover: rgba(255, 236, 214, 0.055);
+  color-scheme: dark;
+}
+
+/* Cyberpunk's neon is bright enough that the ink on a filled pill must be dark. */
+:root[data-theme="cyberpunk"] .nav a.active,
+:root[data-theme="cyberpunk"] .btn.primary { color: #04120d; }
+:root[data-theme="dracula"] .nav a.active,
+:root[data-theme="dracula"] .btn.primary { color: #21222c; }
+:root[data-theme="nord"] .nav a.active,
+:root[data-theme="nord"] .btn.primary { color: #2e3440; }
+:root[data-theme="cozy"] .nav a.active,
+:root[data-theme="cozy"] .btn.primary { color: #1c1714; }
+
 /* Light. Not an inversion — the greys are picked so text stays comfortable. */
 :root[data-theme="daylight"] {
   --bg: #f4f6f9;

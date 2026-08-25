@@ -97,6 +97,12 @@ export function useResource<T>(path: string, intervalMs = 10_000) {
   const alive = useRef(true);
 
   const reload = useCallback(async () => {
+    // An empty path means "not wanted yet" — cards that can show history only
+    // fetch it once somebody asks for it.
+    if (!path) {
+      setLoading(false);
+      return;
+    }
     try {
       const next = await get<T>(path);
       if (!alive.current) return;

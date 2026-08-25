@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { extname, join, normalize, posix } from "node:path";
@@ -10,6 +11,7 @@ import { handleUpgrade } from "./shell.js";
 import * as files from "./files.js";
 import * as exec from "./nas-exec.js";
 import * as selfUpdate from "./self-update.js";
+import * as webhooks from "./webhooks.js";
 import { generateSecret, provisioningUri, recoveryCodes, verify as verifyTotp } from "./totp.js";
 import { clearedCookie, cookieHeader, COOKIE, issue, read as readSessionCookie, readCookie, valid } from "./auth.js";
 import * as accounts from "./accounts.js";
@@ -412,6 +414,26 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
             updates: bool("updates"),
             reachability: bool("reachability"),
           },
+          greetName: n.greetName === undefined ? current.greetName : String(n.greetName).trim().slice(0, 40),
+          webhooks: Array.isArray(n.webhooks)
+            ? (n.webhooks as Array<Record<string, unknown>>).map((w) => {
+                const existing = current.webhooks.find((x) => x.id === w.id);
+                const problem = webhooks.validate(w as never);
+                if (problem) throw new Error(problem);
+                return {
+                  id: String(w.id ?? randomUUID()),
+                  kind: (["discord", "telegram", "ntfy", "generic"].includes(String(w.kind)) ? w.kind : "generic") as never,
+                  url: String(w.url ?? ""),
+                  // A masked token means "unchanged" — the browser was never
+                  // given the real one to send back.
+                  botToken: w.botToken === "********" ? existing?.botToken : (w.botToken ? String(w.botToken) : undefined),
+                  chatId: w.chatId ? String(w.chatId) : undefined,
+                  topic: w.topic ? String(w.topic) : undefined,
+                  enabled: w.enabled !== false,
+                  level: (["info", "warn", "bad"].includes(String(w.level)) ? w.level : "warn") as never,
+                };
+              })
+            : current.webhooks,
         };
       }
       if (b.names && typeof b.names === "object") {
@@ -503,6 +525,26 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
   }
 
   /* --- disk events --- */
+
+  if (path === "/api/notify/test" && method === "POST") {
+    const b = await bodyOf(req);
+    const cfg = settings.get().notify;
+    // Test the saved hook where one is named, so a masked token is still
+    // testable; otherwise test exactly what is on screen.
+    const saved = cfg.webhooks.find((w) => w.id === b.id);
+    const hook = saved ?? (b as unknown as webhooks.Webhook);
+    const problem = webhooks.validate(hook);
+    if (problem) throw new Error(problem);
+    await webhooks.deliver(hook, {
+      level: "info",
+      category: "test",
+      title: "Test from your NAS",
+      detail: "If you are reading this on your phone, notifications are working.",
+      server: store.get(url.searchParams.get("c"))?.name ?? "EzNAS",
+    }, cfg.greetName || undefined);
+    json(res, 200, { ok: true });
+    return true;
+  }
 
   if (path === "/api/events/check" && method === "POST") {
     await watcher.runNow();
@@ -832,6 +874,94 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     return true;
   }
 
+  /**
+   * The last day, rather than the last minute.
+   *
+   * The live feed on the home screen answers "what is it doing now", which is
+   * no help at all for a container that leaked memory overnight or a backup
+   * that pinned the disks at four in the morning. TrueNAS keeps the history in
+   * netdata; this reads it back.
+   *
+   * Downsampled here rather than in the browser: a day at one-second
+   * resolution is three thousand points per metric, and shipping that to draw
+   * a line 240 pixels wide wastes the transfer and then throws it away.
+   */
+  if (path === "/api/history") {
+    const metric = url.searchParams.get("metric") ?? "cpu";
+    const unit = (url.searchParams.get("unit") ?? "DAY").toUpperCase();
+    if (!["HOUR", "DAY", "WEEK", "MONTH"].includes(unit)) throw new Error("Unknown time span.");
+
+    const wanted: Record<string, { name: string; identifier?: string }> = {
+      cpu: { name: "cpu" },
+      memory: { name: "memory" },
+      network: { name: "interface" },
+    };
+    const spec = wanted[metric];
+    if (!spec) throw new Error(`There is no "${metric}" history.`);
+
+    // The interface graph is per NIC and needs naming; pick the busiest rather
+    // than guessing at a name that differs on every machine.
+    let identifier = spec.identifier;
+    if (metric === "network") {
+      const nics = await nas.call<Array<Record<string, unknown>>>("interface.query");
+      identifier = String(nics.find((n) => n.state && (n.state as { link_state?: string }).link_state === "LINK_STATE_UP")?.name ?? nics[0]?.name ?? "");
+      if (!identifier) throw new Error("No network interface to report on.");
+    }
+
+    const [graph] = await nas.call<Array<{
+      name: string; legend: string[]; data: number[][]; start: number; end: number;
+      aggregations?: { min?: Record<string, number>; mean?: Record<string, number>; max?: Record<string, number> };
+    }>>("reporting.netdata_get_data", [[{ name: spec.name, ...(identifier ? { identifier } : {}) }], { unit, page: 1 }], 30_000);
+
+    if (!graph?.data?.length) {
+      json(res, 200, { metric, unit, points: [], series: [], summary: null });
+      return true;
+    }
+
+    // memory reports what is *available*; everybody thinks in what is used.
+    const total = metric === "memory"
+      ? Number((await nas.call<Record<string, unknown>>("system.info")).physmem ?? 0)
+      : 0;
+
+    const cols = graph.legend.slice(1);
+    const keep = metric === "cpu" ? [0] : metric === "memory" ? [0] : [0, 1];
+    const series = keep.map((i) => (metric === "memory" ? "used" : cols[i] ?? `series ${i}`));
+
+    const BUCKETS = 160;
+    const step = Math.max(1, Math.ceil(graph.data.length / BUCKETS));
+    const points: Array<{ t: number; v: number[] }> = [];
+    for (let i = 0; i < graph.data.length; i += step) {
+      const slice = graph.data.slice(i, i + step).filter((row) => row.every((n) => n !== null));
+      if (!slice.length) continue;
+      const at = slice[0][0];
+      const v = keep.map((k) => {
+        const mean = slice.reduce((sum, row) => sum + (Number(row[k + 1]) || 0), 0) / slice.length;
+        // available → used %, which is what the live card shows too.
+        return metric === "memory" && total ? Math.max(0, ((total - mean) / total) * 100) : mean;
+      });
+      points.push({ t: at * 1000, v });
+    }
+
+    const flat = points.flatMap((p) => p.v);
+    json(res, 200, {
+      metric,
+      unit,
+      identifier: identifier ?? null,
+      series,
+      points,
+      summary: flat.length
+        ? {
+            min: Math.min(...flat),
+            max: Math.max(...flat),
+            mean: flat.reduce((a, b) => a + b, 0) / flat.length,
+            from: graph.start * 1000,
+            to: graph.end * 1000,
+          }
+        : null,
+    });
+    return true;
+  }
+
   /* --- disks --- */
   if (path === "/api/disks") {
     const [details, temps] = await Promise.all([
@@ -870,6 +1000,111 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     return true;
   }
 
+  /**
+   * Replacing a failed drive, guided.
+   *
+   * In the NAS's own interface this is ten steps across four screens, and the
+   * one that goes wrong is picking the disk: the failed member is identified
+   * by a ZFS guid, the replacement by a device name, and the two look nothing
+   * alike. Getting it wrong offlines a healthy drive in an already-degraded
+   * pool, which is how a recoverable failure becomes a lost pool.
+   *
+   * So the console does the identification. It reports the physical serial to
+   * look for, offlines by guid, and afterwards replaces using the guid it
+   * already knows — never a name the operator had to retype.
+   */
+  const replaceMatch = /^\/api\/pools\/([^/]+)\/replace\/(identify|offline|scan|replace)$/.exec(path);
+  if (replaceMatch) {
+    const [, poolName, step] = replaceMatch;
+    const poolId = await poolIdOf(nas, poolName);
+    const b = method === "POST" ? await bodyOf(req) : {};
+
+    if (step === "identify" && method === "GET") {
+      const [pool] = await nas.call<PoolRow[]>("pool.query", [[["name", "=", poolName]]]);
+      if (!pool) throw new Error(`There is no pool called "${poolName}".`);
+      const [details, disks] = await Promise.all([
+        nas.call<{ used?: Array<Record<string, unknown>>; unused?: Array<Record<string, unknown>> }>("disk.details"),
+        nas.call<Array<Record<string, unknown>>>("disk.query"),
+      ]);
+      const byName = new Map(disks.map((d) => [String(d.name), d]));
+
+      // Every member that is not ONLINE, with whatever the NAS still knows
+      // about the physical device behind it.
+      const faulted: Array<Record<string, unknown>> = [];
+      for (const [role, vdevs] of Object.entries((pool.topology ?? {}) as Record<string, VdevLeaf[]>)) {
+        for (const vdev of vdevs ?? []) {
+          const walk = (node: VdevLeaf & { guid?: string; name?: string }) => {
+            const kids = node.children ?? [];
+            if (!kids.length) {
+              const dev = node.disk ?? node.device ?? null;
+              if (node.status && node.status !== "ONLINE") {
+                const d = dev ? byName.get(dev) : undefined;
+                faulted.push({
+                  guid: node.guid ?? node.name ?? null,
+                  device: dev,
+                  status: node.status,
+                  role,
+                  vdev: vdev.type,
+                  model: d?.model ?? null,
+                  serial: d?.serial ?? null,
+                  size: d?.size ?? null,
+                });
+              }
+            }
+            for (const c of kids) walk(c as never);
+          };
+          walk(vdev as never);
+        }
+      }
+
+      json(res, 200, {
+        pool: poolName,
+        status: pool.status,
+        faulted,
+        spare: (details.unused ?? []).map((d) => ({
+          name: d.name, model: d.model, serial: d.serial, size: d.size, type: d.type,
+        })),
+      });
+      return true;
+    }
+
+    if (step === "offline" && method === "POST") {
+      const label = str(b, "label");
+      confirmed(b, label);
+      await nas.call("pool.offline", [poolId, { label }]);
+      json(res, 200, { ok: true });
+      return true;
+    }
+
+    if (step === "scan" && method === "POST") {
+      // retaste makes the NAS re-read every disk's label, which is how a drive
+      // plugged in after boot becomes visible without a reboot.
+      await nas.call("disk.retaste", [[]]).catch(() => nas.call("disk.retaste"));
+      const details = await nas.call<{ unused?: Array<Record<string, unknown>> }>("disk.details");
+      json(res, 200, {
+        spare: (details.unused ?? []).map((d) => ({
+          name: d.name, model: d.model, serial: d.serial, size: d.size, type: d.type,
+        })),
+      });
+      return true;
+    }
+
+    if (step === "replace" && method === "POST") {
+      const label = str(b, "label");
+      const disk = str(b, "disk");
+      confirmed(b, disk);
+      json(res, 200, {
+        jobId: await nas.startJob("pool.replace", [poolId, {
+          label,
+          disk,
+          force: b.force === true,
+          preserve_settings: true,
+        }]),
+      });
+      return true;
+    }
+  }
+
   const diskHealth = /^\/api\/disks\/([^/]+)\/health$/.exec(path);
   if (diskHealth && method === "GET") {
     json(res, 200, await diskHealthOf(nas, diskHealth[1]));
@@ -890,7 +1125,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       [{ identifier, mode: "BACKGROUND", type: kind }],
     ]);
     const first = out?.[0] ?? {};
-    if (first.error) throw new Error(String(first.error));
+    if (first.error) throw new Error(readableSmartError(String(first.error), name));
     json(res, 200, { ok: true, expectedAt: (first.expected_result_time as { $date?: number })?.$date ?? null });
     return true;
   }
@@ -1953,6 +2188,22 @@ async function isMirror(nas: TrueNas, dir: string): Promise<boolean> {
   return await nas.call("filesystem.stat", [outside]).then(() => true).catch(() => false);
 }
 
+/**
+ * What smartctl said, in a sentence.
+ *
+ * The NAS hands back the tool's whole banner — version, copyright, build
+ * string — with the actual reason on the last line. Showing that in a dialog
+ * buries the one line that matters under four that never do.
+ */
+function readableSmartError(raw: string, disk: string): string {
+  const last = raw.split("\n").map((l) => l.trim()).filter(Boolean).pop() ?? raw;
+  if (/unsupported scsi opcode|not supported|unsupported/i.test(last)) {
+    return `${disk} does not support self-tests. Virtual disks and some USB enclosures pass the drive through without SMART, so there is nothing to run — the health above is based on what ZFS has seen instead.`;
+  }
+  if (/device is busy|already running/i.test(last)) return `A test is already running on ${disk}.`;
+  return last;
+}
+
 /** smart.test.manual_test addresses disks by identifier ("{serial}9KG1859L"). */
 async function identifierOf(nas: TrueNas, name: string): Promise<string> {
   const rows = await nas.call<Array<{ identifier: string }>>("disk.query", [[["name", "=", name]]]);
@@ -2234,8 +2485,28 @@ const server = createServer(async (req, res) => {
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error(`[api] ${req.method} ${url.pathname}: ${message}`);
-    if (!res.headersSent) json(res, 502, { error: message });
-    else res.end();
+    if (!res.headersSent) {
+      /*
+       * 400, not 502.
+       *
+       * Nearly everything that lands here is the NAS declining something —
+       * "this drive does not support self-tests", "dataset is busy", "pool not
+       * found". That is a bad request, not a broken gateway, and the
+       * distinction is not academic: a reverse proxy is entitled to replace a
+       * 5xx body with its own error page, and Cloudflare does. Through the
+       * tunnel every one of these arrived at the browser as
+       * "error code: 502" in HTML, which the client then tried to parse as
+       * JSON — so the user saw `Unexpected token '<'` instead of the reason.
+       *
+       * 502 is kept for the one case it describes: this console could not
+       * reach the NAS at all.
+       */
+      const unreachable = /not reachable|ECONNREFUSED|ETIMEDOUT|socket hang up|certificate|WebSocket|no TrueNAS server/i
+        .test(message);
+      json(res, unreachable ? 502 : 400, { error: message });
+    } else {
+      res.end();
+    }
   }
 });
 

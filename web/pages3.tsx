@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { bytes, del, get, getConnection, post, put, setConnection, useResource, withConn } from "./api";
 import { Card, Empty, ErrorBanner, Loading, Pill, TAGLINE } from "./components";
 import { DangerConfirm, Field, Input, JobProgress, Modal, Select, Toggle, useSubmit } from "./ui";
-import { AppearanceTab, ConsoleUpdateTab, EmailTab, NotificationsTab, SecurityTab, UpdatesTab, type WatchConfig } from "./settings-tabs";
+import { AppearanceTab, ConsoleUpdateTab, EmailTab, NotificationsTab, SecurityTab, UpdatesTab, type WatchConfig, type Webhook } from "./settings-tabs";
 import { ConsoleUsersTab } from "./console-users";
 import { PermissionsModal } from "./permissions";
 import { RecycleBin } from "./recycle-bin";
@@ -207,6 +207,7 @@ export interface ConsoleSettings {
   notify: {
     watchDisks: boolean; email: boolean; recipients: string[];
     watch: WatchConfig; emailLevel: "info" | "warn" | "bad";
+    webhooks: Webhook[]; greetName: string;
   };
 }
 

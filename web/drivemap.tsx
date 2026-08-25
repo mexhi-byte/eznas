@@ -2,6 +2,8 @@ import { useState } from "react";
 import { bytes, useResource } from "./api";
 import { Empty, ErrorBanner, Loading } from "./components";
 import { DiskHealthModal } from "./disk-health";
+import { ReplaceDiskWizard } from "./replace-disk";
+import { JobProgress } from "./ui";
 import type { PoolSummary } from "./pages";
 
 interface Disk {
@@ -28,6 +30,8 @@ export function DriveMapPage() {
   const { data: pools, error, loading } = useResource<PoolSummary[]>("/api/pools", 30_000);
   const { data: disks } = useResource<Disk[]>("/api/disks", 30_000);
   const [inspecting, setInspecting] = useState<string | null>(null);
+  const [replacingIn, setReplacingIn] = useState<string | null>(null);
+  const [jobs, setJobs] = useState<Array<{ id: number; label: string }>>([]);
 
   const byName = new Map((disks ?? []).map((d) => [d.name, d]));
   const claimed = new Set(
@@ -75,6 +79,18 @@ export function DriveMapPage() {
             <div className={`fat-bar ${pct >= 90 ? "bad" : pct >= 75 ? "warn" : ""}`}>
               <i style={{ width: `${Math.max(2, Math.min(100, pct))}%` }} />
             </div>
+
+            {!pool.healthy && (
+              <div className="degraded-banner">
+                <div>
+                  <b>This pool has a failed drive</b>
+                  <span>Replacing it is a guided, three-step job.</span>
+                </div>
+                <button className="btn primary" onClick={() => setReplacingIn(pool.name)}>
+                  Guide me through replacing it
+                </button>
+              </div>
+            )}
 
             <div className="vdevs">
               {pool.vdevs.map((v, i) => (
@@ -148,6 +164,23 @@ export function DriveMapPage() {
       </div>
 
       {inspecting && <DiskHealthModal name={inspecting} onClose={() => setInspecting(null)} />}
+
+      {replacingIn && (
+        <ReplaceDiskWizard
+          pool={replacingIn}
+          onClose={() => setReplacingIn(null)}
+          onJob={(id, label) => setJobs((j) => [...j, { id, label }])}
+        />
+      )}
+
+      {!!jobs.length && (
+        <div className="job-tray">
+          {jobs.map((j) => (
+            <JobProgress key={j.id} jobId={j.id} label={j.label}
+              onDone={() => setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 8000)} />
+          ))}
+        </div>
+      )}
     </>
   );
 }

@@ -902,3 +902,59 @@ a.app-tile:hover { transform: translateY(-2px); border-color: var(--accent); }
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
 }
+
+/* One configured push target. */
+.hook-card { padding: 13px 15px; border-radius: var(--radius); background: var(--panel); border: 1px solid var(--line); }
+.hook-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.hook-top .input { max-width: 190px; }
+.hook-top .btn { flex: none; padding: 6px 12px; }
+
+/* Live / 24-hour switch on a metric card. */
+.card-foot-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.range-toggle {
+  background: none; border: none; padding: 2px 0;
+  color: var(--accent); font: inherit; font-size: 11.5px; font-weight: 600;
+}
+.range-toggle:hover { text-decoration: underline; }
+.spark-placeholder {
+  height: 38px; display: grid; place-items: center;
+  color: var(--faint); font-size: 11.5px;
+}
+
+/* ------------------------------------------------- guided disk replacement */
+
+.degraded-banner {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin-top: 14px; padding: 13px 15px; border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bad) 45%, transparent);
+}
+.degraded-banner b { display: block; font-size: 14px; }
+.degraded-banner span { font-size: 12.5px; color: var(--muted); }
+.degraded-banner .btn { margin-left: auto; flex: none; padding: 9px 16px; }
+
+.wizard-steps {
+  display: flex; gap: 8px; list-style: none; padding: 0; margin: 0 0 18px;
+  flex-wrap: wrap;
+}
+.wizard-steps li {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 13px 6px 7px; border-radius: 999px;
+  background: var(--hover); border: 1px solid var(--line);
+  font-size: 12.5px; color: var(--muted);
+}
+.wizard-steps li.on { border-color: var(--accent); color: var(--text); background: var(--accent-dim); }
+.wizard-steps li span {
+  width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center;
+  background: var(--line-strong); color: var(--text); font-size: 11px; font-weight: 700;
+}
+.wizard-steps li.on span { background: var(--accent); color: var(--accent-ink); }
+
+.failed-disk {
+  margin: 14px 0; padding: 14px 16px; border-radius: var(--radius);
+  background: color-mix(in srgb, var(--bad) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
+}
+.failed-disk-head { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+
+.plain-steps { margin: 0 0 14px; padding-left: 20px; display: grid; gap: 8px; font-size: 13.5px; line-height: 1.55; }

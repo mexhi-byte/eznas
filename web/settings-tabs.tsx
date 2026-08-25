@@ -11,6 +11,10 @@ const THEMES = [
   { id: "daylight", name: "Daylight", note: "light", colors: ["#f4f6f9", "#ffffff", "#1c7fc4", "#1a9c68"] },
   { id: "glacier", name: "Glacier", note: "cool grey", colors: ["#1a2029", "#262f3b", "#8fc0e0", "#9dc99b"] },
   { id: "ember", name: "Ember", note: "warm dark", colors: ["#12100e", "#1e1a16", "#f0a24a", "#a8c86a"] },
+  { id: "nord", name: "Nord", note: "slate and pastel", colors: ["#2e3440", "#3b4252", "#88c0d0", "#a3be8c"] },
+  { id: "dracula", name: "Dracula", note: "purple and pink", colors: ["#282a36", "#343746", "#bd93f9", "#50fa7b"] },
+  { id: "cyberpunk", name: "Cyberpunk", note: "black and neon", colors: ["#07070b", "#101018", "#00e5a0", "#ff2e63"] },
+  { id: "cozy", name: "Cozy", note: "warm brown, night", colors: ["#1c1714", "#26201b", "#e0a878", "#a8c08a"] },
 ];
 
 export function AppearanceTab({ theme, onTheme }: { theme: string; onTheme: (t: string) => void }) {
@@ -221,10 +225,31 @@ export interface WatchConfig {
   zfsErrors: boolean; apps: boolean; scrubs: boolean; updates: boolean; reachability: boolean;
 }
 
+export type WebhookKind = "discord" | "telegram" | "ntfy" | "generic";
+
+export interface Webhook {
+  id: string;
+  kind: WebhookKind;
+  url: string;
+  botToken?: string;
+  chatId?: string;
+  topic?: string;
+  enabled: boolean;
+  level: "info" | "warn" | "bad";
+}
+
+const KINDS: Array<{ id: WebhookKind; label: string; hint: string }> = [
+  { id: "discord", label: "Discord", hint: "Server Settings → Integrations → Webhooks → Copy Webhook URL." },
+  { id: "telegram", label: "Telegram", hint: "Make a bot with @BotFather, then message it once and use your chat id." },
+  { id: "ntfy", label: "ntfy", hint: "Pick any topic name and subscribe to it in the ntfy app. No account needed." },
+  { id: "generic", label: "Anything else", hint: "A plain JSON POST — Slack, Home Assistant, Gotify, your own script." },
+];
+
 export function NotificationsTab({ notify, onSaved }: {
   notify: {
     watchDisks: boolean; email: boolean; recipients: string[];
     watch: WatchConfig; emailLevel: "info" | "warn" | "bad";
+    webhooks: Webhook[]; greetName: string;
   };
   onSaved: () => void;
 }) {
@@ -234,6 +259,22 @@ export function NotificationsTab({ notify, onSaved }: {
   const [emailLevel, setEmailLevel] = useState(notify.emailLevel);
   const [recipients, setRecipients] = useState(notify.recipients.join(", "));
   const [testing, setTesting] = useState<string | null>(null);
+  const [hooks, setHooks] = useState<Webhook[]>(notify.webhooks ?? []);
+  const [greetName, setGreetName] = useState(notify.greetName ?? "");
+  const [hookNote, setHookNote] = useState<string | null>(null);
+
+  const patchHook = (i: number, patch: Partial<Webhook>) =>
+    setHooks(hooks.map((h, j) => (j === i ? { ...h, ...patch } : h)));
+
+  async function testHook(h: Webhook) {
+    setHookNote("Sending…");
+    try {
+      await post("/api/notify/test", h);
+      setHookNote("Sent. Check your phone.");
+    } catch (e) {
+      setHookNote(e instanceof Error ? e.message : String(e));
+    }
+  }
 
   const set = <K extends keyof WatchConfig>(k: K, v: WatchConfig[K]) => setWatch({ ...watch, [k]: v });
 
@@ -245,6 +286,8 @@ export function NotificationsTab({ notify, onSaved }: {
         emailLevel,
         watch,
         recipients: recipients.split(",").map((s) => s.trim()).filter(Boolean),
+        webhooks: hooks,
+        greetName,
       },
     });
     onSaved();
@@ -310,6 +353,104 @@ export function NotificationsTab({ notify, onSaved }: {
           </div>
         </div>
       </Card>
+
+      <div style={{ marginTop: 16 }}>
+        <Card title="On your phone">
+          <p className="modal-text" style={{ marginTop: 0 }}>
+            Push the same notifications somewhere you will actually see them. Nobody opens a server dashboard on a
+            Saturday, and a drive failing at 2am matters within the hour.
+          </p>
+
+          <Field label="Call me" hint="Optional. Puts your name in the message so it reads like a person wrote it.">
+            <Input value={greetName} onChange={(e) => setGreetName(e.target.value)} placeholder="Mexhit" style={{ maxWidth: 240 }} />
+          </Field>
+
+          <div className="grid" style={{ gap: 12, marginTop: 6 }}>
+            {hooks.map((h, i) => {
+              const kind = KINDS.find((k) => k.id === h.kind);
+              return (
+                <div key={h.id} className="hook-card">
+                  <div className="hook-top">
+                    <Select value={h.kind} onChange={(e) => patchHook(i, { kind: e.target.value as WebhookKind })}>
+                      {KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+                    </Select>
+                    <Select value={h.level} onChange={(e) => patchHook(i, { level: e.target.value as "warn" })}>
+                      <option value="bad">Only problems</option>
+                      <option value="warn">Problems and warnings</option>
+                      <option value="info">Everything</option>
+                    </Select>
+                    <Toggle checked={h.enabled} onChange={(v) => patchHook(i, { enabled: v })} label="On" />
+                    <button className="btn" onClick={() => void testHook(h)}>Test</button>
+                    <button className="btn danger" onClick={() => setHooks(hooks.filter((_, j) => j !== i))}>Remove</button>
+                  </div>
+
+                  {h.kind === "telegram" ? (
+                    <div className="row">
+                      <Field label="Bot token">
+                        <Input
+                          type="password"
+                          value={h.botToken ?? ""}
+                          onChange={(e) => patchHook(i, { botToken: e.target.value })}
+                          placeholder="123456:ABC-DEF…"
+                        />
+                      </Field>
+                      <Field label="Chat id">
+                        <Input value={h.chatId ?? ""} onChange={(e) => patchHook(i, { chatId: e.target.value })} placeholder="123456789" />
+                      </Field>
+                    </div>
+                  ) : h.kind === "ntfy" ? (
+                    <div className="row">
+                      <Field label="Server">
+                        <Input value={h.url} onChange={(e) => patchHook(i, { url: e.target.value })} placeholder="https://ntfy.sh" />
+                      </Field>
+                      <Field label="Topic">
+                        <Input value={h.topic ?? ""} onChange={(e) => patchHook(i, { topic: e.target.value })} placeholder="my-nas-alerts" />
+                      </Field>
+                    </div>
+                  ) : (
+                    <Field label="Webhook URL">
+                      <Input value={h.url} onChange={(e) => patchHook(i, { url: e.target.value })} placeholder="https://…" />
+                    </Field>
+                  )}
+
+                  <p className="field-hint">{kind?.hint}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+            {KINDS.map((k) => (
+              <button
+                key={k.id}
+                className="btn"
+                style={{ flex: "none" }}
+                onClick={() =>
+                  setHooks([...hooks, {
+                    id: `new-${Date.now()}-${k.id}`,
+                    kind: k.id,
+                    url: k.id === "ntfy" ? "https://ntfy.sh" : "",
+                    enabled: true,
+                    level: "warn",
+                  }])
+                }
+              >
+                + {k.label}
+              </button>
+            ))}
+          </div>
+
+          {hookNote && (
+            <div className={hookNote === "Sending…" ? "job" : "job done"} style={{ marginTop: 12 }}>
+              <span className="job-label">{hookNote}</span>
+            </div>
+          )}
+
+          <p className="modal-text">
+            Saved with the Save button below. A test sends through what is saved, so save a new one first.
+          </p>
+        </Card>
+      </div>
 
       <div style={{ marginTop: 16 }}>
         <Card title="Email">
