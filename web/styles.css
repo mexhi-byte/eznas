@@ -1013,3 +1013,17 @@ a.app-tile:hover { transform: translateY(-2px); border-color: var(--accent); }
 .search-hit:hover { background: var(--panel); }
 .search-hit-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .search-hit-dir { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46%; }
+/* ------------------------------------------------------------ share kinds */
+/*
+ * The protocol switch. Two cards rather than a dropdown, because the choice
+ * changes what the rest of the form asks and each option needs a sentence to
+ * explain who it is for.
+ */
+.proto-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.proto { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 10px 12px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.proto span { color: var(--muted); font-size: 12px; }
+.proto:hover { border-color: var(--accent); }
+.proto.on { border-color: var(--accent); background: var(--panel-solid); }
+.net-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.net-row > :first-child { flex: 1; }
+details.advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; margin: 12px 0 6px; }

@@ -12,7 +12,7 @@ interface SmbShare {
   readOnly: boolean;
 }
 
-interface NfsShare { path: string; enabled: boolean; comment?: string; networks?: string[]; hosts?: string[] }
+interface NfsShare { id: number; path: string; enabled: boolean; comment?: string; networks?: string[]; hosts?: string[] }
 
 interface Shares { smb: SmbShare[]; nfs: NfsShare[] }
 
@@ -28,6 +28,7 @@ export function SharesPage() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<SmbShare | null>(null);
   const [removing, setRemoving] = useState<SmbShare | null>(null);
+  const [removingNfs, setRemovingNfs] = useState<NfsShare | null>(null);
   const [jobs, setJobs] = useState<Array<{ id: number; label: string }>>([]);
 
   return (
@@ -86,7 +87,7 @@ export function SharesPage() {
           {data?.nfs.length ? (
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Path</th><th>Allowed</th><th>State</th></tr></thead>
+                <thead><tr><th>Path</th><th>Allowed</th><th>State</th><th style={{ width: 110 }} /></tr></thead>
                 <tbody>
                   {data.nfs.map((s) => {
                     const allowed = [...(s.networks ?? []), ...(s.hosts ?? [])];
@@ -97,6 +98,11 @@ export function SharesPage() {
                           {allowed.length ? allowed.join(", ") : "everyone"}
                         </td>
                         <td><Pill state={s.enabled ? "ONLINE" : "STOPPED"}>{s.enabled ? "on" : "off"}</Pill></td>
+                        <td>
+                          <div className="row-actions">
+                            <button className="btn danger" onClick={() => setRemovingNfs(s)}>Remove</button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -104,7 +110,7 @@ export function SharesPage() {
               </table>
             </div>
           ) : (
-            !loading && <Empty>No NFS exports. These are managed in the TrueNAS interface.</Empty>
+            !loading && <Empty>No NFS exports yet. Use “Share a folder” and choose Linux and Unix.</Empty>
           )}
         </Card>
       </div>
@@ -136,6 +142,25 @@ export function SharesPage() {
             <p className="modal-text" style={{ marginTop: 10 }}>
               The folder stops appearing on the network. Nothing inside it is touched, and the permissions on it stay
               as they are.
+            </p>
+          }
+        />
+      )}
+
+      {removingNfs && (
+        <DangerConfirm
+          what="export"
+          name={removingNfs.path}
+          verb="Remove"
+          onCancel={() => setRemovingNfs(null)}
+          onConfirm={async (confirm) => {
+            await del(`/api/shares/nfs/${removingNfs.id}`, { confirm });
+            await reload();
+          }}
+          extra={
+            <p className="modal-text" style={{ marginTop: 10 }}>
+              The folder stops being mountable. Nothing inside it is touched, and machines that have it mounted now
+              will see it stop responding rather than be told it has gone.
             </p>
           }
         />
@@ -178,11 +203,34 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
   const [grants, setGrants] = useState<Grant[]>([]);
   const [recursive, setRecursive] = useState(false);
   const [done, setDone] = useState<string | null>(null);
+  const [protocol, setProtocol] = useState<"smb" | "nfs">("smb");
+  // One empty row to start: an empty list is the dangerous default, so the
+  // form should look like it is waiting for something rather than finished.
+  const [networks, setNetworks] = useState<string[]>([""]);
+  const [maproot, setMaproot] = useState(false);
+  const [group, setGroup] = useState<number | null>(null);
 
   const chosen = path || usable[0]?.mountpoint || "";
   const shareName = name || chosen.split("/").pop() || "";
 
   const { busy, error, submit } = useSubmit(async () => {
+    if (protocol === "nfs") {
+      const r = await post<{ startedService: boolean; permissionsJobId: number | null }>("/api/shares/nfs", {
+        path: chosen,
+        networks: networks.map((n) => n.trim()).filter(Boolean),
+        hosts: [],
+        readOnly,
+        comment: "",
+        maproot,
+        // The server reads `group`. Sending `groupId` here would leave the
+        // folder's permissions untouched and the export unwritable, silently.
+        group,
+        recursive,
+      });
+      setDone(r.startedService ? "Exported, and NFS was switched on for you." : "Exported.");
+      onDone(r.permissionsJobId);
+      return;
+    }
     const r = await post<{ startedService: boolean; permissionsJobId: number | null }>("/api/shares/smb", {
       name: shareName,
       path: chosen,
@@ -214,13 +262,20 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
 
   if (done) {
     return (
-      <Modal title="Shared" subtitle={chosen} onClose={onClose} footer={<button className="btn primary" onClick={onClose}>Done</button>}>
+      <Modal title={protocol === "nfs" ? "Exported" : "Shared"} subtitle={chosen} onClose={onClose} footer={<button className="btn primary" onClick={onClose}>Done</button>}>
         <p className="modal-text">{done}</p>
-        <p className="modal-text">
-          On Windows it is <strong className="mono">\\{location.hostname}\{shareName}</strong>; on a Mac, Go → Connect
-          to Server. People sign in with their NAS account.
-        </p>
-        {!grants.length && (
+        {protocol === "nfs" ? (
+          <p className="modal-text">
+            On Linux:{" "}
+            <strong className="mono">sudo mount -t nfs {location.hostname}:{chosen} /mnt/somewhere</strong>
+          </p>
+        ) : (
+          <p className="modal-text">
+            On Windows it is <strong className="mono">\\{location.hostname}\{shareName}</strong>; on a Mac, Go → Connect
+            to Server. People sign in with their NAS account.
+          </p>
+        )}
+        {protocol === "smb" && !grants.length && (
           <p className="modal-text" style={{ color: "var(--warn)" }}>
             Nobody was given access, so the folder's existing permissions decide who can open it — which may be
             nobody. Use Access on the folder to grant someone.
@@ -233,18 +288,42 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
   return (
     <Modal
       title="Share a folder"
-      subtitle="Windows, macOS and Linux see it as a normal network folder."
+      subtitle={protocol === "nfs"
+        ? "Exported to the machines you name, mounted by path."
+        : "Windows, macOS and Linux see it as a normal network folder."}
       onClose={onClose}
       wide
       footer={
         <>
           <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="btn primary" disabled={busy || !chosen || !shareName} onClick={() => void submit(undefined as void)}>
-            {busy ? "Sharing…" : "Share it"}
+          {/* An NFS export with no machines is refused by the server; disabling
+              the button says so before the round trip rather than after. */}
+          <button
+            className="btn primary"
+            disabled={busy || !chosen || (protocol === "smb" ? !shareName : !networks.some((n) => n.trim()))}
+            onClick={() => void submit(undefined as void)}
+          >
+            {busy ? (protocol === "nfs" ? "Exporting…" : "Sharing…") : protocol === "nfs" ? "Export it" : "Share it"}
           </button>
         </>
       }
     >
+      {/* Asked first, because it changes what the rest of the form asks. SMB
+          authenticates people; NFS without Kerberos authenticates machines and
+          then trusts whatever user id they claim. */}
+      <Field label="Who needs to reach it">
+        <div className="proto-switch">
+          <button type="button" className={`proto ${protocol === "smb" ? "on" : ""}`} onClick={() => setProtocol("smb")}>
+            <strong>Windows, Mac and phones</strong>
+            <span>People sign in with their NAS account.</span>
+          </button>
+          <button type="button" className={`proto ${protocol === "nfs" ? "on" : ""}`} onClick={() => setProtocol("nfs")}>
+            <strong>Linux and Unix</strong>
+            <span>Machines are allowed by address, not by account.</span>
+          </button>
+        </div>
+      </Field>
+
       {fixedPath ? (
         <Field label="Folder"><Input value={fixedPath} readOnly /></Field>
       ) : (
@@ -255,15 +334,79 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
         </Field>
       )}
 
-      <Field label="Name on the network" hint="What it is called when somebody browses to this server.">
-        <Input
-          value={name}
-          placeholder={chosen.split("/").pop() ?? ""}
-          onChange={(e) => setName(e.target.value.replace(/[^A-Za-z0-9 _-]/g, ""))}
-        />
-      </Field>
+      {/* An NFS export is reached by path, not by a name of its own. */}
+      {protocol === "smb" && (
+        <Field label="Name on the network" hint="What it is called when somebody browses to this server.">
+          <Input
+            value={name}
+            placeholder={chosen.split("/").pop() ?? ""}
+            onChange={(e) => setName(e.target.value.replace(/[^A-Za-z0-9 _-]/g, ""))}
+          />
+        </Field>
+      )}
 
-      <div className="dh-section" style={{ marginTop: 18 }}>
+      {protocol === "nfs" && (
+        <>
+          <Field
+            label="Which machines"
+            hint="An address like 192.168.1.50, or a whole network like 192.168.1.0/24."
+          >
+            {networks.map((n, i) => (
+              <div key={i} className="net-row">
+                <Input
+                  value={n}
+                  placeholder="192.168.1.0/24"
+                  onChange={(e) => setNetworks(networks.map((x, j) => (j === i ? e.target.value : x)))}
+                />
+                {networks.length > 1 && (
+                  <button className="link-btn" onClick={() => setNetworks(networks.filter((_, j) => j !== i))}>
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            <button className="link-btn" onClick={() => setNetworks([...networks, ""])}>Add another</button>
+            {!networks.some((n) => n.trim()) && (
+              <p className="modal-text" style={{ color: "var(--warn)" }}>
+                Leaving this empty would export the folder to every device on your network. The console refuses to
+                create that.
+              </p>
+            )}
+          </Field>
+
+          {!readOnly && (
+            <Field label="Which group owns it" hint="Members of this group get write access to the folder itself.">
+              <Select value={String(group ?? "")} onChange={(e) => setGroup(e.target.value ? Number(e.target.value) : null)}>
+                <option value="">Leave the folder's permissions alone</option>
+                {(who?.groups ?? []).map((g) => <option key={g.gid} value={g.gid}>{g.group}</option>)}
+              </Select>
+              {group === null && (
+                <p className="modal-text" style={{ color: "var(--warn)" }}>
+                  A dataset starts owned by root with everyone else read-only, so a read-write export nobody adjusted
+                  mounts and then refuses every write.
+                </p>
+              )}
+            </Field>
+          )}
+
+          <details className="advanced">
+            <summary>Advanced</summary>
+            <Toggle
+              checked={maproot}
+              onChange={setMaproot}
+              label="Let root on those machines write as root here"
+            />
+            <p className="modal-text" style={{ color: "var(--warn)" }}>
+              With this on, anyone with administrator access to any machine you allowed above can read, change and
+              delete anything in this folder, whatever its permissions say. It is the usual advice in forum threads
+              about NFS permissions because it makes the symptom go away. Leave it off unless something specifically
+              needs it.
+            </p>
+          </details>
+        </>
+      )}
+
+      <div className="dh-section" style={{ marginTop: 18, display: protocol === "smb" ? undefined : "none" }}>
         <h3>Who can use it</h3>
         <div className="perm-rows">
           {grants.map((g, i) => (

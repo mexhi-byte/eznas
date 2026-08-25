@@ -52,15 +52,10 @@ describe("every shipped feature is reachable from the interface", () => {
   it("search has a caller, not just a transport", () => {
     expect(mentions("searchFiles")).not.toEqual([]);
   });
-});
 
-describe("features that are still backend-only", () => {
-  /*
-   * These are the remaining halves of 0.5.0. Each `it` here is a standing
-   * reminder rather than a passing test of a working feature: when the
-   * interface lands, flip the assertion to the reachable form above.
-   */
-  it("NFS exports have a route but no dialog yet", () => {
-    expect(mentions("shares/nfs")).toEqual([]);
+  it("NFS exports have a dialog, not just a route", () => {
+    // A path fragment rather than an identifier: the dialog posts to the
+    // endpoint directly, so there is no imported function name to look for.
+    expect(componentSources().filter((s) => s.text.includes("/api/shares/nfs"))).not.toEqual([]);
   });
 });
