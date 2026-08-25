@@ -4,6 +4,7 @@ import type { TrueNas } from "../truenas.js";
 import * as store from "../store.js";
 import * as files from "../files.js";
 import * as exec from "../nas-exec.js";
+import { uploadTo } from "../upload.js";
 import { bodyOf, confirmed, json, str, underMnt } from "../http.js";
 import { levelToPerms, type AclEntry, type AclResult } from "../acl.js";
 
@@ -328,6 +329,43 @@ export async function handleFileRoutes(ctx: FileRouteContext): Promise<boolean> 
         json(res, 200, { ok: true });
         return true;
       }
+    }
+
+    /**
+     * Receiving a file.
+     *
+     * The body is the file itself, streamed straight through to the NAS — the
+     * multipart envelope is added on the far side, so nothing is buffered here
+     * and a file larger than this console's memory is not a special case.
+     *
+     * The folder and the name travel in the query rather than in a form,
+     * because reading a multipart form to find out where to send a multipart
+     * form means holding the whole upload first.
+     */
+    if (path === "/api/files/upload" && method === "POST") {
+      const dir = underMnt(url.searchParams.get("path") ?? "");
+      const name = url.searchParams.get("name") ?? "";
+      const size = Number(req.headers["content-length"] ?? 0);
+      if (!Number.isFinite(size) || size <= 0) {
+        json(res, 400, { error: "The upload did not say how large it is." });
+        return true;
+      }
+      // Normalising collapses any ".." the name carries; underMnt then decides
+      // whether the result is allowed. Both are needed — the first makes the
+      // path canonical, the second is the check.
+      const target = underMnt(posix.normalize(`${dir}/${name}`));
+      // And the folder must still be the one that was asked for: a name of
+      // "../elsewhere/x" normalises to a valid path under /mnt, which underMnt
+      // would accept while writing somewhere nobody chose.
+      if (posix.dirname(target) !== dir) {
+        json(res, 400, { error: "That file name cannot be used." });
+        return true;
+      }
+      const conn = store.get(url.searchParams.get("c"));
+      if (!conn) throw new Error("No TrueNAS server is configured.");
+      await uploadTo(nas, conn, target, req, size);
+      json(res, 200, { path: target });
+      return true;
     }
 
     if (path === "/api/files/mkdir" && method === "POST") {
