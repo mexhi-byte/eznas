@@ -8,7 +8,8 @@ import { SharesPage } from "./shares";
 import { SnapshotsPage } from "./snapshots";
 import { HomePage } from "./home";
 import { DriveMapPage } from "./drivemap";
-import { CatalogPage, FilesPage, SettingsPage, UsersPage, type Conn } from "./pages3";
+import { CatalogPage, SettingsPage, UsersPage, type Conn } from "./pages3";
+import { FilesPage } from "./files-page";
 import { NetworkPage, TerminalPage } from "./pages4";
 
 /**
