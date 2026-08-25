@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { Readable } from "node:stream";
 import { isHost, isNetwork, nfsPayload } from "../server/nfs.js";
+import { handleShareRoutes } from "../server/routes/shares.js";
 
 describe("isNetwork", () => {
   it("accepts a CIDR block", () => expect(isNetwork("192.168.1.0/24")).toBe(true));
@@ -80,5 +82,112 @@ describe("nfsPayload", () => {
   it("drops empty entries left behind by an editing UI", () => {
     const p = nfsPayload({ ...base, networks: ["10.0.0.0/8", "", "  "] });
     expect(p.networks).toEqual(["10.0.0.0/8"]);
+  });
+});
+
+/**
+ * The route, against a NAS that only records what it was asked to do.
+ *
+ * The claim worth testing is an ordering one: nothing reaches the NAS until
+ * the machine list has been validated. Asserting that nfsPayload throws does
+ * not test it — a route that created the export first and validated second
+ * would pass that and still export the folder to the whole network.
+ */
+function fakeNas() {
+  const calls: Array<{ method: string; params: unknown[] }> = [];
+  return {
+    calls,
+    call: async (method: string, params: unknown[] = []) => {
+      calls.push({ method, params });
+      if (method === "service.query") return [{ state: "STOPPED" }];
+      return { id: 7 };
+    },
+    startJob: async (method: string, params: unknown[] = []) => {
+      calls.push({ method, params });
+      return 42;
+    },
+  };
+}
+
+function fakeRes() {
+  const out: { status?: number; body?: unknown } = {};
+  return {
+    out,
+    writeHead(status: number) { out.status = status; return this; },
+    end(s: string) { out.body = JSON.parse(s); },
+  };
+}
+
+async function postNfs(body: Record<string, unknown>) {
+  const nas = fakeNas();
+  const res = fakeRes();
+  const req = Readable.from([Buffer.from(JSON.stringify(body))]);
+  const run = handleShareRoutes({
+    path: "/api/shares/nfs",
+    method: "POST",
+    url: new URL("http://nas.local/api/shares/nfs"),
+    req: req as never,
+    res: res as never,
+    nas: nas as never,
+  });
+  return { run, nas, res };
+}
+
+describe("the NFS route", () => {
+  const machines = { path: "/mnt/tank/media", networks: ["192.168.1.0/24"] };
+
+  it("reaches the NAS not at all when no machines are named", async () => {
+    const { run, nas } = await postNfs({ path: "/mnt/tank/media", networks: [], hosts: [] });
+    await expect(run).rejects.toThrow(/which machines/i);
+    // Not "did not create the export" — did not speak to the NAS at all, so
+    // no service was started and no half-made export was left behind.
+    expect(nas.calls).toEqual([]);
+  });
+
+  it("refuses a malformed network without creating anything", async () => {
+    const { run, nas } = await postNfs({ path: "/mnt/tank/media", networks: ["192.168.1.0"] });
+    await expect(run).rejects.toThrow(/192\.168\.1\.0/);
+    expect(nas.calls).toEqual([]);
+  });
+
+  it("creates the export, then starts nfs when it is off", async () => {
+    const { run, nas, res } = await postNfs(machines);
+    await expect(run).resolves.toBe(true);
+    const order = nas.calls.map((c) => c.method);
+    expect(order[0]).toBe("sharing.nfs.create");
+    expect(order).toContain("service.start");
+    expect(res.out.status).toBe(200);
+    expect((res.out.body as { startedService: boolean }).startedService).toBe(true);
+  });
+
+  it("does not touch the folder's permissions when no group was chosen", async () => {
+    const { run, nas, res } = await postNfs(machines);
+    await run;
+    expect(nas.calls.map((c) => c.method)).not.toContain("filesystem.setperm");
+    expect((res.out.body as { permissionsJobId: number | null }).permissionsJobId).toBeNull();
+  });
+
+  it("makes the folder group-writable when a group was chosen", async () => {
+    const { run, nas } = await postNfs({ ...machines, group: 1001 });
+    await run;
+    const perm = nas.calls.find((c) => c.method === "filesystem.setperm");
+    expect(perm).toBeDefined();
+    expect((perm!.params[0] as { gid: number; mode: string }).gid).toBe(1001);
+    expect((perm!.params[0] as { gid: number; mode: string }).mode).toBe("775");
+  });
+
+  it("leaves a read-only export's permissions alone", async () => {
+    const { run, nas } = await postNfs({ ...machines, readOnly: true, group: 1001 });
+    await run;
+    expect(nas.calls.map((c) => c.method)).not.toContain("filesystem.setperm");
+  });
+
+  it("sends no maproot to the NAS unless it was asked for", async () => {
+    const { run, nas } = await postNfs(machines);
+    await run;
+    const created = nas.calls[0].params[0] as Record<string, unknown>;
+    expect(created.maproot_user).toBeUndefined();
+    expect(created.ro).toBe(false);
+    expect(created.enabled).toBe(true);
   });
 });
