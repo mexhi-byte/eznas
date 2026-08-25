@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { bytes, post, rate, uploadFile, useResource, withConn } from "./api";
+import { bytes, post, rate, searchFiles, type SearchHit, uploadFile, useResource, withConn } from "./api";
 import { Card, Empty, ErrorBanner, Loading } from "./components";
 import { DangerConfirm, Field, Input, JobProgress, Modal, useSubmit } from "./ui";
 import { PermissionsModal } from "./permissions";
@@ -115,6 +115,10 @@ export function FilesPage() {
   const [uploadOver, setUploadOver] = useState(false);
   const [clash, setClash] = useState<{ files: File[]; names: string[] } | null>(null);
   const nextJobId = useRef(1);
+  const [hits, setHits] = useState<SearchHit[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [truncated, setTruncated] = useState(false);
+  const stopRef = useRef<null | (() => void)>(null);
 
   const canMove = data?.canMove ?? false;
 
@@ -163,6 +167,45 @@ export function FilesPage() {
           },
         }
       : {};
+
+  /**
+   * The pool this folder sits in — the natural scope for "search everywhere".
+   *
+   * Not /mnt: searching every pool means walking every disk in the machine to
+   * answer a question that is almost always about one of them.
+   */
+  const poolRoot = useMemo(() => {
+    const parts = path.split("/").filter(Boolean);
+    return parts.length >= 2 ? `/${parts[0]}/${parts[1]}` : "/mnt";
+  }, [path]);
+
+  function startSearch(root: string) {
+    stopRef.current?.();
+    setHits([]);
+    setTruncated(false);
+    setSearching(true);
+    stopRef.current = searchFiles(root, filter.trim(), {
+      hit: (h) => setHits((prev) => [...(prev ?? []), h]),
+      done: (r) => { setSearching(false); setTruncated(r.truncated); },
+      failed: (message) => { setSearching(false); setMoveError(message); },
+    });
+  }
+
+  function clearSearch() {
+    stopRef.current?.();
+    stopRef.current = null;
+    setSearching(false);
+    setHits(null);
+  }
+
+  /*
+   * A result list belongs to the folder it was started from.
+   *
+   * Without this, walking into a folder leaves the previous search's results
+   * on screen over a different directory, and the stream keeps running against
+   * a root nobody is looking at any more.
+   */
+  useEffect(() => clearSearch, [path]);
 
   /**
    * Upload one file at a time.
@@ -381,6 +424,34 @@ export function FilesPage() {
 
         {loading && !data ? (
           <Loading rows={5} />
+        ) : hits ? (
+          <div className="search-results">
+            <div className="search-head">
+              <strong>{hits.length} {hits.length === 1 ? "result" : "results"}</strong>
+              {searching && <span className="muted">searching…</span>}
+              {/* A capped search that says nothing looks like a finished one,
+                  and "there are no more" is a different fact from "I stopped
+                  looking". */}
+              {truncated && <span className="muted">stopped at 500 — narrow the search</span>}
+              <span style={{ marginLeft: "auto" }}>
+                {searching
+                  ? <button className="link-btn" onClick={() => { stopRef.current?.(); setSearching(false); }}>Stop</button>
+                  : <button className="link-btn" onClick={clearSearch}>Back to this folder</button>}
+              </span>
+            </div>
+            {hits.map((h) => (
+              <button
+                key={h.path}
+                className="search-hit"
+                onClick={() => { clearSearch(); setFilter(""); setPath(h.dir); }}
+                title={h.path}
+              >
+                <span className="search-hit-name">{h.name}</span>
+                <span className="search-hit-dir mono">{h.dir}</span>
+              </button>
+            ))}
+            {!searching && !hits.length && <Empty>Nothing matched.</Empty>}
+          </div>
         ) : gallery ? (
           <div className="gallery">
             {images.map((e) => (
@@ -394,6 +465,16 @@ export function FilesPage() {
           </div>
         ) : (
           <div>
+            {/* One box, two acts. The filter narrows what is already loaded the
+                instant it is typed; this offers the slower, wider thing only
+                once the query is worth the walk — rather than a second box
+                that looks identical and behaves differently. */}
+            {filter.trim().length >= 2 && !hits && (
+              <button className="search-wider" onClick={() => startSearch(poolRoot)}>
+                Search all of <span className="mono">{poolRoot}</span> for “{filter.trim()}”
+                {!rows.length && <span className="muted"> — nothing in this folder matches</span>}
+              </button>
+            )}
             <div className="file-head">
               {heading("name", "Name")}
               {heading("kind", "Kind")}

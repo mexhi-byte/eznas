@@ -993,3 +993,19 @@ a.app-tile:hover { transform: translateY(-2px); border-color: var(--accent); }
 .upload-row.failed .upload-state { color: var(--bad); }
 /* Only ever shown while a drag from outside the browser is over the listing. */
 .files-drop-over { outline: 2px dashed var(--accent); outline-offset: -6px; border-radius: 12px; }
+
+/* ----------------------------------------------------------------- search */
+/*
+ * The offer to search wider sits above the listing rather than replacing it:
+ * the filtered folder is still the likeliest answer, and taking it away the
+ * moment someone types would be trading a fast correct result for a slow one.
+ */
+.search-wider { display: block; width: 100%; text-align: left; margin-bottom: 10px; padding: 8px 12px; font-size: 13px; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.search-wider:hover { border-color: var(--accent); }
+.search-wider .muted { color: var(--muted); }
+.search-head { display: flex; gap: 12px; align-items: center; padding: 4px 2px 10px; font-size: 13px; }
+.search-head .muted { color: var(--muted); font-size: 12.5px; }
+.search-hit { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: baseline; width: 100%; text-align: left; padding: 8px 12px; color: var(--text); background: none; border: 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.search-hit:hover { background: var(--panel); }
+.search-hit-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-hit-dir { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 46%; }

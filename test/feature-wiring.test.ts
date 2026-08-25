@@ -48,6 +48,10 @@ describe("every shipped feature is reachable from the interface", () => {
     const files = componentSources().filter((s) => s.text.includes("uploadFile"));
     expect(files.some((s) => s.text.includes('type="file"'))).toBe(true);
   });
+
+  it("search has a caller, not just a transport", () => {
+    expect(mentions("searchFiles")).not.toEqual([]);
+  });
 });
 
 describe("features that are still backend-only", () => {
@@ -56,11 +60,6 @@ describe("features that are still backend-only", () => {
    * reminder rather than a passing test of a working feature: when the
    * interface lands, flip the assertion to the reachable form above.
    */
-  it("search has a transport but no interface yet", () => {
-    // When the search box is built, change this to .not.toEqual([]).
-    expect(mentions("searchFiles")).toEqual([]);
-  });
-
   it("NFS exports have a route but no dialog yet", () => {
     expect(mentions("shares/nfs")).toEqual([]);
   });
