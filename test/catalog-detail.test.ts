@@ -66,3 +66,49 @@ describe("appDetail", () => {
   it("treats an absent title as the name, never as blank", () =>
     expect(appDetail({ ...full, title: "" }).title).toBe("nextcloud"));
 });
+
+describe("URLs from the catalog", () => {
+  /*
+   * These fields are written by whoever published the chart, not by TrueNAS.
+   * A javascript: href runs in the console's own origin the moment somebody
+   * clicks it, and target/rel do nothing to prevent that — so the scheme is
+   * checked here, at the boundary, rather than trusted downstream.
+   */
+  it("drops a javascript: home page", () =>
+    expect(appDetail({ ...full, home: "javascript:alert(document.cookie)" }).home).toBeNull());
+
+  it("drops a javascript: home page whatever its casing", () =>
+    expect(appDetail({ ...full, home: "JaVaScRiPt:alert(1)" }).home).toBeNull());
+
+  it("drops one hiding behind leading whitespace", () =>
+    expect(appDetail({ ...full, home: "  javascript:alert(1)" }).home).toBeNull());
+
+  it("drops a data: URI", () =>
+    expect(appDetail({ ...full, home: "data:text/html,<script>alert(1)</script>" }).home).toBeNull());
+
+  it("drops a vbscript: URI", () =>
+    expect(appDetail({ ...full, home: "vbscript:msgbox(1)" }).home).toBeNull());
+
+  it("keeps an ordinary https link", () =>
+    expect(appDetail({ ...full, home: "https://nextcloud.com" }).home).toBe("https://nextcloud.com"));
+
+  it("keeps http, which a self-hosted project may well be on", () =>
+    expect(appDetail({ ...full, home: "http://example.local" }).home).toBe("http://example.local"));
+
+  it("filters sources rather than passing the bad one through", () =>
+    expect(appDetail({ ...full, sources: ["https://ok.example", "javascript:alert(1)"] }).sources)
+      .toEqual(["https://ok.example"]));
+
+  it("filters screenshots the same way", () =>
+    expect(appDetail({ ...full, screenshots: ["javascript:alert(1)", "https://ok.example/1.png"] }).screenshots)
+      .toEqual(["https://ok.example/1.png"]));
+
+  it("keeps a maintainer whose url is unsafe, but without the link", () => {
+    // The name is still worth showing; only the href is dangerous.
+    const m = appDetail({ ...full, maintainers: [{ name: "someone", url: "javascript:alert(1)" }] }).maintainers;
+    expect(m).toEqual([{ name: "someone", url: null }]);
+  });
+
+  it("rejects a scheme-relative url, whose scheme is whatever the page is", () =>
+    expect(appDetail({ ...full, home: "//evil.example" }).home).toBeNull());
+});
