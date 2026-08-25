@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID }
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { TrueNas } from "./truenas.js";
+import { LEGACY_DEV_SECRET, keyFrom, resolveSecret } from "./secret.js";
 
 /**
  * Where TrueNAS servers are configured.
@@ -40,11 +41,40 @@ export type PublicConnection = Omit<Connection, "apiKeyEnc" | "sudoEnc"> &
 
 const FILE = process.env.DATA_FILE ?? "/opt/truenas-ui/data/connections.json";
 
+/**
+ * Resolved once, because generating one twice would write two different keys
+ * and orphan whatever the first encrypted.
+ */
+let resolved: ReturnType<typeof resolveSecret> | null = null;
+
+function secret() {
+  if (!resolved) {
+    resolved = resolveSecret(process.env.SESSION_SECRET, `${FILE}.key`);
+    if (resolved.source === "generated") {
+      console.log(
+        `[store] no SESSION_SECRET set — generated one and kept it at ${FILE}.key. ` +
+          "Back it up with the data file: without it the stored API keys cannot be read.",
+      );
+    }
+  }
+  return resolved;
+}
+
 function secretKey(): Buffer {
   // Derived from the same secret that signs sessions: one thing to protect, and
   // rotating it invalidates stored keys and sessions together, which is the
   // correct behaviour rather than an inconvenience.
-  return createHash("sha256").update(process.env.SESSION_SECRET ?? "truenas-ui-development-only").digest();
+  return keyFrom(secret().secret);
+}
+
+/** True if `blob` had to be read with the old built-in key. */
+let readWithLegacyKey = false;
+
+function decryptWith(blob: string, key: Buffer): string {
+  const [iv, tag, data] = blob.split(".");
+  const d = createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "base64"));
+  d.setAuthTag(Buffer.from(tag, "base64"));
+  return Buffer.concat([d.update(Buffer.from(data, "base64")), d.final()]).toString("utf8");
 }
 
 export function encrypt(plain: string): string {
@@ -55,10 +85,22 @@ export function encrypt(plain: string): string {
 }
 
 export function decrypt(blob: string): string {
-  const [iv, tag, data] = blob.split(".");
-  const d = createDecipheriv("aes-256-gcm", secretKey(), Buffer.from(iv, "base64"));
-  d.setAuthTag(Buffer.from(tag, "base64"));
-  return Buffer.concat([d.update(Buffer.from(data, "base64")), d.final()]).toString("utf8");
+  try {
+    return decryptWith(blob, secretKey());
+  } catch (e) {
+    /*
+     * Written before there was a real key.
+     *
+     * Anyone who ran a version that fell back to the built-in constant has a
+     * file encrypted with it. Refusing to read that would bring their console
+     * back up unable to reach their NAS and unable to say why, so it is read
+     * once with the old key and re-encrypted with the real one on the next
+     * save. The constant is never used to encrypt.
+     */
+    const viaLegacy = decryptWith(blob, keyFrom(LEGACY_DEV_SECRET));
+    readWithLegacyKey = true;
+    return viaLegacy;
+  }
 }
 
 let connections: Connection[] = [];
@@ -73,12 +115,49 @@ function load(): void {
   } catch (e) {
     console.error("[store] connections file is unreadable, starting empty:", e);
     connections = [];
+    return;
+  }
+  try {
+    migrateLegacySecrets();
+  } catch (e) {
+    // A credential that decrypts under neither key is not a reason to refuse
+    // to start: the rest of the console still works, and the connection will
+    // report its own failure when something tries to use it.
+    console.error("[store] could not re-encrypt stored credentials:", e);
   }
 }
 
 function save(): void {
   mkdirSync(dirname(FILE), { recursive: true });
   writeFileSync(FILE, JSON.stringify(connections, null, 2), { mode: 0o600 });
+}
+
+/**
+ * Re-encrypt anything still readable with the old built-in key.
+ *
+ * Reading it works, so nothing is broken — but it stays readable to anyone
+ * holding the file and the published constant, which is the whole reason the
+ * constant had to go. Rewritten once, at startup, and then never again.
+ */
+function migrateLegacySecrets(): void {
+  if (!connections.length) return;
+  readWithLegacyKey = false;
+  const rewritten = connections.map((c) => {
+    const apiKey = c.apiKeyEnc ? decrypt(c.apiKeyEnc) : null;
+    const sudo = c.sudoEnc ? decrypt(c.sudoEnc) : null;
+    return { conn: c, apiKey, sudo };
+  });
+  if (!readWithLegacyKey) return;
+
+  for (const { conn, apiKey, sudo } of rewritten) {
+    if (apiKey !== null) conn.apiKeyEnc = encrypt(apiKey);
+    if (sudo !== null) conn.sudoEnc = encrypt(sudo);
+  }
+  save();
+  console.log(
+    `[store] re-encrypted ${rewritten.length} stored credential set(s) with this installation's own key. ` +
+      "They were written with the built-in development key, which is public.",
+  );
 }
 
 /**
