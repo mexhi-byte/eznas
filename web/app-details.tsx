@@ -21,6 +21,18 @@ export interface AppDetail {
 }
 
 /**
+ * A link, only if following it cannot run code.
+ *
+ * The server already refuses anything but http(s) for these fields, so this is
+ * the second of two checks rather than the only one. It is here because the
+ * cost is a regex and the failure mode is somebody's session running a chart
+ * author's script — and because the next component to render one of these
+ * fields may not come through the same mapper.
+ */
+const safe = (u: string | null | undefined): string | undefined =>
+  u && /^https?:\/\/[^/]/i.test(u.trim()) ? u.trim() : undefined;
+
+/**
  * What an app is, before deciding to install it — or after, to remember why.
  *
  * The catalog card has room for a title and two lines of description, which is
@@ -62,7 +74,7 @@ export function AppDetailsModal({ name, train, footer, onClose }: {
         <>
           {!!data.screenshots.length && (
             <div className="shots">
-              <img src={data.screenshots[shot]} alt="" loading="lazy" />
+              <img src={safe(data.screenshots[shot])} alt="" loading="lazy" />
               {data.screenshots.length > 1 && (
                 <div className="shot-dots">
                   {data.screenshots.map((s, i) => (
@@ -97,10 +109,10 @@ export function AppDetailsModal({ name, train, footer, onClose }: {
               </>
             )}
             {data.lastUpdated && <><dt>Updated</dt><dd>{data.lastUpdated}</dd></>}
-            {data.home && (
+            {safe(data.home) && (
               <>
                 <dt>Website</dt>
-                <dd><a href={data.home} target="_blank" rel="noreferrer">{data.home}</a></dd>
+                <dd><a href={safe(data.home)} target="_blank" rel="noreferrer">{data.home}</a></dd>
               </>
             )}
             {!!data.sources.length && (
@@ -108,7 +120,7 @@ export function AppDetailsModal({ name, train, footer, onClose }: {
                 <dt>Source</dt>
                 <dd>
                   {data.sources.map((u) => (
-                    <a key={u} href={u} target="_blank" rel="noreferrer" style={{ display: "block" }}>{u}</a>
+                    <a key={u} href={safe(u)} target="_blank" rel="noreferrer" style={{ display: "block" }}>{u}</a>
                   ))}
                 </dd>
               </>
@@ -119,7 +131,7 @@ export function AppDetailsModal({ name, train, footer, onClose }: {
                 <dd>
                   {data.maintainers.map((m) => (
                     <span key={m.name} style={{ display: "block" }}>
-                      {m.url ? <a href={m.url} target="_blank" rel="noreferrer">{m.name}</a> : m.name}
+                      {safe(m.url) ? <a href={safe(m.url)} target="_blank" rel="noreferrer">{m.name}</a> : m.name}
                     </span>
                   ))}
                 </dd>
