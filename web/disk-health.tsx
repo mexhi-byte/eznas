@@ -13,6 +13,8 @@ interface Health {
     smartEnabled: boolean; duplicateSerial: string[];
   };
   tempC: number | null;
+  /** Why there is no reading, when there is none. */
+  tempNote: string | null;
   inUse: boolean;
   pool: string | null;
   exportedPool: string | null;
@@ -102,6 +104,12 @@ export function DiskHealthModal({ name, onClose }: { name: string; onClose: () =
                 ["SMART", id!.smartEnabled ? "enabled" : "disabled"],
               ]}
             />
+            {/* Why there is no reading, in the same place the drive's other
+                facts are — "not reported" on its own invites a hunt for a
+                setting that would fix it, and on a virtual disk there is none. */}
+            {data.tempC === null && data.tempNote && (
+              <p className="modal-text" style={{ color: "var(--muted)" }}>{data.tempNote}</p>
+            )}
             {id!.duplicateSerial.length > 0 && (
               <p className="modal-text" style={{ color: "var(--warn)" }}>
                 Another drive reports the same serial ({id!.duplicateSerial.join(", ")}). Identifying this one by serial

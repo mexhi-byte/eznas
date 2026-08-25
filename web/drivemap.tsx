@@ -16,6 +16,10 @@ interface Disk {
   pool: string | null;
   inUse: boolean;
   tempC: number | null;
+  /** Why there is no reading, when there is none. */
+  tempNote: string | null;
+  status: string | null;
+  health: { level: "ok" | "warn" | "bad"; reasons: string[] };
 }
 
 /**
@@ -196,7 +200,7 @@ function explainVdev(type: string, members: number): string {
   return "";
 }
 
-type Tile = Partial<Disk> & { name: string; status?: string };
+type Tile = Partial<Disk> & { name: string; status?: string | null };
 
 function VdevGroup({ label, hint, disks, onPick }: {
   label: string;
@@ -221,21 +225,52 @@ function DriveTile({ disk, onPick }: { disk: Tile; onPick: (name: string) => voi
   // A drive listed in the pool layout but absent from disk.details is one the
   // NAS can no longer see — exactly the case worth shouting about.
   const missing = disk.size === undefined;
-  const state = missing || disk.status === "FAULTED" || disk.status === "UNAVAIL"
+  /*
+   * The verdict decides the colour, not the vdev status.
+   *
+   * Status alone calls a drive ONLINE while it is logging checksum errors or
+   * running at 55°C, because neither is a state ZFS has a word for. This is the
+   * same verdict the health dialog shows, computed by the same function, so a
+   * drive cannot be green here and amber once it is opened.
+   */
+  const state = missing
     ? "bad"
-    : disk.status && disk.status !== "ONLINE"
-      ? "warn"
+    : disk.health
+      ? disk.health.level
       : disk.inUse === false
         ? "mute"
         : "ok";
 
+  const temp = disk.tempC != null ? `${disk.tempC}°C` : null;
+  const status = disk.status && disk.status !== "ONLINE" ? disk.status.toLowerCase() : null;
+
+  // The reasons behind the verdict, on the hover, so the colour never has to be
+  // taken on trust.
+  const title = [
+    `${disk.model ?? ""} ${disk.serial ?? ""}`.trim(),
+    ...(disk.health?.reasons ?? []),
+    temp === null ? disk.tempNote : null,
+  ].filter(Boolean).join("\n");
+
   return (
-    <button className={`drive ${state}`} onClick={() => onPick(disk.name)} title={`${disk.model ?? ""} ${disk.serial ?? ""}`.trim()}>
-      <span className="drive-glyph">{disk.type === "SSD" ? "▪" : "◍"}</span>
+    <button className={`drive ${state}`} onClick={() => onPick(disk.name)} title={title}>
+      <span className="drive-top">
+        <span className="drive-glyph">{disk.type === "SSD" ? "▪" : "◍"}</span>
+        {!missing && <i className={`health-dot ${state}`} aria-hidden="true" />}
+      </span>
       <span className="drive-name mono">{disk.name}</span>
       <span className="drive-size">{missing ? "missing" : bytes(disk.size)}</span>
       <span className="drive-foot">
-        {disk.tempC != null ? `${disk.tempC}°C` : disk.status ? disk.status.toLowerCase() : " "}
+        {missing ? (
+          "not detected"
+        ) : (
+          <>
+            {/* A drive with no sensor says so. A blank space here reads as a
+                broken page rather than as a drive that cannot answer. */}
+            <span className={temp ? "" : "faint"}>{temp ?? "no temp"}</span>
+            {status && <span className="drive-status"> · {status}</span>}
+          </>
+        )}
       </span>
     </button>
   );

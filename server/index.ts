@@ -22,6 +22,7 @@ export { VERSION };
 import { bodyOf, confirmed, json, optStr, str, underMnt } from "./http.js";
 import { levelToPerms, type AclEntry } from "./acl.js";
 import { handleFileRoutes } from "./routes/files.js";
+import { diskVerdict, failedTestCount, temperatureOf, testsForDisk } from "./disk-verdict.js";
 import { handleShareRoutes } from "./routes/shares.js";
 
 const PORT = Number(process.env.PORT ?? 80);
@@ -878,17 +879,53 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
 
   /* --- disks --- */
   if (path === "/api/disks") {
-    const [details, temps] = await Promise.all([
+    /*
+     * Four bulk calls, and a verdict for every drive.
+     *
+     * The map used to get names and a temperature, so its tiles could only
+     * show a number or a status word — and nothing at all for a drive that had
+     * neither. Every input the verdict needs is already a single call covering
+     * every device, so asking for all of them costs the same whether the NAS
+     * has four drives or forty.
+     */
+    const [details, temps, pools, testResults] = await Promise.all([
       nas.call<{ used: DiskRow[]; unused: DiskRow[] }>("disk.details"),
-      nas.call<Record<string, number | null>>("disk.temperatures").catch(() => ({}) as Record<string, number | null>),
+      readTemperatures(nas),
+      nas.call<PoolRow[]>("pool.query").catch(() => [] as PoolRow[]),
+      nas.call<Array<Record<string, unknown>>>("smart.test.results").catch(() => [] as Array<Record<string, unknown>>),
     ]);
     // imported_zpool is where the pool name actually lives. disk.query's own
     // `pool` field reads null for every disk on 25.04, which made every disk in
     // a healthy pool render as "unassigned".
-    const shape = (d: DiskRow, inUse: boolean) => ({
-      name: d.name, model: d.model, serial: d.serial, size: d.size, type: d.type,
-      rpm: d.rotationrate, pool: d.imported_zpool ?? d.pool ?? null, inUse, tempC: temperature(temps[d.name]),
-    });
+    const shape = (d: DiskRow, inUse: boolean) => {
+      const member = vdevMemberOf(pools, d.name);
+      const stats = member?.stats ?? {};
+      const tempC = temperatureOf(temps.values[d.name]);
+      const verdict = diskVerdict({
+        zfs: member
+          ? {
+              pool: member.pool,
+              status: member.status ?? null,
+              readErrors: stats.read_errors ?? 0,
+              writeErrors: stats.write_errors ?? 0,
+              checksumErrors: stats.checksum_errors ?? 0,
+              selfHealed: stats.self_healed ?? 0,
+            }
+          : null,
+        tempC,
+        failedTests: failedTestCount(testsForDisk(testResults, d.name)),
+      });
+      return {
+        name: d.name, model: d.model, serial: d.serial, size: d.size, type: d.type,
+        rpm: d.rotationrate, pool: d.imported_zpool ?? d.pool ?? null, inUse, tempC,
+        // Why there is no reading, so the tile can say it instead of going
+        // blank. A blank space reads as a bug in the console; "this device
+        // does not report one" reads as a fact about the drive.
+        tempNote: tempC !== null ? null : temps.note,
+        status: member?.status ?? null,
+        health: verdict,
+      };
+    };
     json(res, 200, [
       ...(details.used ?? []).map((d) => shape(d, true)),
       ...(details.unused ?? []).map((d) => shape(d, false)),
@@ -1635,7 +1672,7 @@ async function diskHealthOf(nas: TrueNas, name: string) {
   const [rows, details, temps, pools] = await Promise.all([
     nas.call<Array<Record<string, unknown>>>("disk.query", [[["name", "=", name]]]),
     nas.call<{ used?: Array<Record<string, unknown>>; unused?: Array<Record<string, unknown>> }>("disk.details"),
-    nas.call<Record<string, number | null>>("disk.temperatures").catch(() => ({}) as Record<string, number | null>),
+    readTemperatures(nas),
     nas.call<PoolRow[]>("pool.query"),
   ]);
   const disk = rows[0];
@@ -1662,41 +1699,26 @@ async function diskHealthOf(nas: TrueNas, name: string) {
   const tests = ((results?.tests as Array<Record<string, unknown>>) ?? []).slice(0, 12);
 
   const stats = member?.stats ?? {};
-  const errors = (stats.read_errors ?? 0) + (stats.write_errors ?? 0) + (stats.checksum_errors ?? 0);
-  const tempC = temperature(temps[name]);
-  const failedTests = tests.filter((t) => !/without error|completed/i.test(String(t.status_verbose ?? t.status ?? ""))).length;
+  const tempC = temperatureOf(temps.values[name]);
 
-  // One verdict, and the reasons behind it, so the dialog leads with an answer
-  // instead of a wall of counters the reader has to grade themselves.
-  const reasons: string[] = [];
-  let level: "ok" | "warn" | "bad" = "ok";
-  const worse = (l: "warn" | "bad") => { if (l === "bad" || level === "ok") level = l; };
-  if (member && member.status && member.status !== "ONLINE") {
-    worse("bad");
-    reasons.push(`ZFS reports this device as ${member.status} in ${member.pool}.`);
-  }
-  if (errors > 0) {
-    worse("bad");
-    reasons.push(`${errors} ZFS error${errors === 1 ? "" : "s"}: ${stats.read_errors ?? 0} read, ${stats.write_errors ?? 0} write, ${stats.checksum_errors ?? 0} checksum.`);
-  }
-  if (failedTests > 0) {
-    worse("bad");
-    reasons.push(`${failedTests} SMART self-test${failedTests === 1 ? "" : "s"} did not finish cleanly.`);
-  }
-  if (tempC !== null && tempC >= 50) {
-    worse("bad");
-    reasons.push(`Running at ${tempC}°C.`);
-  } else if (tempC !== null && tempC >= 42) {
-    worse("warn");
-    reasons.push(`Running warm at ${tempC}°C.`);
-  }
-  if ((stats.self_healed ?? 0) > 0) {
-    worse("warn");
-    reasons.push(`ZFS repaired ${bytesish(stats.self_healed)} of bad data on this device.`);
-  }
-  if (level === "ok") {
-    reasons.unshift(member ? "ZFS reports no read, write or checksum errors on this device." : "Nothing is reporting a problem with this device.");
-  }
+  // The same verdict the drive map shows, from the same function, so a drive
+  // cannot be amber on the map and green in its own dialog.
+  const { level, reasons } = diskVerdict({
+    zfs: member
+      ? {
+          pool: member.pool,
+          status: member.status ?? null,
+          readErrors: stats.read_errors ?? 0,
+          writeErrors: stats.write_errors ?? 0,
+          checksumErrors: stats.checksum_errors ?? 0,
+          selfHealed: stats.self_healed ?? 0,
+        }
+      : null,
+    tempC,
+    failedTests: failedTestCount(tests),
+  });
+  // SMART support is a fact about the device rather than a judgement on it, so
+  // it is appended to the reasons without moving the verdict.
   if (!smart.supported) reasons.push(smart.reason ?? "This device does not report SMART data.");
 
   return {
@@ -1710,6 +1732,7 @@ async function diskHealthOf(nas: TrueNas, name: string) {
       duplicateSerial: (detail.duplicate_serial as string[] | undefined) ?? [],
     },
     tempC,
+    tempNote: tempC !== null ? null : temps.note,
     inUse,
     pool: (detail.imported_zpool as string | null) ?? member?.pool ?? null,
     exportedPool: (detail.exported_zpool as string | null) ?? null,
@@ -1737,13 +1760,30 @@ async function diskHealthOf(nas: TrueNas, name: string) {
 }
 
 /**
- * A drive that cannot answer reports 0, not null.
+ * Every drive's temperature, and why there is none when there is none.
  *
- * Every virtual disk on this NAS comes back as exactly 0°C, which the UI drew
- * as a healthy green zero. Nothing spinning is at freezing point, so treat it
- * as "no reading" rather than as a very cold drive.
+ * This call used to be wrapped in a bare `.catch(() => ({}))`, which collapsed
+ * two different situations into one blank space: a drive with no sensor, and a
+ * call that failed outright. Only one of those is worth investigating, and the
+ * console gave no way to tell which had happened.
  */
-const temperature = (v: number | null | undefined): number | null => (v === null || v === undefined || v === 0 ? null : v);
+async function readTemperatures(nas: TrueNas): Promise<{
+  values: Record<string, number | null>;
+  note: string;
+}> {
+  try {
+    const values = await nas.call<Record<string, number | null>>("disk.temperatures");
+    return {
+      values,
+      note: "This device does not report a temperature. Virtual disks, and drives behind a RAID controller that is not in passthrough mode, usually cannot.",
+    };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error(`[disks] could not read temperatures: ${message}`);
+    return { values: {}, note: `The NAS could not report temperatures: ${message}` };
+  }
+}
+
 
 const bytesish = (n: number | undefined): string => {
   if (!n) return "0 B";
