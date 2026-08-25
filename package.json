@@ -1,6 +1,6 @@
 {
   "name": "eznas",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "EzNAS \u2014 a beautifully simplified, open-source web UI for TrueNAS. Built for homelabs, powered by WebSockets.",
   "main": "index.js",
   "scripts": {
