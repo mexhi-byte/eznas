@@ -73,13 +73,33 @@ export function findCommand(root: string, query: string): string {
  * the group rather than to all of it.
  */
 export function base64Command(inner: string): string {
-  return `{ ${inner}; } | base64 | tr -d '\\n'`;
+  // Fenced, because the caller cannot otherwise tell where the payload starts.
+  //
+  // What comes back from the shell is everything the terminal printed: the
+  // TrueNAS login banner, the prompt, then the output. Handing all of that to
+  // a base64 decoder does not fail — Buffer.from ignores characters outside
+  // the alphabet and decodes the rest — so the banner decoded into binary that
+  // happened to contain a NUL, satisfied the "looks like find output" check,
+  // and reached the browser as a list of garbage paths.
+  //
+  // The sentinels are printed in two pieces so a shell echoing the command
+  // line back cannot produce a matching pair.
+  return `printf '__B64'; printf '_BEGIN__'; { ${inner}; } | base64 | tr -d '\\n'; printf '__B64'; printf '_END__'`;
 }
+
+const BEGIN = "__B64_BEGIN__";
+const END = "__B64_END__";
 
 /** Decode what base64Command produced, back into paths. */
 export function decodeFindOutput(encoded: string): string[] {
+  // Take only what sits between the sentinels. Without this the surrounding
+  // terminal output is decoded along with the payload.
+  const from = encoded.indexOf(BEGIN);
+  const to = encoded.indexOf(END, from + 1);
+  const payload = from !== -1 && to !== -1 ? encoded.slice(from + BEGIN.length, to) : encoded;
+
   // Whatever whitespace the terminal added is not part of the payload.
-  const clean = encoded.replace(/\s+/g, "");
+  const clean = payload.replace(/\s+/g, "");
   if (!clean) return [];
   try {
     const decoded = Buffer.from(clean, "base64").toString("utf8");
