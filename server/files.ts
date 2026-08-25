@@ -4,7 +4,7 @@ import { join, extname, basename } from "node:path";
 import { pipeline } from "node:stream/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { request } from "node:https";
-import type { TLSSocket } from "node:tls";
+import { connectPinned, httpBase } from "./pinned.js";
 import type { TrueNas } from "./truenas.js";
 import type { Connection } from "./store.js";
 
@@ -122,61 +122,47 @@ async function downloadUrl(nas: TrueNas, path: string): Promise<string> {
 /**
  * Open the transfer.
  *
- * Uses https.request rather than fetch for two reasons: the NAS presents a
- * self-signed certificate, so ordinary verification cannot pass, and the same
- * fingerprint pin the JSON-RPC socket enforces has to apply here too. Turning
- * verification off without re-pinning would leave the one connection that
- * carries actual file contents unauthenticated.
+ * https.request rather than fetch, because the NAS presents a self-signed
+ * certificate and ordinary verification cannot pass — the same fingerprint pin
+ * the JSON-RPC socket enforces has to apply here too.
+ *
+ * The socket is opened and checked before the request exists. It used to be
+ * checked in the response callback below, which runs after the request line
+ * has gone out — and that request line is a core.download URL carrying a job
+ * token. A machine in the middle collected the token, and only then was told
+ * its certificate was wrong.
  */
 function fetchFromNas(nas: TrueNas, conn: Connection, path: string): Promise<IncomingMessage> {
-  return downloadUrl(nas, path).then((urlPath) => new Promise<IncomingMessage>((resolve, reject) => {
-    const base = new URL(conn.url.replace(/^ws/, "http").replace(/\/api\/current$/, ""));
-    const req = request(
-      {
-        protocol: base.protocol,
-        hostname: base.hostname,
-        port: base.port || (base.protocol === "https:" ? 443 : 80),
-        path: urlPath,
-        method: "GET",
-        rejectUnauthorized: false,
-        timeout: 30_000,
-        // A fresh connection per transfer. On a reused keep-alive socket the
-        // peer certificate is no longer retrievable, so the pin check below saw
-        // an empty fingerprint and rejected every request after the first —
-        // which looked exactly like a real certificate mismatch.
-        agent: false,
-      },
-      (res) => {
-        if (conn.fingerprint) {
-          const socket = res.socket as TLSSocket;
-          const raw =
-            socket.getPeerX509Certificate?.()?.fingerprint256 ??
-            socket.getPeerCertificate?.()?.fingerprint256;
-          const seen = (raw ?? "").replace(/:/g, "").toLowerCase();
-          const want = conn.fingerprint.replace(/:/g, "").toLowerCase();
-          if (!seen) {
-            res.destroy();
-            reject(new Error("could not read the NAS certificate to check it against the pin"));
+  return Promise.all([downloadUrl(nas, path), connectPinned(conn)])
+    .then(([urlPath, socket]) => new Promise<IncomingMessage>((resolve, reject) => {
+      const base = httpBase(conn);
+      const req = request(
+        {
+          protocol: base.protocol,
+          hostname: base.hostname,
+          port: base.port || (base.protocol === "https:" ? 443 : 80),
+          path: urlPath,
+          method: "GET",
+          timeout: 30_000,
+          // Already connected and already verified. A fresh one per transfer:
+          // on a reused keep-alive socket the peer certificate is no longer
+          // retrievable, so it could not be checked at all.
+          createConnection: () => socket,
+          agent: false,
+        },
+        (res) => {
+          if ((res.statusCode ?? 500) >= 400) {
+            res.resume();
+            reject(new Error(`the NAS refused the transfer (${res.statusCode})`));
             return;
           }
-          if (seen !== want) {
-            res.destroy();
-            reject(new Error(`the NAS certificate does not match the pin (saw ${seen.slice(0, 16)}…)`));
-            return;
-          }
-        }
-        if ((res.statusCode ?? 500) >= 400) {
-          res.resume();
-          reject(new Error(`the NAS refused the transfer (${res.statusCode})`));
-          return;
-        }
-        resolve(res);
-      },
-    );
-    req.on("timeout", () => req.destroy(new Error("the NAS took too long to start the transfer")));
-    req.on("error", reject);
-    req.end();
-  }));
+          resolve(res);
+        },
+      );
+      req.on("timeout", () => req.destroy(new Error("the NAS took too long to start the transfer")));
+      req.on("error", reject);
+      req.end();
+    }));
 }
 
 /* ----------------------------------------------------------------- serving */

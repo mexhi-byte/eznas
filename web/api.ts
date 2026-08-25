@@ -238,3 +238,115 @@ export function level(pct: number): "" | "warn" | "bad" {
   if (pct >= 75) return "warn";
   return "";
 }
+
+/* -------------------------------------------------------------- uploading */
+
+export interface UploadHandle {
+  promise: Promise<void>;
+  abort: () => void;
+}
+
+/**
+ * Send one file, with progress.
+ *
+ * XMLHttpRequest rather than fetch, for one reason: fetch cannot report upload
+ * progress at all. A bar built on it would advance on a timer and tell the
+ * operator something the browser does not actually know — which is worse than
+ * no bar, because it looks like information.
+ *
+ * The file is sent as the raw body. The console's server wraps it in the
+ * multipart form the NAS wants; wrapping it here too would nest one multipart
+ * body inside another and store the inner headers as file content.
+ *
+ * The XHR is injectable so this can be tested without a DOM.
+ */
+export function uploadFile(
+  dir: string,
+  file: File,
+  onProgress: (sent: number, total: number) => void,
+  xhrFactory: () => XMLHttpRequest = () => new XMLHttpRequest(),
+): UploadHandle {
+  const xhr = xhrFactory();
+  const query = `path=${encodeURIComponent(dir)}&name=${encodeURIComponent(file.name)}`;
+  xhr.open("POST", withConn(`/api/files/upload?${query}`));
+  xhr.setRequestHeader("content-type", "application/octet-stream");
+
+  const promise = new Promise<void>((resolve, reject) => {
+    xhr.upload.onprogress = (e) => onProgress(e.loaded, e.total);
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+      let message = `Upload failed (${xhr.status}).`;
+      try {
+        const body = JSON.parse(xhr.responseText || "{}") as { error?: string };
+        if (body.error) message = body.error;
+      } catch {
+        // A proxy's HTML error page, not the console's JSON. The status is all
+        // there is to say.
+      }
+      reject(new ApiError(message));
+    };
+    xhr.onerror = () => reject(new ApiError("The connection to the console dropped."));
+    xhr.onabort = () => reject(new ApiError("Upload cancelled."));
+  });
+
+  // Sent only once the handlers are attached: an XHR that finished in between
+  // would fire into nothing and the promise would never settle.
+  xhr.send(file);
+
+  return { promise, abort: () => xhr.abort() };
+}
+
+/* -------------------------------------------------------------- searching */
+
+export interface SearchHit { path: string; name: string; dir: string }
+
+export interface SearchHandlers {
+  hit: (h: SearchHit) => void;
+  done: (r: { count: number; truncated: boolean }) => void;
+  failed: (message: string) => void;
+}
+
+/**
+ * Start a search. Returns the function that stops it.
+ *
+ * EventSource, like the live figures on Home: the server sends hits as it
+ * finds them, so a result near the top of the tree appears at once instead of
+ * after the whole pool has been walked.
+ */
+export function searchFiles(root: string, query: string, on: SearchHandlers): () => void {
+  const url = withConn(
+    `/api/files/search?root=${encodeURIComponent(root)}&q=${encodeURIComponent(query)}`,
+  );
+  const source = new EventSource(url);
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    source.close();
+  };
+
+  source.addEventListener("hit", (e) => on.hit(JSON.parse((e as MessageEvent).data) as SearchHit));
+  source.addEventListener("done", (e) => {
+    on.done(JSON.parse((e as MessageEvent).data) as { count: number; truncated: boolean });
+    // The server has said its piece. Without closing, EventSource sees the
+    // stream end, decides it dropped, and reconnects — running the whole
+    // search a second time.
+    close();
+  });
+  source.addEventListener("failed", (e) => {
+    on.failed((JSON.parse((e as MessageEvent).data) as { error: string }).error);
+    close();
+  });
+  source.onerror = () => {
+    // Fires on a clean close too, so it must not report a failure after done
+    // has already been delivered.
+    if (closed) return;
+    on.failed("The search connection dropped.");
+    close();
+  };
+
+  return close;
+}

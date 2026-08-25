@@ -8,7 +8,8 @@ import { SharesPage } from "./shares";
 import { SnapshotsPage } from "./snapshots";
 import { HomePage } from "./home";
 import { DriveMapPage } from "./drivemap";
-import { CatalogPage, FilesPage, SettingsPage, UsersPage, type Conn } from "./pages3";
+import { CatalogPage, SettingsPage, UsersPage, type Conn } from "./pages3";
+import { FilesPage } from "./files-page";
 import { NetworkPage, TerminalPage } from "./pages4";
 
 /**
@@ -194,8 +195,23 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
   const alertCount = alerts?.length ?? 0;
   const active = conns?.find((c) => c.id === getConnection()) ?? conns?.find((c) => c.isDefault) ?? conns?.[0];
 
+  /*
+   * The tabs this account may actually reach.
+   *
+   * Terminal is a root shell on the NAS, so the server refuses the WebSocket
+   * upgrade for anyone who is not an admin. Leaving the tab visible would give
+   * a viewer a terminal that connects, says "session ended" and never explains
+   * why — so the tab is dropped from the list rather than shown and blocked.
+   * Dropping it here also handles the bookmarked #/advanced/terminal, because
+   * subOf falls back to the first tab whenever the requested one is not listed.
+   */
+  const tabsFor = (group: keyof typeof SUBS): ReadonlyArray<{ id: string; label: string }> =>
+    group === "advanced" && me.role !== "admin"
+      ? SUBS.advanced.filter((t) => t.id !== "terminal")
+      : SUBS[group];
+
   const subOf = (group: keyof typeof SUBS): string => {
-    const list = SUBS[group] as ReadonlyArray<{ id: string }>;
+    const list = tabsFor(group);
     return list.some((t) => t.id === sub) ? sub : list[0].id;
   };
 
@@ -327,10 +343,10 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
 
         {page === "advanced" && (
           <>
-            <Tabs tabs={SUBS.advanced} active={subOf("advanced") as "alerts"} onChange={(id) => go("advanced", id)} />
+            <Tabs tabs={tabsFor("advanced") as ReadonlyArray<{ id: "alerts"; label: string }>} active={subOf("advanced") as "alerts"} onChange={(id) => go("advanced", id)} />
             {subOf("advanced") === "alerts" && <AlertsPage />}
             {subOf("advanced") === "network" && <NetworkPage />}
-            {subOf("advanced") === "terminal" && <TerminalPage />}
+            {subOf("advanced") === "terminal" && me.role === "admin" && <TerminalPage />}
           </>
         )}
       </main>

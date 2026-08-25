@@ -18,3 +18,10 @@ data/
 # Local scratch
 *.log
 probe*.mjs
+
+# macOS
+.DS_Store
+
+# Working notes for the current release: specs and task-by-task plans.
+# Useful while building, noise in a repository somebody clones to run a NAS.
+docs/superpowers/

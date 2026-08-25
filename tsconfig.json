@@ -22,6 +22,8 @@
   "include": [
     "web",
     "server",
-    "vite.config.ts"
+    "test",
+    "vite.config.ts",
+    "vitest.config.ts"
   ]
 }

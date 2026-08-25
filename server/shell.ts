@@ -2,7 +2,8 @@ import { WebSocketServer, WebSocket } from "ws";
 import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import * as store from "./store.js";
-import { COOKIE, readCookie, valid } from "./auth.js";
+import * as accounts from "./accounts.js";
+import { COOKIE, read as readSession, readCookie } from "./auth.js";
 
 /**
  * A shell on the NAS, proxied to the browser.
@@ -20,10 +21,25 @@ export function handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
   if (url.pathname !== "/shell") return false;
 
-  // Authenticated at the upgrade, before anything is bridged. A WebSocket that
-  // authenticates after connecting has already accepted the connection.
-  if (!valid(readCookie(req.headers.cookie, COOKIE))) {
+  /*
+   * Authorised at the upgrade, before anything is bridged. A WebSocket that
+   * authenticates after connecting has already accepted the connection.
+   *
+   * Both halves matter. Proving a session exists is not enough: this endpoint
+   * hands back a root shell on the NAS, and the HTTP gate that keeps viewers
+   * read-only works by refusing every method that is not a GET — which an
+   * upgrade request is. A viewer reaching /shell would therefore have passed
+   * every check the console makes and arrived at a root prompt.
+   */
+  const session = readSession(readCookie(req.headers.cookie, COOKIE));
+  const me = session ? accounts.byId(session.accountId) : undefined;
+  if (!me) {
     socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+    socket.destroy();
+    return true;
+  }
+  if (me.role !== "admin") {
+    socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
     socket.destroy();
     return true;
   }
