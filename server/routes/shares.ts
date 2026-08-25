@@ -193,5 +193,24 @@ export async function handleShareRoutes(ctx: ShareRouteContext): Promise<boolean
     return true;
   }
 
+  /*
+   * Removing an export.
+   *
+   * Named to confirm, like every other destructive action here: the path is
+   * what the operator sees in the list, so the path is what they type. The
+   * folder and everything in it is untouched — only the export goes.
+   */
+  const nfsMatch = /^\/api\/shares\/nfs\/(\d+)$/.exec(path);
+  if (nfsMatch && method === "DELETE") {
+    const id = Number(nfsMatch[1]);
+    const b = await bodyOf(req);
+    const [existing] = await nas.call<Array<{ path: string }>>("sharing.nfs.query", [[["id", "=", id]]]);
+    if (!existing) throw new Error("There is no such export.");
+    confirmed(b, existing.path);
+    await nas.call("sharing.nfs.delete", [id]);
+    json(res, 200, { ok: true });
+    return true;
+  }
+
   return false;
 }

@@ -191,3 +191,54 @@ describe("the NFS route", () => {
     expect(created.enabled).toBe(true);
   });
 });
+
+describe("removing an export", () => {
+  function fakeDelete(body: Record<string, unknown>, existing: Array<{ path: string }> = [{ path: "/mnt/tank/media" }]) {
+    const calls: Array<{ method: string; params: unknown[] }> = [];
+    const nas = {
+      calls,
+      call: async (method: string, params: unknown[] = []) => {
+        calls.push({ method, params });
+        return method === "sharing.nfs.query" ? existing : { ok: true };
+      },
+      startJob: async () => 1,
+    };
+    const res = fakeRes();
+    return {
+      run: handleShareRoutes({
+        path: "/api/shares/nfs/7",
+        method: "DELETE",
+        url: new URL("http://nas.local/api/shares/nfs/7"),
+        req: Readable.from([Buffer.from(JSON.stringify(body))]) as never,
+        res: res as never,
+        nas: nas as never,
+      }),
+      nas,
+      res,
+    };
+  }
+
+  it("deletes when the path is typed back correctly", async () => {
+    const { run, nas } = fakeDelete({ confirm: "/mnt/tank/media" });
+    await expect(run).resolves.toBe(true);
+    expect(nas.calls.map((c) => c.method)).toContain("sharing.nfs.delete");
+  });
+
+  it("refuses when the confirmation does not match, and deletes nothing", async () => {
+    const { run, nas } = fakeDelete({ confirm: "/mnt/tank/other" });
+    await expect(run).rejects.toThrow();
+    expect(nas.calls.map((c) => c.method)).not.toContain("sharing.nfs.delete");
+  });
+
+  it("refuses with no confirmation at all", async () => {
+    const { run, nas } = fakeDelete({});
+    await expect(run).rejects.toThrow();
+    expect(nas.calls.map((c) => c.method)).not.toContain("sharing.nfs.delete");
+  });
+
+  it("says so when the export is already gone rather than deleting by id blindly", async () => {
+    const { run, nas } = fakeDelete({ confirm: "/mnt/tank/media" }, []);
+    await expect(run).rejects.toThrow(/no such export/i);
+    expect(nas.calls.map((c) => c.method)).not.toContain("sharing.nfs.delete");
+  });
+});

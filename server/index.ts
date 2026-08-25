@@ -1503,7 +1503,9 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       ]);
       json(res, 200, {
         smb: smb.map((s) => ({ id: s.id, name: s.name, path: s.path, enabled: s.enabled, comment: s.comment, purpose: s.purpose, readOnly: s.ro === true })),
-        nfs: nfs.map((s) => ({ path: s.path, enabled: s.enabled, comment: s.comment, networks: s.networks, hosts: s.hosts })),
+        // id, because without it an export can be listed but not removed —
+        // and sharing.nfs.delete takes an id, not a path.
+        nfs: nfs.map((s) => ({ id: s.id, path: s.path, enabled: s.enabled, comment: s.comment, networks: s.networks, hosts: s.hosts })),
       });
       return true;
     }
