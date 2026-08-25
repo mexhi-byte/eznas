@@ -1,0 +1,12 @@
+node_modules
+dist
+dist.prev
+data
+docs
+.git
+.github
+.env
+*.env
+.DS_Store
+test
+vitest.config.ts
