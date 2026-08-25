@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { bytes, post, uploadFile, useResource, withConn } from "./api";
+import { bytes, post, rate, uploadFile, useResource, withConn } from "./api";
 import { Card, Empty, ErrorBanner, Loading } from "./components";
 import { DangerConfirm, Field, Input, JobProgress, Modal, useSubmit } from "./ui";
 import { PermissionsModal } from "./permissions";
@@ -80,6 +80,8 @@ interface UploadJob {
   total: number;
   sent: number;
   state: "sending" | "done" | "failed" | "cancelled";
+  /** For the rate: bytes alone cannot say whether this is going to take all night. */
+  startedAt: number;
   error?: string;
   handle?: { abort: () => void };
 }
@@ -172,7 +174,7 @@ export function FilesPage() {
   async function runQueue(files: File[]) {
     for (const file of files) {
       const id = nextJobId.current++;
-      setJobs((j) => [...j, { id, name: file.name, total: file.size, sent: 0, state: "sending" }]);
+      setJobs((j) => [...j, { id, name: file.name, total: file.size, sent: 0, state: "sending", startedAt: Date.now() }]);
       const handle = uploadFile(path, file, (sent, total) =>
         setJobs((j) => j.map((x) => (x.id === id ? { ...x, sent, total } : x))));
       setJobs((j) => j.map((x) => (x.id === id ? { ...x, handle } : x)));
@@ -490,7 +492,14 @@ export function FilesPage() {
           {jobs.map((j) => (
             <div key={j.id} className={`upload-row ${j.state}`}>
               <span className="upload-name" title={j.name}>{j.name}</span>
-              <span className="upload-size">{bytes(j.sent)} / {bytes(j.total)}</span>
+              <span className="upload-size">
+                {bytes(j.sent)} / {bytes(j.total)}
+                {/* A size that changes is not the same as a speed. Without a
+                    rate there is no way to tell a slow upload from a stuck one. */}
+                {j.state === "sending" && j.sent > 0 && (
+                  <> · {rate(j.sent / Math.max(0.5, (Date.now() - j.startedAt) / 1000))}</>
+                )}
+              </span>
               <div className="upload-bar">
                 <div style={{ width: `${j.total ? (j.sent / j.total) * 100 : 0}%` }} />
               </div>
