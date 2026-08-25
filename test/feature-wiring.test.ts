@@ -61,6 +61,12 @@ describe("every shipped feature is reachable from the interface", () => {
     expect(pages).toContain("pages3.tsx");
   });
 
+  it("the recycle bin is reachable as a folder, not only a button", () => {
+    // It used to be a toolbar button, which meant you had to know it existed.
+    const page = componentSources().find((s) => s.file === "files-page.tsx");
+    expect(page?.text).toContain('kind === "bin"');
+  });
+
   it("NFS exports have a dialog, not just a route", () => {
     // A path fragment rather than an identifier: the dialog posts to the
     // endpoint directly, so there is no imported function name to look for.

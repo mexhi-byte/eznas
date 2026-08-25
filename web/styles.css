@@ -1044,3 +1044,13 @@ details.advanced summary { cursor: pointer; color: var(--muted); font-size: 13px
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; overflow-wrap: anywhere; }
+
+/* -------------------------------------------------------------- recycle bin */
+/*
+ * The bin sits in the listing like any other folder, because that is what it
+ * is — but muted, so it does not compete with the files somebody came here to
+ * look at.
+ */
+.file-row.bin-row .fname { color: var(--muted); }
+.file-row.bin-row .file-icon { color: var(--muted); }
+.file-row.bin-row:hover .fname, .file-row.bin-row:hover .file-icon { color: var(--text); }
