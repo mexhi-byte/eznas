@@ -15,22 +15,15 @@ import * as webhooks from "./webhooks.js";
 import { generateSecret, provisioningUri, recoveryCodes, verify as verifyTotp } from "./totp.js";
 import { clearedCookie, cookieHeader, COOKIE, issue, read as readSessionCookie, readCookie, valid } from "./auth.js";
 import * as accounts from "./accounts.js";
+import { CHANNEL, VERSION } from "./version.js";
+
+export { VERSION };
 import { bodyOf, confirmed, json, optStr, str, underMnt } from "./http.js";
 import { levelToPerms, type AclEntry } from "./acl.js";
 import { handleFileRoutes } from "./routes/files.js";
 
 const PORT = Number(process.env.PORT ?? 80);
 
-/**
- * The running version, and what it calls itself.
- *
- * Read from package.json rather than written out twice: a version that has to
- * be kept in step by hand is a version that eventually lies, and the updater
- * compares this against the tags published on GitHub.
- */
-const PKG = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { version: string; name: string };
-export const VERSION = PKG.version;
-const CHANNEL = process.env.RELEASE_CHANNEL ?? "demo";
 const WEB_ROOT = join(process.cwd(), "dist", "web");
 
 store.init();
