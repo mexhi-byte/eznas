@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import { bytes, post, useResource, withConn } from "./api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { bytes, post, uploadFile, useResource, withConn } from "./api";
 import { Card, Empty, ErrorBanner, Loading } from "./components";
 import { DangerConfirm, Field, Input, JobProgress, Modal, useSubmit } from "./ui";
 import { PermissionsModal } from "./permissions";
 import { RecycleBin } from "./recycle-bin";
+import { clashingNames, nextFreeName } from "./upload-names";
 import { ShareFolder } from "./shares";
 
 /**
@@ -73,6 +74,16 @@ function RenameEntry({ entry, onClose, onDone }: { entry: Entry; onClose: () => 
 
 type SortKey = "name" | "size" | "kind";
 
+interface UploadJob {
+  id: number;
+  name: string;
+  total: number;
+  sent: number;
+  state: "sending" | "done" | "failed" | "cancelled";
+  error?: string;
+  handle?: { abort: () => void };
+}
+
 export function FilesPage() {
   const [path, setPath] = useState("/mnt");
   const { data, error, loading, reload } = useResource<{
@@ -98,6 +109,10 @@ export function FilesPage() {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
   const [moveError, setMoveError] = useState<string | null>(null);
+  const [jobs, setJobs] = useState<UploadJob[]>([]);
+  const [uploadOver, setUploadOver] = useState(false);
+  const [clash, setClash] = useState<{ files: File[]; names: string[] } | null>(null);
+  const nextJobId = useRef(1);
 
   const canMove = data?.canMove ?? false;
 
@@ -146,6 +161,86 @@ export function FilesPage() {
           },
         }
       : {};
+
+  /**
+   * Upload one file at a time.
+   *
+   * Serial rather than parallel: a NAS write is disk-bound, so six at once
+   * finish no sooner in total and make every individual bar crawl. One at a
+   * time also means Cancel stops the thing the operator is looking at.
+   */
+  async function runQueue(files: File[]) {
+    for (const file of files) {
+      const id = nextJobId.current++;
+      setJobs((j) => [...j, { id, name: file.name, total: file.size, sent: 0, state: "sending" }]);
+      const handle = uploadFile(path, file, (sent, total) =>
+        setJobs((j) => j.map((x) => (x.id === id ? { ...x, sent, total } : x))));
+      setJobs((j) => j.map((x) => (x.id === id ? { ...x, handle } : x)));
+      try {
+        await handle.promise;
+        setJobs((j) => j.map((x) => (x.id === id ? { ...x, state: "done", sent: x.total } : x)));
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        setJobs((j) => j.map((x) => (x.id === id
+          ? { ...x, state: /cancel/i.test(message) ? "cancelled" : "failed", error: message }
+          : x)));
+      }
+    }
+    await reload();
+  }
+
+  /** Ask before any bytes move, rather than after. */
+  function begin(files: File[]) {
+    const names = clashingNames(files.map((f) => f.name), (data?.entries ?? []).map((e) => e.name));
+    if (names.length) setClash({ files, names });
+    else void runQueue(files);
+  }
+
+  /** Replace, keep both, or skip — applied to every clashing file in the drop. */
+  function resolveClash(how: "replace" | "both" | "skip") {
+    if (!clash) return;
+    const clashed = new Set(clash.names);
+    let files = clash.files;
+    if (how === "skip") {
+      files = files.filter((f) => !clashed.has(f.name));
+    } else if (how === "both") {
+      const taken = new Set((data?.entries ?? []).map((e) => e.name));
+      files = files.map((f) =>
+        clashed.has(f.name) ? new File([f], nextFreeName(f.name, taken), { type: f.type }) : f);
+    }
+    setClash(null);
+    if (files.length) void runQueue(files);
+  }
+
+  /*
+   * An upload drop and a move drop share this page.
+   *
+   * They are told apart by payload: a drag that started inside the browser
+   * carries application/x-tnui-paths and is a move, handled by dropProps
+   * below. A drag from the desktop carries Files. Checking the payload rather
+   * than a mode flag means neither can swallow the other's drop.
+   */
+  const uploadDropProps = {
+    onDragOver: (ev: React.DragEvent) => {
+      if (!ev.dataTransfer.types.includes("Files")) return;
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = "copy";
+      setUploadOver(true);
+    },
+    onDragLeave: () => setUploadOver(false),
+    onDrop: (ev: React.DragEvent) => {
+      if (!ev.dataTransfer.types.includes("Files")) return;
+      ev.preventDefault();
+      setUploadOver(false);
+      const dropped = Array.from(ev.dataTransfer.files);
+      // A folder arrives as a zero-size entry with no type. Uploading that
+      // would silently create an empty file named after the folder.
+      const folders = dropped.filter((f) => !f.type && f.size === 0);
+      if (folders.length) setMoveError("Dropping a folder is not supported yet — drop the files inside it.");
+      const usable = dropped.filter((f) => !folders.includes(f));
+      if (usable.length) begin(usable);
+    },
+  };
 
   const dropProps = (dir: string) =>
     canMove
@@ -230,6 +325,23 @@ export function FilesPage() {
               Recycle bin
             </button>
           )}
+          {/* A label rather than a button: the file input has to be the thing
+              clicked, and a hidden input inside a label is how that is done
+              without the browser's own unstyleable control. */}
+          <label className="btn" style={{ flex: "none", padding: "8px 16px", cursor: "pointer" }}>
+            Upload
+            <input
+              type="file"
+              multiple
+              style={{ display: "none" }}
+              onChange={(e) => {
+                if (e.target.files?.length) begin(Array.from(e.target.files));
+                // So the same file can be picked twice running: without this
+                // the change event does not fire the second time.
+                e.target.value = "";
+              }}
+            />
+          </label>
           <button className="btn primary" style={{ flex: "none", padding: "8px 16px" }} onClick={() => { setMkErr(null); setCreating(true); }}>
             New folder
           </button>
@@ -240,6 +352,7 @@ export function FilesPage() {
       {moveError && <ErrorBanner>{moveError}</ErrorBanner>}
       {moving && <div className="job" style={{ marginBottom: 14 }}><span className="job-label">Moving…</span></div>}
 
+      <div className={uploadOver ? "files-drop-over" : undefined} {...uploadDropProps}>
       <Card>
         <div className="file-bar">
           <div className="crumbs">
@@ -366,6 +479,30 @@ export function FilesPage() {
         )}
       </Card>
 
+      {!!jobs.length && (
+        <div className="upload-tray">
+          <div className="upload-tray-head">
+            <strong>{jobs.filter((j) => j.state === "done").length} of {jobs.length} uploaded</strong>
+            <button className="link-btn" onClick={() => setJobs((j) => j.filter((x) => x.state === "sending"))}>
+              Clear finished
+            </button>
+          </div>
+          {jobs.map((j) => (
+            <div key={j.id} className={`upload-row ${j.state}`}>
+              <span className="upload-name" title={j.name}>{j.name}</span>
+              <span className="upload-size">{bytes(j.sent)} / {bytes(j.total)}</span>
+              <div className="upload-bar">
+                <div style={{ width: `${j.total ? (j.sent / j.total) * 100 : 0}%` }} />
+              </div>
+              {j.state === "sending"
+                ? <button className="link-btn" onClick={() => j.handle?.abort()}>Cancel</button>
+                : <span className="upload-state">{j.state === "done" ? "done" : j.error ?? j.state}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+      </div>
+
       {preview && (
         <Preview
           entry={preview}
@@ -381,6 +518,28 @@ export function FilesPage() {
           onClose={() => setSharing(null)}
           onDone={(jobId) => { if (jobId) setPermJobs((j) => [...j, { id: jobId, label: "Applying who can use it" }]); }}
         />
+      )}
+
+      {clash && (
+        <Modal
+          title={clash.names.length === 1 ? "That name is already here" : `${clash.names.length} names are already here`}
+          subtitle={clash.names.slice(0, 3).join(", ") + (clash.names.length > 3 ? ` and ${clash.names.length - 3} more` : "")}
+          onClose={() => setClash(null)}
+          footer={
+            <>
+              <button className="btn" onClick={() => setClash(null)}>Cancel</button>
+              <button className="btn" onClick={() => resolveClash("skip")}>Skip these</button>
+              <button className="btn" onClick={() => resolveClash("both")}>Keep both</button>
+              <button className="btn danger-solid" onClick={() => resolveClash("replace")}>Replace</button>
+            </>
+          }
+        >
+          <p className="modal-text">
+            <strong>Keep both</strong> uploads them alongside what is here, numbered — {clash.names[0]} becomes{" "}
+            <strong className="mono">{nextFreeName(clash.names[0], new Set(clash.names))}</strong>.{" "}
+            <strong>Replace</strong> overwrites what is already there, which cannot be undone from here.
+          </p>
+        </Modal>
       )}
 
       {showBin && (
