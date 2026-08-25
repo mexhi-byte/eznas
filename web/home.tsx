@@ -20,6 +20,8 @@ interface Overview {
 interface App {
   name: string; title: string; state: string; icon: string | null; custom?: boolean;
   updatable: boolean; portals: Record<string, string>;
+  /** Every published port, addressed — derived when TrueNAS gave no portal. */
+  links?: Array<{ port: number; url: string }>;
 }
 
 interface Alert { uuid: string; level: string; text: string; at: number }
@@ -416,7 +418,14 @@ function tint(name: string): string {
 }
 
 function AppTile({ app }: { app: App }) {
-  const portal = Object.values(app.portals ?? {})[0];
+  /*
+   * The portal TrueNAS published, or the first port the app actually listens
+   * on. A compose app has no portal and never will, so without the fallback
+   * every custom app on this page was a tile that did nothing when clicked.
+   * The title says where it goes, because for a database it goes nowhere
+   * useful and a tooltip is a cheaper way to find that out than a dead tab.
+   */
+  const portal = Object.values(app.portals ?? {})[0] ?? app.links?.[0]?.url;
   const running = app.state === "RUNNING";
   const [broken, setBroken] = useState(false);
 
@@ -445,7 +454,7 @@ function AppTile({ app }: { app: App }) {
   // An app with a web interface is something to open; one without is only
   // something to look at, so it does not pretend to be a link.
   return portal && running ? (
-    <a className="app-tile" href={portal} target="_blank" rel="noreferrer" title={`Open ${app.title}`}>{body}</a>
+    <a className="app-tile" href={portal} target="_blank" rel="noreferrer" title={`Open ${portal}`}>{body}</a>
   ) : (
     <div className="app-tile" title={running ? "No web interface" : `${app.title} is ${app.state.toLowerCase()}`}>{body}</div>
   );

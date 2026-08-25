@@ -456,11 +456,44 @@ interface App {
   icon: string | null;
   containers: number;
   ports: number[];
+  /** Every published port, addressed — derived when TrueNAS gave no portal. */
+  links: Array<{ port: number; url: string }>;
   portals: Record<string, string>;
 }
 
 /** The app's own web interface, if it published one. */
 const portalOf = (a: App): string | undefined => Object.values(a.portals ?? {})[0];
+
+/**
+ * A stable colour for an app with no logo. Hashed from the name, so adding an
+ * app does not recolour the ones next to it.
+ */
+function tint(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return `hsl(${h} 42% 34%)`;
+}
+
+/**
+ * The logo, or a letter.
+ *
+ * The home page has always degraded to a letter when an icon fails to load;
+ * this card did not, so a dead icon url left an empty square here and a
+ * perfectly readable tile there for the same app.
+ */
+function AppIcon({ app }: { app: App }) {
+  const [broken, setBroken] = useState(false);
+  const shown = app.icon && !broken;
+  return (
+    <div className="app-icon" style={shown ? undefined : { background: tint(app.name) }}>
+      {shown ? (
+        <img src={app.icon!} alt="" loading="lazy" onError={() => setBroken(true)} />
+      ) : (
+        app.title.slice(0, 1).toUpperCase()
+      )}
+    </div>
+  );
+}
 
 export function AppsPage() {
   const { data, error, loading, reload } = useResource<App[]>("/api/apps", 10_000);
@@ -520,9 +553,7 @@ export function AppsPage() {
           return (
             <div key={a.name} className="app-card">
               <div className="app-top">
-                <div className="app-icon">
-                  {a.icon ? <img src={a.icon} alt="" loading="lazy" /> : a.name.slice(0, 2).toUpperCase()}
-                </div>
+                <AppIcon app={a} />
                 <div style={{ minWidth: 0 }}>
                   <div className="app-name">{a.name}</div>
                   <div className="app-meta">{a.version}{a.containers ? ` · ${a.containers} container${a.containers > 1 ? "s" : ""}` : ""}</div>
@@ -537,7 +568,14 @@ export function AppsPage() {
                       update available — install
                     </button>
                   )}
-                  {a.ports.slice(0, 4).map((p) => (
+                  {/* A port you can open. Deliberately still a chip and not a
+                      button labelled Open: several of these are databases, and
+                      a chip promises far less about what is behind it. */}
+                  {a.links.slice(0, 4).map((l) => (
+                    <a key={l.port} className="pill mute mono port-link" href={l.url}
+                       target="_blank" rel="noreferrer" title={`Open ${l.url}`}>:{l.port}</a>
+                  ))}
+                  {!a.links.length && a.ports.slice(0, 4).map((p) => (
                     <span key={p} className="pill mute mono">:{p}</span>
                   ))}
                 </div>
