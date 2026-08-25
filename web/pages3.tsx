@@ -147,8 +147,8 @@ function ConnectionForm({ conn, onClose, onSaved }: { conn: Conn | null; onClose
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Main NAS" autoFocus />
       </Field>
 
-      <Field label="Address" hint="An address is enough — 10.11.10.127. https:// and /api/current are added for you.">
-        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="10.11.10.127" />
+      <Field label="Address" hint="An address is enough — 192.168.1.10. https:// and /api/current are added for you.">
+        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="192.168.1.10" />
       </Field>
 
       <Field

@@ -206,7 +206,7 @@ function IfaceForm({ iface, onClose, onSaved }: { iface: Iface; onClose: () => v
       {!dhcp && (
         <div className="row">
           <Field label="Address">
-            <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="10.11.10.127" />
+            <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="192.168.1.10" />
           </Field>
           <Field label="Prefix">
             <Input type="number" min="1" max="32" value={netmask} onChange={(e) => setNetmask(e.target.value)} />
