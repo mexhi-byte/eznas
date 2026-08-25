@@ -16,6 +16,7 @@ import { generateSecret, provisioningUri, recoveryCodes, verify as verifyTotp } 
 import { clearedCookie, cookieHeader, COOKIE, issue, read as readSessionCookie, readCookie, valid } from "./auth.js";
 import * as accounts from "./accounts.js";
 import { CHANNEL, VERSION } from "./version.js";
+import { appTitle, isCustomApp } from "./apps.js";
 
 export { VERSION };
 import { bodyOf, confirmed, json, optStr, str, underMnt } from "./http.js";
@@ -608,7 +609,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
 
       json(res, 200, {
         name,
-        title: row.metadata?.title ?? name,
+        title: appTitle(name, row.metadata?.title),
         version: row.human_version || row.version,
         custom,
         portals: row.portals ?? {},
@@ -1549,7 +1550,10 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       const apps = await nas.call<AppRow[]>("app.query");
       json(res, 200, apps.map((a) => ({
         name: a.name, state: a.state, version: a.human_version || a.version,
-        updatable: a.upgrade_available, title: a.metadata?.title ?? a.name, train: a.metadata?.train,
+        updatable: a.upgrade_available, title: appTitle(a.name, a.metadata?.title), train: a.metadata?.train,
+        // Kept so the tile can say "custom app" quietly under the real name,
+        // rather than losing that it is one.
+        custom: isCustomApp(a.metadata?.title),
         // Custom apps carry no icon at all, so the browser has to be ready to
         // draw its own tile rather than a broken image.
         icon: a.metadata?.icon ?? null,
