@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { bytes, del, post, put, useResource } from "./api";
 import { Empty, ErrorBanner, Loading } from "./components";
-import { Modal } from "./ui";
+import { Field, Input, Modal, Select } from "./ui";
 
 interface BinEntry {
   name: string;
@@ -33,14 +33,16 @@ export function RecycleBin({ path, onClose, onChanged }: {
   const [failed, setFailed] = useState<string | null>(null);
   const [emptying, setEmptying] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [restoring, setRestoring] = useState<BinEntry | null>(null);
 
   const total = (data?.entries ?? []).reduce((s, e) => s + (e.size ?? 0), 0);
 
-  async function restore(entry: BinEntry) {
+  async function restore(entry: BinEntry, where?: { toDir?: string; name?: string }) {
     setBusy(entry.path);
     setFailed(null);
     try {
-      await put("/api/files/recycle", { path: entry.path });
+      await put("/api/files/recycle", { path: entry.path, ...where });
+      setRestoring(null);
       await reload();
       onChanged();
     } catch (e) {
@@ -113,7 +115,7 @@ export function RecycleBin({ path, onClose, onChanged }: {
                   <td className="num">{e.type === "DIRECTORY" ? "—" : bytes(e.size)}</td>
                   <td>
                     <div className="row-actions">
-                      <button className="btn" disabled={busy === e.path} onClick={() => void restore(e)}>
+                      <button className="btn" disabled={busy === e.path} onClick={() => setRestoring(e)}>
                         {busy === e.path ? "…" : "Put back"}
                       </button>
                     </div>
@@ -128,6 +130,15 @@ export function RecycleBin({ path, onClose, onChanged }: {
       <p className="modal-text">
         Items in the bin still use the pool's space. Emptying it is the only step here that cannot be undone.
       </p>
+
+      {restoring && (
+        <RestoreTo
+          entry={restoring}
+          busy={busy === restoring.path}
+          onCancel={() => setRestoring(null)}
+          onRestore={(where) => void restore(restoring, where)}
+        />
+      )}
 
       {emptying && (
         <Modal
@@ -159,6 +170,101 @@ export function RecycleBin({ path, onClose, onChanged }: {
             autoFocus
           />
         </Modal>
+      )}
+    </Modal>
+  );
+}
+
+/**
+ * Where to put it back.
+ *
+ * "Put back" used to mean exactly one thing, which is the right default and a
+ * poor rule: the folder it came from may be gone, its name may since have been
+ * taken by something else, and the reason it was deleted may have been that it
+ * was in the wrong place to begin with.
+ *
+ * The original location stays the first option and the preselected one, so the
+ * common case is still one click.
+ */
+function RestoreTo({ entry, busy, onCancel, onRestore }: {
+  entry: BinEntry;
+  busy: boolean;
+  onCancel: () => void;
+  onRestore: (where?: { toDir?: string; name?: string }) => void;
+}) {
+  type Choice = "original" | "rename" | "elsewhere";
+  const [choice, setChoice] = useState<Choice>("original");
+  const cut = entry.original.lastIndexOf("/");
+  const originalDir = entry.original.slice(0, cut);
+  const originalName = entry.original.slice(cut + 1);
+  const [name, setName] = useState(originalName);
+  const [dir, setDir] = useState(originalDir);
+
+  const ready =
+    choice === "original" ||
+    (choice === "rename" && !!name.trim()) ||
+    (choice === "elsewhere" && dir.trim().startsWith("/mnt/"));
+
+  return (
+    <Modal
+      title={`Put back ${entry.name}`}
+      subtitle={entry.type === "DIRECTORY" ? "A folder, and everything in it." : undefined}
+      onClose={onCancel}
+      footer={
+        <>
+          <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
+          <button
+            className="btn primary"
+            disabled={busy || !ready}
+            onClick={() =>
+              onRestore(
+                choice === "original" ? undefined
+                  : choice === "rename" ? { name: name.trim() }
+                  : { toDir: dir.trim() },
+              )
+            }
+          >
+            {busy ? "Putting back…" : "Put it back"}
+          </button>
+        </>
+      }
+    >
+      <Field label="Where">
+        <Select value={choice} onChange={(e) => setChoice(e.target.value as Choice)}>
+          <option value="original">Back where it came from</option>
+          <option value="rename">Back where it came from, under a new name</option>
+          <option value="elsewhere">Into a different folder</option>
+        </Select>
+      </Field>
+
+      {choice === "original" && (
+        <p className="modal-text">
+          It goes back to <strong className="mono">{entry.original}</strong>.{" "}
+          {/* The move script never overwrites — it dates the newcomer instead.
+              Saying so is kinder than letting somebody find a surprise. */}
+          If something with that name is already there, this one is put beside it with the date added rather than
+          replacing it.
+        </p>
+      )}
+
+      {choice === "rename" && (
+        <Field label="New name" hint={`It still goes into ${originalDir}.`}>
+          <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        </Field>
+      )}
+
+      {choice === "elsewhere" && (
+        <Field label="Folder" hint="A full path under /mnt — for example /mnt/tank/sorted.">
+          <Input value={dir} onChange={(e) => setDir(e.target.value)} placeholder="/mnt/tank/somewhere" autoFocus />
+          {!dir.trim().startsWith("/mnt/") && (
+            <p className="modal-text" style={{ color: "var(--warn)" }}>
+              Has to be a full path starting with /mnt/.
+            </p>
+          )}
+          <p className="modal-text">
+            The folder has to exist already. It keeps the name <strong className="mono">{originalName}</strong>.
+          </p>
+        </Field>
       )}
     </Modal>
   );

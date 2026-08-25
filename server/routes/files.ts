@@ -6,8 +6,9 @@ import * as files from "../files.js";
 import * as exec from "../nas-exec.js";
 import { uploadTo } from "../upload.js";
 import { searchFiles } from "../search.js";
-import { bodyOf, confirmed, json, str, underMnt } from "../http.js";
+import { bodyOf, confirmed, json, optStr, str, underMnt } from "../http.js";
 import { levelToPerms, type AclEntry, type AclResult } from "../acl.js";
+import { restoreTarget } from "../restore-target.js";
 
 /**
  * Everything under /api/files.
@@ -58,13 +59,19 @@ export async function handleFileRoutes(ctx: FileRouteContext): Promise<boolean> 
         // drop fail.
         canMove: !!store.sudoPasswordFor(store.get(url.searchParams.get("c"))!),
         entries: entries
-          // The bin is machinery, not a folder somebody put there. It gets its
-          // own view rather than sitting in the listing being mistaken for data.
-          .filter((e) => e.name !== ".recycle")
           .map((e) => ({
             name: e.name, path: e.path, type: e.type, size: e.size,
             mode: e.mode, uid: e.uid, gid: e.gid, isMountpoint: e.is_mountpoint,
-            kind: e.type === "DIRECTORY" ? "dir" : files.kindOf(String(e.name)),
+            /*
+             * The bin is a folder, and hiding it made it one you had to know
+             * about. It is marked as its own kind rather than dropped, so the
+             * browser can put it where a deleted-items folder belongs — in the
+             * listing, named, and opening into the view built for it rather
+             * than into a tree of timestamped mirror directories.
+             */
+            kind: e.name === ".recycle"
+              ? "bin"
+              : e.type === "DIRECTORY" ? "dir" : files.kindOf(String(e.name)),
           }))
           .sort((a, b) => (a.type === b.type ? String(a.name).localeCompare(String(b.name)) : a.type === "DIRECTORY" ? -1 : 1)),
       });
@@ -307,16 +314,44 @@ export async function handleFileRoutes(ctx: FileRouteContext): Promise<boolean> 
         return true;
       }
 
-      // Restore: the same move backwards, to where the item came from.
+      /*
+       * Restore: the same move backwards — to where the item came from, or to
+       * wherever was asked for instead.
+       *
+       * The default is still the original location, because that is what "put
+       * back" means. The alternatives exist because the original folder may be
+       * gone, its name may since have been taken, or the reason for going into
+       * the bin in the first place may have been that it was in the wrong place.
+       */
       if (method === "PUT") {
         const b = await bodyOf(req);
         const from = exec.safePath(underMnt(str(b, "path")));
         const bin = binFor(from);
-        if (!bin || !from.startsWith(`${bin}/`)) throw new Error("That is not in a recycle bin.");
-        const root = bin.slice(0, -"/.recycle".length);
-        const to = `${root}${from.slice(bin.length)}`.replace(/\.\d{8}-\d{6}$/, "");
-        exec.orThrow(await exec.run(conn, exec.recycleCommand(from, to)), `Could not restore ${from}`);
-        json(res, 200, { ok: true, path: to });
+        if (!bin) throw new Error("That is not in a recycle bin.");
+        const target = restoreTarget({
+          from,
+          bin,
+          toDir: optStr(b, "toDir") ?? null,
+          name: optStr(b, "name") ?? null,
+        });
+        // Re-checked after resolution: the pieces were validated separately,
+        // and it is the joined path that actually gets written.
+        const to = exec.safePath(underMnt(target.path));
+        const result = await exec.run(conn, exec.recycleCommand(from, to));
+        exec.orThrow(result, `Could not restore ${from}`);
+        /*
+         * Where it actually landed, which is not always where it was sent.
+         *
+         * The move script appends a timestamp rather than overwriting when
+         * something is already there, so reporting the requested path would
+         * name a file that may not be the one just written — and the browser
+         * would send the operator to the wrong place.
+         */
+        const landed = await nas
+          .call("filesystem.stat", [to])
+          .then(() => to)
+          .catch(() => null);
+        json(res, 200, { ok: true, path: landed ?? to, movedAside: landed === null });
         return true;
       }
 

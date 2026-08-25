@@ -28,7 +28,7 @@ export interface Entry {
   uid: number;
   gid: number;
   isMountpoint: boolean;
-  kind: "dir" | "image" | "video" | "audio" | "pdf" | "text" | "other";
+  kind: "dir" | "bin" | "image" | "video" | "audio" | "pdf" | "text" | "other";
 }
 
 /** Rename one file or folder in place. */
@@ -315,7 +315,17 @@ export function FilesPage() {
     const needle = filter.trim().toLowerCase();
     const list = (data?.entries ?? []).filter((e) => !needle || e.name.toLowerCase().includes(needle));
     const dir = (e: Entry) => e.type === "DIRECTORY";
+    const bin = (e: Entry) => e.kind === "bin";
     return [...list].sort((a, b) => {
+      /*
+       * The bin last, always.
+       *
+       * It is named ".recycle", so a plain sort puts it at the very top, above
+       * everything somebody actually came here for. It belongs in the listing
+       * — that is the point of showing it — but at the bottom, the way a
+       * wastebasket sits at the end of a desk rather than in the middle of it.
+       */
+      if (bin(a) !== bin(b)) return bin(a) ? 1 : -1;
       // Folders stay above files whichever way the sort points — a listing
       // that interleaves them is harder to scan, not more sorted.
       if (dir(a) !== dir(b)) return dir(a) ? -1 : 1;
@@ -363,11 +373,6 @@ export function FilesPage() {
           {images.length > 0 && (
             <button className="btn" style={{ flex: "none", padding: "8px 16px" }} onClick={() => setGallery((g) => !g)}>
               {gallery ? "List" : `Gallery (${images.length})`}
-            </button>
-          )}
-          {canMove && path.split("/").filter(Boolean).length >= 2 && (
-            <button className="btn" style={{ flex: "none", padding: "8px 16px" }} onClick={() => setShowBin(true)}>
-              Recycle bin
             </button>
           )}
           {/* A label rather than a button: the file input has to be the thing
@@ -483,22 +488,25 @@ export function FilesPage() {
             </div>
 
             {rows.map((e) => {
+              const isBin = e.kind === "bin";
               const dir = e.type === "DIRECTORY";
               const canOpen = !dir && e.kind !== "other";
               return (
                 <div
                   key={e.path}
-                  className={`file-row ${dir || canOpen ? "dir" : ""} ${dragOver === e.path ? "drop-on" : ""}`}
-                  onClick={() => (dir ? setPath(e.path) : canOpen ? setPreview(e) : undefined)}
-                  {...dragProps(e)}
-                  {...(dir ? dropProps(e.path) : {})}
+                  className={`file-row ${dir || canOpen ? "dir" : ""} ${isBin ? "bin-row" : ""} ${dragOver === e.path ? "drop-on" : ""}`}
+                  /* The bin opens its own view rather than the tree of
+                     timestamped mirror folders it is made of. */
+                  onClick={() => (isBin ? setShowBin(true) : dir ? setPath(e.path) : canOpen ? setPreview(e) : undefined)}
+                  {...(isBin ? {} : dragProps(e))}
+                  {...(dir && !isBin ? dropProps(e.path) : {})}
                 >
-                  {dir ? <FolderIcon /> : <KindIcon kind={e.kind} />}
-                  <span className="fname">{e.name}</span>
-                  {e.isMountpoint && <span className="pill info">dataset</span>}
-                  <span className="fkind">{dir ? "folder" : e.kind}</span>
+                  {isBin ? <BinIcon /> : dir ? <FolderIcon /> : <KindIcon kind={e.kind} />}
+                  <span className="fname">{isBin ? "Recycle bin" : e.name}</span>
+                  {e.isMountpoint && !isBin && <span className="pill info">dataset</span>}
+                  <span className="fkind">{isBin ? "deleted items" : dir ? "folder" : e.kind}</span>
                   <span className="fmeta">{dir ? "—" : bytes(e.size)}</span>
-                  {dir && (
+                  {dir && !isBin && (
                     <button
                       className="btn"
                       style={{ flex: "none", padding: "3px 9px", fontSize: 12 }}
@@ -857,6 +865,15 @@ function KindIcon({ kind }: { kind: Entry["kind"] }) {
 const FolderIcon = () => (
   <svg className="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
     <path d="M3 6h6l2 2h10v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
+  </svg>
+);
+/** A bin, so the row reads as one at a glance rather than as a hidden folder. */
+const BinIcon = () => (
+  <svg className="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 7h16" />
+    <path d="M10 4h4a1 1 0 0 1 1 1v2H9V5a1 1 0 0 1 1-1z" />
+    <path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" />
+    <path d="M10 11v6M14 11v6" />
   </svg>
 );
 const FileIcon = () => (
