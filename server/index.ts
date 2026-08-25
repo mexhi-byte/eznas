@@ -15,22 +15,16 @@ import * as webhooks from "./webhooks.js";
 import { generateSecret, provisioningUri, recoveryCodes, verify as verifyTotp } from "./totp.js";
 import { clearedCookie, cookieHeader, COOKIE, issue, read as readSessionCookie, readCookie, valid } from "./auth.js";
 import * as accounts from "./accounts.js";
+import { CHANNEL, VERSION } from "./version.js";
+import { appTitle, isCustomApp } from "./apps.js";
+
+export { VERSION };
 import { bodyOf, confirmed, json, optStr, str, underMnt } from "./http.js";
 import { levelToPerms, type AclEntry } from "./acl.js";
 import { handleFileRoutes } from "./routes/files.js";
 
 const PORT = Number(process.env.PORT ?? 80);
 
-/**
- * The running version, and what it calls itself.
- *
- * Read from package.json rather than written out twice: a version that has to
- * be kept in step by hand is a version that eventually lies, and the updater
- * compares this against the tags published on GitHub.
- */
-const PKG = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { version: string; name: string };
-export const VERSION = PKG.version;
-const CHANNEL = process.env.RELEASE_CHANNEL ?? "demo";
 const WEB_ROOT = join(process.cwd(), "dist", "web");
 
 store.init();
@@ -615,7 +609,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
 
       json(res, 200, {
         name,
-        title: row.metadata?.title ?? name,
+        title: appTitle(name, row.metadata?.title),
         version: row.human_version || row.version,
         custom,
         portals: row.portals ?? {},
@@ -1556,7 +1550,10 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       const apps = await nas.call<AppRow[]>("app.query");
       json(res, 200, apps.map((a) => ({
         name: a.name, state: a.state, version: a.human_version || a.version,
-        updatable: a.upgrade_available, title: a.metadata?.title ?? a.name, train: a.metadata?.train,
+        updatable: a.upgrade_available, title: appTitle(a.name, a.metadata?.title), train: a.metadata?.train,
+        // Kept so the tile can say "custom app" quietly under the real name,
+        // rather than losing that it is one.
+        custom: isCustomApp(a.metadata?.title),
         // Custom apps carry no icon at all, so the browser has to be ready to
         // draw its own tile rather than a broken image.
         icon: a.metadata?.icon ?? null,

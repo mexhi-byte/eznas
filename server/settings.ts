@@ -36,7 +36,10 @@ export interface Settings {
       zfsErrors: boolean;
       apps: boolean;
       scrubs: boolean;
+      /** TrueNAS having an update available. */
       updates: boolean;
+      /** A newer EzNAS release being published. Not the same thing. */
+      consoleUpdates: boolean;
       reachability: boolean;
     };
     /** Only email about things at least this serious. */
@@ -72,7 +75,8 @@ const DEFAULTS: Settings = {
     watch: {
       poolHealth: true, capacity: true, capacityPercent: 85,
       temperature: true, temperatureC: 50,
-      zfsErrors: true, apps: true, scrubs: true, updates: true, reachability: true,
+      zfsErrors: true, apps: true, scrubs: true, updates: true, consoleUpdates: true,
+      reachability: true,
     },
     emailLevel: "warn",
     webhooks: [],

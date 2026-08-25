@@ -2,6 +2,8 @@ import * as store from "./store.js";
 import * as settings from "./settings.js";
 import type { TrueNas } from "./truenas.js";
 import * as webhooks from "./webhooks.js";
+import * as selfUpdate from "./self-update.js";
+import { VERSION } from "./version.js";
 
 /**
  * What the console watches, on its own behalf.
@@ -50,10 +52,14 @@ const shape = (d: Record<string, unknown>): Known => ({
 
 async function raise(
   conn: store.Connection,
-  n: { level: settings.NoticeLevel; category: string; key: string; title: string; detail: string },
+  n: {
+    level: settings.NoticeLevel; category: string; key: string; title: string; detail: string;
+    /** Overrides the server name, for a notice that is not about a NAS. */
+    server?: string;
+  },
 ): Promise<void> {
   if (settings.hasActive(n.key)) return;
-  const notice = settings.addEvent({ ...n, server: conn.name });
+  const notice = settings.addEvent({ ...n, server: n.server ?? conn.name });
   console.log(`[watch] ${conn.name}: ${n.title}`);
 
   const cfg = settings.get().notify;
@@ -67,7 +73,7 @@ async function raise(
   for (const hook of cfg.webhooks ?? []) {
     if (!hook.enabled || rank[n.level] < rank[hook.level]) continue;
     try {
-      await webhooks.deliver(hook, { ...n, server: conn.name }, cfg.greetName || undefined);
+      await webhooks.deliver(hook, { ...n, server: n.server ?? conn.name }, cfg.greetName || undefined);
     } catch (e) {
       // One dead webhook must not stop the others, or the email.
       console.error(`[watch] webhook ${hook.kind} failed:`, e instanceof Error ? e.message : e);
@@ -79,7 +85,7 @@ async function raise(
 
   try {
     await store.clientFor(conn).call("mail.send", [{
-      subject: `[${conn.name}] ${n.title}`,
+      subject: `[${n.server ?? conn.name}] ${n.title}`,
       text: `${n.title}\n\n${n.detail}\n\nSeen on ${conn.name} at ${new Date().toLocaleString()}.`,
       to: cfg.recipients,
     }], 20_000);
@@ -285,8 +291,86 @@ async function checkApps(conn: store.Connection, nas: TrueNas): Promise<void> {
 
 /* ----------------------------------------------------------------- loop */
 
+/* ------------------------------------------------- the console's own updates */
+
+/**
+ * Six hours between checks of this repository's releases.
+ *
+ * GitHub allows an unauthenticated address 60 requests an hour. The watch loop
+ * runs every minute, so checking on every pass would spend the entire budget
+ * on this one thing and start failing at the top of each hour — and a release
+ * that lands is not something anybody needs to hear about within the minute.
+ */
+const RELEASE_INTERVAL = 6 * 60 * 60 * 1000;
+let nextReleaseCheck = 0;
+
+/**
+ * Somewhere to deliver a notice that is not about any particular NAS.
+ *
+ * Mail goes through a NAS's own SMTP configuration, so one has to be picked.
+ * A connected server is preferred over the default, because mail through a
+ * server that is not answering does not arrive.
+ */
+function deliveryConn(): store.Connection | null {
+  const all = store.all();
+  return all.find((c) => store.clientFor(c).connected)
+    ?? all.find((c) => c.isDefault)
+    ?? all[0]
+    ?? null;
+}
+
+/**
+ * Is there a newer EzNAS than the one running.
+ *
+ * Deliberately separate from the `updates` watch above, which is about TrueNAS
+ * having an update. Folding the two together would mean one switch quietly
+ * governing two unrelated things, and somebody turning off NAS update noise
+ * would stop hearing about security fixes to this console.
+ */
+async function checkConsoleRelease(): Promise<void> {
+  if (!settings.get().notify.watch.consoleUpdates) return;
+  if (Date.now() < nextReleaseCheck) return;
+  // Stamped before the request, not after: a GitHub outage must not turn into
+  // a retry every minute.
+  nextReleaseCheck = Date.now() + RELEASE_INTERVAL;
+
+  const conn = deliveryConn();
+  if (!conn) return;
+
+  const result = await selfUpdate.check(VERSION);
+  if (!result.updateAvailable || !result.latest) return;
+
+  const release = result.latest;
+  const notes = release.notes.trim().split(/\r?\n/).slice(0, 6).join("\n");
+
+  await raise(conn, {
+    level: "info",
+    category: "console-update",
+    // Keyed by version, so each release is announced once and the next one is
+    // still announced.
+    key: `console:update:${release.version}`,
+    server: "EzNAS",
+    title: `EzNAS ${release.version} is available`,
+    detail:
+      `You are running ${VERSION}.` +
+      (notes ? `\n\n${notes}` : "") +
+      `\n\nInstall it under Settings → App updates.`,
+  });
+}
+
 async function pollOnce(): Promise<void> {
   const cfg = settings.get().notify.watch;
+
+  // Not inside the loop below: a release of this console is not a property of
+  // any one NAS, and checking once per configured server would announce it
+  // twice to somebody with two.
+  try {
+    await checkConsoleRelease();
+  } catch (e) {
+    // GitHub being unreachable is not a problem with the NAS, and must not
+    // stop the checks that are.
+    console.error("[watch] release check:", e instanceof Error ? e.message : e);
+  }
 
   for (const conn of store.all()) {
     const nas = store.clientFor(conn);

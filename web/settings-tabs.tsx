@@ -222,7 +222,8 @@ function QrCode({ text }: { text: string }) {
 export interface WatchConfig {
   poolHealth: boolean; capacity: boolean; capacityPercent: number;
   temperature: boolean; temperatureC: number;
-  zfsErrors: boolean; apps: boolean; scrubs: boolean; updates: boolean; reachability: boolean;
+  zfsErrors: boolean; apps: boolean; scrubs: boolean; updates: boolean;
+  consoleUpdates: boolean; reachability: boolean;
 }
 
 export type WebhookKind = "discord" | "telegram" | "ntfy" | "generic";
@@ -317,7 +318,8 @@ export function NotificationsTab({ notify, onSaved }: {
           <Toggle checked={watch.zfsErrors} onChange={(v) => set("zfsErrors", v)} label="Read, write or checksum errors on a drive" />
           <Toggle checked={watch.apps} onChange={(v) => set("apps", v)} label="An app stopping on its own" />
           <Toggle checked={watch.scrubs} onChange={(v) => set("scrubs", v)} label="A scrub finishing, and what it found" />
-          <Toggle checked={watch.updates} onChange={(v) => set("updates", v)} label="Updates being available" />
+          <Toggle checked={watch.updates} onChange={(v) => set("updates", v)} label="TrueNAS having an update available" />
+          <Toggle checked={watch.consoleUpdates} onChange={(v) => set("consoleUpdates", v)} label="A new version of this console being released" />
           <Toggle checked={watch.reachability} onChange={(v) => set("reachability", v)} label="The NAS not answering" />
 
           <div>

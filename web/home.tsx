@@ -18,7 +18,7 @@ interface Overview {
 }
 
 interface App {
-  name: string; title: string; state: string; icon: string | null;
+  name: string; title: string; state: string; icon: string | null; custom?: boolean;
   updatable: boolean; portals: Record<string, string>;
 }
 
@@ -401,6 +401,20 @@ function HealthCard({ label, metric, value, verdict, points, color, foot, unit }
 const fmt = (n: number, unit?: string): string =>
   unit === "rate" ? rate(n * 1024) : `${n.toFixed(0)}%`;
 
+/**
+ * A stable colour for an app with no logo.
+ *
+ * Hashed from the name rather than the index, so adding an app does not
+ * recolour the ones next to it. Kept dark and desaturated: these sit behind a
+ * white letter in every theme, and a bright tile shouts louder than an app
+ * deserves to.
+ */
+function tint(name: string): string {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return `hsl(${h} 42% 34%)`;
+}
+
 function AppTile({ app }: { app: App }) {
   const portal = Object.values(app.portals ?? {})[0];
   const running = app.state === "RUNNING";
@@ -408,7 +422,14 @@ function AppTile({ app }: { app: App }) {
 
   const body = (
     <>
-      <span className="tile-icon">
+      <span
+        className="tile-icon"
+        // A custom app has no logo to show, so it gets a letter — and a colour
+        // of its own, because fifteen grey letters are only marginally easier
+        // to tell apart than fifteen identical ones. Derived from the name, so
+        // an app keeps its colour between visits and between machines.
+        style={app.icon && !broken ? undefined : { background: tint(app.name) }}
+      >
         {app.icon && !broken ? (
           <img src={app.icon} alt="" loading="lazy" onError={() => setBroken(true)} />
         ) : (
