@@ -24,6 +24,7 @@ import { levelToPerms, type AclEntry } from "./acl.js";
 import { handleFileRoutes } from "./routes/files.js";
 import { diskVerdict, failedTestCount, temperatureOf, testsForDisk } from "./disk-verdict.js";
 import { catalogIconIndex, hostOf, iconFor, portLinks } from "./app-links.js";
+import { appDetail } from "./catalog-detail.js";
 import { handleShareRoutes } from "./routes/shares.js";
 
 const PORT = Number(process.env.PORT ?? 80);
@@ -666,6 +667,26 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       total: filtered.length,
       apps: filtered.slice(0, 120),
     });
+    return true;
+  }
+
+  /*
+   * One app, in full.
+   *
+   * app.available with a filter rather than a dedicated details method: it is
+   * the same call the catalog list already makes, so it is known to work on
+   * this NAS, and asking for no `select` returns every field the catalog has
+   * instead of the handful the list needs. Which fields those are varies by
+   * version, which is why what comes back is mapped rather than forwarded.
+   */
+  if (path === "/api/catalog/app") {
+    const name = str({ name: url.searchParams.get("name") }, "name");
+    const train = url.searchParams.get("train");
+    const filters: unknown[] = [["name", "=", name]];
+    if (train) filters.push(["train", "=", train]);
+    const [row] = await nas.call<Array<Record<string, unknown>>>("app.available", [filters]);
+    if (!row) throw new Error(`The catalog has no app called "${name}".`);
+    json(res, 200, appDetail(row));
     return true;
   }
 

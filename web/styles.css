@@ -1027,3 +1027,20 @@ a.app-tile:hover { transform: translateY(-2px); border-color: var(--accent); }
 .net-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
 .net-row > :first-child { flex: 1; }
 details.advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; margin: 12px 0 6px; }
+
+/* ----------------------------------------------------------- app details */
+.cat-actions { display: flex; gap: 8px; margin-top: auto; }
+.cat-actions .btn { flex: 1; }
+/*
+ * One screenshot at a time with dots beneath. A row of thumbnails would make
+ * each one too small to tell anything from, which is the only reason to show
+ * a screenshot at all.
+ */
+.shots { margin-bottom: 14px; }
+.shots img { display: block; width: 100%; max-height: 340px; object-fit: contain; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.shot-dots { display: flex; gap: 6px; justify-content: center; margin-top: 8px; }
+.shot-dot { width: 7px; height: 7px; padding: 0; border: 0; border-radius: 50%; background: var(--line-strong); cursor: pointer; }
+.shot-dot.on { background: var(--accent); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 13px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
