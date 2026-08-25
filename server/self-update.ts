@@ -126,7 +126,13 @@ export async function apply(tag: string, onLine: (line: string) => void): Promis
   await step("saving a rollback point", "sh", ["-c", "rm -rf dist.prev && cp -a dist dist.prev"]);
   await step("fetching", "git", ["fetch", "--tags", "--depth", "50", "origin"]);
   await step("checking out", "git", ["checkout", "--force", tag]);
-  await step("installing dependencies", "npm", ["ci", "--omit=dev", "--no-audit", "--no-fund"]);
+  // The full install, dev dependencies included.
+  //
+  // --omit=dev looks right for a server and is wrong here: this updates by
+  // building from source, and vite and typescript — the two things the build
+  // actually invokes — are dev dependencies. Omitting them installs cleanly
+  // and then fails the next step with "vite: not found".
+  await step("installing dependencies", "npm", ["ci", "--no-audit", "--no-fund"]);
   await step("building", "npm", ["run", "build"]);
   onLine("Done. Restart the service to run the new build.");
 }
