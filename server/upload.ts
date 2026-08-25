@@ -1,7 +1,7 @@
 import { request } from "node:https";
-import type { TLSSocket } from "node:tls";
 import type { TrueNas } from "./truenas.js";
 import type { Connection } from "./store.js";
+import { connectPinned, httpBase } from "./pinned.js";
 
 /**
  * Putting a file onto the NAS.
@@ -84,89 +84,72 @@ function newBoundary(): string {
 /**
  * Stream one file to the NAS.
  *
- * The pin check and `agent: false` are carried over from files.ts deliberately.
- * On a reused keep-alive socket the peer certificate is no longer retrievable,
- * so the check sees an empty fingerprint and rejects every transfer after the
- * first — which looks exactly like a real certificate mismatch and is not.
+ * The connection is opened and its certificate checked *before* the request
+ * exists, because a pin verified in the response callback is verified after
+ * the auth token and the entire file have already been sent. See pinned.ts.
  */
-export function uploadTo(
+export async function uploadTo(
   nas: TrueNas,
   conn: Connection,
   target: string,
   body: NodeJS.ReadableStream,
   size: number,
 ): Promise<void> {
-  return nas
-    .call<string>("auth.generate_token", [300, {}, false])
-    .then((token) => new Promise<void>((resolve, reject) => {
-      const boundary = newBoundary();
-      const filename = target.split("/").pop() ?? "";
-      const { prologue, epilogue, contentLength, contentType } =
-        uploadForm(boundary, target, filename, size);
+  const boundary = newBoundary();
+  const filename = target.split("/").pop() ?? "";
+  // Built first: a name this console will not send is a failure that should
+  // cost neither a token nor a connection.
+  const { prologue, epilogue, contentLength, contentType } =
+    uploadForm(boundary, target, filename, size);
 
-      const base = new URL(conn.url.replace(/^ws/, "http").replace(/\/api\/current$/, ""));
-      const req = request(
-        {
-          protocol: base.protocol,
-          hostname: base.hostname,
-          port: base.port || (base.protocol === "https:" ? 443 : 80),
-          path: "/_upload",
-          method: "POST",
-          // The NAS presents a self-signed certificate, so ordinary
-          // verification cannot pass. The fingerprint pin below is what
-          // authenticates this connection instead — see the check on `res`.
-          rejectUnauthorized: false,
-          agent: false,
-          headers: {
-            "content-type": contentType,
-            "content-length": String(contentLength),
-            authorization: `Bearer ${token}`,
-          },
+  const token = await nas.call<string>("auth.generate_token", [300, {}, false]);
+  const socket = await connectPinned(conn);
+  const base = httpBase(conn);
+
+  return await new Promise<void>((resolve, reject) => {
+    const req = request(
+      {
+        protocol: base.protocol,
+        hostname: base.hostname,
+        port: base.port || (base.protocol === "https:" ? 443 : 80),
+        path: "/_upload",
+        method: "POST",
+        // Already connected and already verified. A fresh one per transfer:
+        // on a reused keep-alive socket the peer certificate is no longer
+        // retrievable, so it could not have been checked at all.
+        createConnection: () => socket,
+        agent: false,
+        headers: {
+          "content-type": contentType,
+          "content-length": String(contentLength),
+          authorization: `Bearer ${token}`,
         },
-        (res) => {
-          if (conn.fingerprint) {
-            const socket = res.socket as TLSSocket;
-            const raw =
-              socket.getPeerX509Certificate?.()?.fingerprint256 ??
-              socket.getPeerCertificate?.()?.fingerprint256;
-            const seen = (raw ?? "").replace(/:/g, "").toLowerCase();
-            const want = conn.fingerprint.replace(/:/g, "").toLowerCase();
-            if (!seen) {
-              res.destroy();
-              reject(new Error("could not read the NAS certificate to check it against the pin"));
-              return;
-            }
-            if (seen !== want) {
-              res.destroy();
-              reject(new Error(`the NAS certificate does not match the pin (saw ${seen.slice(0, 16)}…)`));
-              return;
-            }
+      },
+      (res) => {
+        let text = "";
+        res.setEncoding("utf8");
+        res.on("data", (c: string) => {
+          // Enough of the NAS's own message to be useful, and not so much that
+          // a stack trace ends up in a toast.
+          if (text.length < 2048) text += c;
+        });
+        res.on("end", () => {
+          if ((res.statusCode ?? 500) >= 400) {
+            reject(new Error(`the NAS refused the upload (${res.statusCode}) ${text.slice(0, 200)}`.trim()));
+          } else {
+            resolve();
           }
+        });
+      },
+    );
 
-          let text = "";
-          res.setEncoding("utf8");
-          res.on("data", (c: string) => {
-            // Enough of the NAS's own message to be useful, and not so much
-            // that a stack trace ends up in a toast.
-            if (text.length < 2048) text += c;
-          });
-          res.on("end", () => {
-            if ((res.statusCode ?? 500) >= 400) {
-              reject(new Error(`the NAS refused the upload (${res.statusCode}) ${text.slice(0, 200)}`.trim()));
-            } else {
-              resolve();
-            }
-          });
-        },
-      );
+    req.on("error", reject);
+    // A browser that hangs up mid-upload must tear down the NAS side too,
+    // rather than leave it waiting for a body that will never finish.
+    body.on("error", (e: Error) => req.destroy(e));
 
-      req.on("error", reject);
-      // A browser that hangs up mid-upload must tear down the NAS side too,
-      // rather than leave it waiting for a body that will never finish.
-      body.on("error", (e: Error) => req.destroy(e));
-
-      req.write(prologue);
-      body.pipe(req, { end: false });
-      body.on("end", () => req.end(epilogue));
-    }));
+    req.write(prologue);
+    body.pipe(req, { end: false });
+    body.on("end", () => req.end(epilogue));
+  });
 }

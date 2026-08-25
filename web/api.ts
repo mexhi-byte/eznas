@@ -298,3 +298,55 @@ export function uploadFile(
 
   return { promise, abort: () => xhr.abort() };
 }
+
+/* -------------------------------------------------------------- searching */
+
+export interface SearchHit { path: string; name: string; dir: string }
+
+export interface SearchHandlers {
+  hit: (h: SearchHit) => void;
+  done: (r: { count: number; truncated: boolean }) => void;
+  failed: (message: string) => void;
+}
+
+/**
+ * Start a search. Returns the function that stops it.
+ *
+ * EventSource, like the live figures on Home: the server sends hits as it
+ * finds them, so a result near the top of the tree appears at once instead of
+ * after the whole pool has been walked.
+ */
+export function searchFiles(root: string, query: string, on: SearchHandlers): () => void {
+  const url = withConn(
+    `/api/files/search?root=${encodeURIComponent(root)}&q=${encodeURIComponent(query)}`,
+  );
+  const source = new EventSource(url);
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    source.close();
+  };
+
+  source.addEventListener("hit", (e) => on.hit(JSON.parse((e as MessageEvent).data) as SearchHit));
+  source.addEventListener("done", (e) => {
+    on.done(JSON.parse((e as MessageEvent).data) as { count: number; truncated: boolean });
+    // The server has said its piece. Without closing, EventSource sees the
+    // stream end, decides it dropped, and reconnects — running the whole
+    // search a second time.
+    close();
+  });
+  source.addEventListener("failed", (e) => {
+    on.failed((JSON.parse((e as MessageEvent).data) as { error: string }).error);
+    close();
+  });
+  source.onerror = () => {
+    // Fires on a clean close too, so it must not report a failure after done
+    // has already been delivered.
+    if (closed) return;
+    on.failed("The search connection dropped.");
+    close();
+  };
+
+  return close;
+}
