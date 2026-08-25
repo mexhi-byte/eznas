@@ -811,6 +811,10 @@ a.app-tile:hover { transform: translateY(-2px); border-color: var(--accent); }
 /* ------------------------------------------------------------- app settings */
 
 .app-icon img { width: 100%; height: 100%; border-radius: inherit; object-fit: contain; }
+/* A port chip that opens. Underlined on hover only, so a row of them still
+   reads as data rather than as a row of links shouting for attention. */
+.port-link { text-decoration: none; cursor: pointer; }
+.port-link:hover { border-color: var(--accent); color: var(--text); text-decoration: underline; }
 
 /* Nested dicts in a catalog app's schema, indented so the shape is legible. */
 .q-dict { margin: 12px 0 4px; padding-left: 12px; border-left: 2px solid var(--line); }

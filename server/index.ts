@@ -23,6 +23,7 @@ import { bodyOf, confirmed, json, optStr, str, underMnt } from "./http.js";
 import { levelToPerms, type AclEntry } from "./acl.js";
 import { handleFileRoutes } from "./routes/files.js";
 import { diskVerdict, failedTestCount, temperatureOf, testsForDisk } from "./disk-verdict.js";
+import { catalogIconIndex, hostOf, iconFor, portLinks } from "./app-links.js";
 import { handleShareRoutes } from "./routes/shares.js";
 
 const PORT = Number(process.env.PORT ?? 80);
@@ -1479,20 +1480,40 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       return true;
 
     case "/api/apps": {
-      const apps = await nas.call<AppRow[]>("app.query");
-      json(res, 200, apps.map((a) => ({
-        name: a.name, state: a.state, version: a.human_version || a.version,
-        updatable: a.upgrade_available, title: appTitle(a.name, a.metadata?.title), train: a.metadata?.train,
-        // Kept so the tile can say "custom app" quietly under the real name,
-        // rather than losing that it is one.
-        custom: isCustomApp(a.metadata?.title),
-        // Custom apps carry no icon at all, so the browser has to be ready to
-        // draw its own tile rather than a broken image.
-        icon: a.metadata?.icon ?? null,
-        containers: a.active_workloads?.containers ?? 0,
-        ports: (a.active_workloads?.used_ports ?? []).flatMap((p) => (p.host_ports ?? []).map((h) => h.host_port)),
-        portals: a.portals ?? {},
-      })));
+      /*
+       * An app deployed from a compose file has no icon and no portal.
+       *
+       * TrueNAS fills both in from the catalog entry an app was installed
+       * from, and the "Custom App" button in its own UI creates apps that have
+       * no such entry. On a server where most apps were set up that way, this
+       * list arrived as a wall of letters with nothing to click, which reads
+       * as the console failing rather than as data the NAS never sent. Both
+       * are recoverable: the ports it listens on, and the catalog entry that
+       * shares its name.
+       */
+      const [apps, icons] = await Promise.all([
+        nas.call<AppRow[]>("app.query"),
+        catalogIcons(nas),
+      ]);
+      const host = hostOf(store.get(url.searchParams.get("c"))?.url ?? "");
+      json(res, 200, apps.map((a) => {
+        const links = portLinks(host, a.active_workloads?.used_ports);
+        return {
+          name: a.name, state: a.state, version: a.human_version || a.version,
+          updatable: a.upgrade_available, title: appTitle(a.name, a.metadata?.title), train: a.metadata?.train,
+          // Kept so the tile can say "custom app" quietly under the real name,
+          // rather than losing that it is one.
+          custom: isCustomApp(a.metadata?.title),
+          icon: iconFor(a.name, a.metadata?.icon, icons),
+          containers: a.active_workloads?.containers ?? 0,
+          ports: links.map((l) => l.port),
+          // Every published port, addressed. Not one "open this app" link:
+          // several of these are databases, and a link labelled Open that
+          // leads to Redis is a worse answer than a bare port number.
+          links,
+          portals: a.portals ?? {},
+        };
+      }));
       return true;
     }
 
@@ -1757,6 +1778,37 @@ async function diskHealthOf(nas: TrueNas, name: string) {
     runningTest: results?.current_test ?? null,
     health: { level, reasons },
   };
+}
+
+/**
+ * name -> icon url for every app in the catalog, refreshed at most hourly.
+ *
+ * app.available returns on the order of a thousand rows and the apps list
+ * polls every ten seconds, so looking this up per request would spend most of
+ * the NAS's time answering a question whose answer changes when a catalog is
+ * updated — which is to say, almost never.
+ *
+ * A failure here is not an error: it costs a logo, and an app with no logo
+ * already has a perfectly good coloured letter. So it is cached as "no index"
+ * for a minute rather than retried on every poll.
+ */
+let iconIndex: { at: number; index: Map<string, string> | null } | null = null;
+const ICON_TTL_MS = 60 * 60 * 1000;
+const ICON_RETRY_MS = 60 * 1000;
+
+async function catalogIcons(nas: TrueNas): Promise<Map<string, string> | null> {
+  const ttl = iconIndex?.index ? ICON_TTL_MS : ICON_RETRY_MS;
+  if (iconIndex && Date.now() - iconIndex.at < ttl) return iconIndex.index;
+  try {
+    const rows = await nas.call<Array<Record<string, unknown>>>("app.available", [
+      [], { select: ["name", "icon_url"] },
+    ]);
+    iconIndex = { at: Date.now(), index: catalogIconIndex(rows) };
+  } catch (e) {
+    console.error(`[apps] could not read the catalog for icons: ${e instanceof Error ? e.message : String(e)}`);
+    iconIndex = { at: Date.now(), index: null };
+  }
+  return iconIndex.index;
 }
 
 /**
