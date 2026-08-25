@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { bytes, del, level, post, useResource, when } from "./api";
 import { Bar, Card, Empty, ErrorBanner, Icons, Loading, Pill } from "./components";
+import { AppDetailsModal } from "./app-details";
 import { DangerConfirm, Field, Input, JobProgress, Modal, Select, Toggle, useSubmit } from "./ui";
 import { AppConfigModal } from "./app-config";
 
@@ -501,6 +502,7 @@ export function AppsPage() {
   const [failed, setFailed] = useState<string | null>(null);
   const [removing, setRemoving] = useState<App | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [detailing, setDetailing] = useState<App | null>(null);
   const [jobs, setJobs] = useState<Array<{ id: number; label: string }>>([]);
 
   async function upgrade(name: string) {
@@ -551,7 +553,15 @@ export function AppsPage() {
           const running = a.state === "RUNNING";
           const working = !!busy[a.name];
           return (
-            <div key={a.name} className="app-card">
+            <div
+              key={a.name}
+              className="app-card"
+              /* The card carries a name, a version and a state. Double-click
+                 for the rest — what the app is, who publishes it, where its
+                 source lives. */
+              onDoubleClick={() => setDetailing(a)}
+              title="Double-click for details"
+            >
               <div className="app-top">
                 <AppIcon app={a} />
                 <div style={{ minWidth: 0 }}>
@@ -587,6 +597,7 @@ export function AppsPage() {
                     Open
                   </a>
                 )}
+                <button className="btn" onClick={() => setDetailing(a)}>Details</button>
                 <button className="btn" onClick={() => setEditing(a.name)}>Settings</button>
                 <button className="btn" disabled={working || running} onClick={() => void act(a.name, "start")}>
                   {busy[a.name] === "start" ? "Starting…" : "Start"}
@@ -606,6 +617,22 @@ export function AppsPage() {
         })}
         {!loading && !apps.length && <Empty>No apps are installed.</Empty>}
       </div>
+
+      {detailing && (
+        <AppDetailsModal
+          name={detailing.name}
+          train={detailing.train}
+          onClose={() => setDetailing(null)}
+          footer={
+            <>
+              <button className="btn" onClick={() => setDetailing(null)}>Close</button>
+              {portalOf(detailing) && detailing.state === "RUNNING" && (
+                <a className="btn primary" href={portalOf(detailing)} target="_blank" rel="noreferrer">Open</a>
+              )}
+            </>
+          }
+        />
+      )}
 
       {editing && (
         <AppConfigModal

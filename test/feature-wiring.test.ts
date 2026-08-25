@@ -53,6 +53,14 @@ describe("every shipped feature is reachable from the interface", () => {
     expect(mentions("searchFiles")).not.toEqual([]);
   });
 
+  it("app details are reachable from both app pages", () => {
+    // The modal is shared, so one page wiring it up would look like success
+    // while the other still had no way in.
+    const pages = mentions("AppDetailsModal").filter((f) => f !== "app-details.tsx");
+    expect(pages).toContain("pages.tsx");
+    expect(pages).toContain("pages3.tsx");
+  });
+
   it("NFS exports have a dialog, not just a route", () => {
     // A path fragment rather than an identifier: the dialog posts to the
     // endpoint directly, so there is no imported function name to look for.

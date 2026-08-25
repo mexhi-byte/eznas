@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { del, get, getConnection, post, put, setConnection, useResource } from "./api";
 import { Card, Empty, ErrorBanner, Loading, Pill, TAGLINE } from "./components";
+import { AppDetailsModal } from "./app-details";
 import { DangerConfirm, Field, Input, JobProgress, Modal, Select, Toggle, useSubmit } from "./ui";
 import { AppearanceTab, ConsoleUpdateTab, EmailTab, NotificationsTab, SecurityTab, UpdatesTab, type WatchConfig, type Webhook } from "./settings-tabs";
 import { ConsoleUsersTab } from "./console-users";
@@ -503,6 +504,7 @@ export function CatalogPage() {
     0,
   );
   const [installing, setInstalling] = useState<CatalogApp | null>(null);
+  const [detailing, setDetailing] = useState<CatalogApp | null>(null);
   const [jobs, setJobs] = useState<Array<{ id: number; label: string }>>([]);
 
   return (
@@ -535,7 +537,14 @@ export function CatalogPage() {
 
       <div className="grid cards">
         {data?.apps.map((a) => (
-          <div key={`${a.train}/${a.name}`} className="cat-card">
+          <div
+            key={`${a.train}/${a.name}`}
+            className="cat-card"
+            /* Double-click opens the details, as asked. A card that only
+               responds to a gesture nobody can see is a card with a secret, so
+               there is a visible Details link as well. */
+            onDoubleClick={() => setDetailing(a)}
+          >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div className="app-icon">{a.title.slice(0, 2).toUpperCase()}</div>
               <div style={{ minWidth: 0 }}>
@@ -544,13 +553,33 @@ export function CatalogPage() {
               </div>
             </div>
             {a.description && <div className="cat-desc">{a.description}</div>}
-            <button className="btn primary" style={{ marginTop: "auto" }} onClick={() => setInstalling(a)}>
-              Install
-            </button>
+            <div className="cat-actions">
+              <button className="btn" onClick={() => setDetailing(a)}>Details</button>
+              <button className="btn primary" onClick={() => setInstalling(a)}>Install</button>
+            </div>
           </div>
         ))}
         {!loading && !data?.apps.length && <Empty>Nothing matches that search.</Empty>}
       </div>
+
+      {detailing && (
+        <AppDetailsModal
+          name={detailing.name}
+          train={detailing.train}
+          onClose={() => setDetailing(null)}
+          footer={
+            <>
+              <button className="btn" onClick={() => setDetailing(null)}>Close</button>
+              <button
+                className="btn primary"
+                onClick={() => { const a = detailing; setDetailing(null); setInstalling(a); }}
+              >
+                Install
+              </button>
+            </>
+          }
+        />
+      )}
 
       {installing && (
         <InstallForm
