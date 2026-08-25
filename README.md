@@ -6,8 +6,10 @@ TrueNAS ships an interface built for storage administrators. This is one built f
 owns the box: pools you can read at a glance, apps as icons rather than a count, a file browser that
 can actually move and delete things, and notifications for the situations TrueNAS stays quiet about.
 
-**v0.4 — demo.** Usable, and not yet something to put in front of the internet without reading
-[Security](#security) first.
+**v0.5 — early.** Used daily against real hardware, and still young enough that you should read
+[Security](#security) before putting it anywhere the internet can reach.
+
+[Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Reporting a vulnerability](SECURITY.md)
 
 ---
 
@@ -19,21 +21,33 @@ apps as a logo grid, and three quick actions: share a folder, install an app, ch
 
 **Drive array map** — every physical drive drawn in its vdev, colour-coded, each explaining what its
 layout buys you ("2 copies of everything. Survives 1 drive failing"). Click a drive for its health:
-ZFS error counters, throughput, SMART attributes and self-tests, with a verdict in words first.
+ZFS error counters, throughput, SMART attributes and self-tests, with a verdict in words first. Each
+tile carries that same verdict, so a drive logging checksum errors is not green merely because ZFS
+still calls it `ONLINE` — and a drive that reports no temperature says so rather than showing a gap.
 
 **Storage** — pools, datasets, and snapshots you can actually take: create, clone, roll back, hold,
 copy to another pool, and scheduled snapshots with retention.
 
 **Files** — browse, preview images, video, audio, PDFs and text, create folders, rename, drag items
-between folders, delete to a per-pool recycle bin, and set who can use a folder.
+between folders, and set who can use a folder. **Upload** by dragging files in, with progress, a
+transfer rate and cancel; a name that already exists asks before anything is overwritten. **Search**
+the whole pool for a file when you cannot remember which folder it is in, streaming results as they
+are found. Deleted items go to a per-pool **recycle bin**, which is a folder in the listing rather
+than a button, and putting something back asks where: its original place, a new name, or a folder
+you choose.
 
 **Sharing** — put a folder on the network and say who may use it, in one step. The share and the
 filesystem ACL are set together, because a share without permissions appears on the network and then
-refuses everybody.
+refuses everybody. Windows and Mac get **SMB**, which authenticates people; Linux and Unix get
+**NFS**, which authenticates machines — so the dialog asks a different question depending on which,
+and refuses to create an export that would be open to every device on your network.
 
 **Apps** — start, stop, update, open, and edit configuration: a real form built from a catalog app's
-own schema, or the compose file for a custom app. Plus a **Passwords** panel that digs out the
-credentials an app generated at install and never showed you again.
+own schema, or the compose file for a custom app. Open any app for its screenshots, description,
+publisher and source. Apps deployed through TrueNAS's own "Custom App" button carry no catalog
+metadata, so the console finds their logo by name and works out where to reach them from the ports
+they publish. Plus a **Passwords** panel that digs out the credentials an app generated at install
+and never showed you again.
 
 **Notifications** — the console runs its own checks every minute: pool health, capacity against a
 threshold you set, drive temperature, ZFS read/write/checksum errors, apps stopping on their own,
@@ -50,6 +64,18 @@ countdown, and SMTP.
 - An API key from TrueNAS → Credentials → Local Users → API keys
 
 ## Install
+
+**On the NAS itself**, which is what most people want. This installs under
+`/mnt/<pool>/eznas` so it survives a TrueNAS update, generates a `SESSION_SECRET` once, and runs in
+a container:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mexhi-byte/eznas/main/install.sh | sh
+```
+
+Re-running it updates an existing install in place.
+
+**From source**, for development or if you would rather not pipe a script into a shell:
 
 ```bash
 git clone https://github.com/mexhi-byte/eznas.git
@@ -97,9 +123,16 @@ Read this part.
   API has no call for any of them and they have to run as shell commands. It is AES-256-GCM encrypted
   at rest, never returned to the browser, and never reaches the shell's output or history. Leave it
   unset and the file browser stays read-only.
-- **`SESSION_SECRET` is the encryption key** for stored credentials, derived by SHA-256. Changing it
-  invalidates every session and every stored API key. Treat it as a secret, and generate it with
-  `openssl rand -hex 32`.
+- **`SESSION_SECRET` is the encryption key** for stored credentials, derived by SHA-256. Set it with
+  `openssl rand -hex 32` and treat it as a secret; changing it invalidates every session and every
+  stored API key. If you do not set one, a random key is generated on first run and kept beside the
+  data file as `<data file>.key` with mode `0600` — **back that up with your data, because without
+  it the stored API keys cannot be read.**
+- **Versions before 0.5.2 used a fixed key from the source** when `SESSION_SECRET` was unset, which
+  means anything they wrote could be decrypted by anyone holding the file and a copy of this
+  repository. Such data is re-encrypted automatically on first start. If a copy of your data file
+  may already have left your machine, **rotate the TrueNAS API key and the account password** —
+  re-encrypting does not un-leak what was taken.
 - **Certificate pinning** is available per server and is the only way this connection is
   authenticated, since TrueNAS uses a self-signed certificate. Without it the API key travels over a
   link nothing has verified.
@@ -124,14 +157,34 @@ place. It saves the current build as `dist.prev` first and never touches `data/`
 ## Layout
 
 ```
-server/     Node API. index.ts is the routes; truenas.ts is the JSON-RPC client.
+server/     Node API. truenas.ts is the JSON-RPC client; index.ts is what is left
+            of the routes, which are moving out of it a module at a time.
+  routes/        the routes that have moved: files, shares
+  http.ts        helpers every route needs, and the one place both sides may import
   accounts.ts    console users, scrypt hashes, roles
+  secret.ts      the key stored credentials are encrypted with
   monitors.ts    the checks that generate notifications
   nas-exec.ts    shell commands, for what the API cannot do
   self-update.ts release checking and in-place update
 web/        React front end, no framework beyond it.
+test/       vitest. Pure logic directly, routes against a NAS that records
+            what it was asked to do.
 data/       Runtime state. Not in git, and not touched by updates.
 ```
+
+A route module must never import from `server/index.ts`: it starts the server at module scope, so
+importing it from something it imports resolves to a half-initialised object. Shared helpers live in
+`server/http.ts` for that reason.
+
+## Contributing
+
+Bug reports and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for how the
+project is put together and what it is trying to be. Two things worth knowing before you start: a
+feature is not finished when its endpoint works, only when someone can reach it from the browser;
+and errors here are meant to be sentences, not codes.
+
+Security issues go through the Security tab rather than a public issue. See
+[SECURITY.md](SECURITY.md).
 
 ## Licence
 

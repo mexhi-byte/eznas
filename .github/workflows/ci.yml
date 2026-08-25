@@ -1,0 +1,45 @@
+# Every pull request gets the same checks the maintainer runs by hand.
+#
+# The point is not thoroughness — it is that a contributor's first PR is judged
+# by a machine rather than by someone reading a diff and remembering to run the
+# suite. Typechecks are separate steps from tests because they fail for
+# different reasons and a combined step hides which.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 22 is the floor: the server uses node:test-free ESM with NodeNext
+          # resolution and native fetch throughout.
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck the browser build
+        run: npx tsc -p tsconfig.json --noEmit
+
+      - name: Typecheck the server build
+        run: npx tsc -p tsconfig.server.json --noEmit
+
+      - name: Test
+        run: npm test
+
+      # Last, because a build that fails after everything else passed is a
+      # bundling problem rather than a code one, and the distinction matters
+      # when reading a red run.
+      - name: Build
+        run: npm run build

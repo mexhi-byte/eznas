@@ -1,0 +1,70 @@
+name: Bug report
+description: Something in the console does not work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not report security issues here — use the Security tab.
+        See `SECURITY.md`.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you got instead.
+    validations: { required: true }
+
+  - type: input
+    id: eznas
+    attributes:
+      label: EzNAS version
+      description: Shown in Settings, or the `version` in package.json.
+    validations: { required: true }
+
+  - type: input
+    id: truenas
+    attributes:
+      label: TrueNAS version
+    validations: { required: true }
+
+  - type: dropdown
+    id: hardware
+    attributes:
+      label: How is TrueNAS running
+      description: >
+        This matters more than it looks. Drives in a VM report 0°C, and a RAID
+        controller that is not in passthrough hides SMART entirely — both have
+        been reported as bugs in this console before.
+      options:
+        - Bare metal, drives attached directly
+        - Bare metal, behind a RAID/HBA controller
+        - Virtualised (VM or passthrough)
+        - Not sure
+    validations: { required: true }
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install EzNAS
+      options: [install.sh, Docker, From source, Other]
+    validations: { required: true }
+
+  - type: dropdown
+    id: proxy
+    attributes:
+      label: Do you reach it through a tunnel or reverse proxy
+      description: >
+        Cloudflare, Traefik, nginx and similar can replace an error body with
+        their own page, which hides the reason a request failed.
+      options: ["No, directly", "Yes — Cloudflare tunnel", "Yes — another proxy", "Not sure"]
+    validations: { required: true }
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server output
+      description: >
+        Lines beginning `[api]`, `[store]` or `[apps]` around the failure. These
+        usually name the real cause where the browser only shows a status code.
+      render: text
