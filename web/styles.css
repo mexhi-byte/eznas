@@ -777,6 +777,21 @@ a.app-tile:hover { transform: translateY(-2px); border-color: var(--accent); }
 .drive-name { font-size: 12.5px; font-weight: 650; }
 .drive-size { font-size: 12px; color: var(--muted); }
 .drive-foot { font-size: 11px; color: var(--faint); min-height: 14px; }
+/*
+ * The reading, and the verdict, as two separate things.
+ *
+ * The foot used to show a temperature or a status word, whichever it had, and
+ * a non-breaking space when it had neither — which is most drives on a
+ * virtualized NAS, where every sensor answers 0. A tile that says "no temp" is
+ * telling the truth about the drive; a blank one reads as a broken page.
+ */
+.drive-top { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.health-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); flex: none; }
+.health-dot.ok { background: var(--ok); }
+.health-dot.warn { background: var(--warn); }
+.health-dot.bad { background: var(--bad); }
+.drive-foot .faint { opacity: .55; font-style: italic; }
+.drive-status { color: var(--warn); }
 
 .map-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); padding: 4px 2px 8px; }
 .map-legend span { display: inline-flex; align-items: center; gap: 6px; }
