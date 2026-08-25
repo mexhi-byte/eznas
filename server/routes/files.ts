@@ -5,6 +5,7 @@ import * as store from "../store.js";
 import * as files from "../files.js";
 import * as exec from "../nas-exec.js";
 import { uploadTo } from "../upload.js";
+import { searchFiles } from "../search.js";
 import { bodyOf, confirmed, json, str, underMnt } from "../http.js";
 import { levelToPerms, type AclEntry, type AclResult } from "../acl.js";
 
@@ -342,6 +343,56 @@ export async function handleFileRoutes(ctx: FileRouteContext): Promise<boolean> 
      * because reading a multipart form to find out where to send a multipart
      * form means holding the whole upload first.
      */
+    /**
+     * Searching for a file by name.
+     *
+     * Server-Sent Events rather than one JSON reply, so a hit shows the moment
+     * it is found and Stop actually stops. The console already speaks SSE for
+     * the live figures on Home, so this is a pattern the front end has.
+     */
+    if (path === "/api/files/search") {
+      const root = underMnt(url.searchParams.get("root") ?? "/mnt");
+      const query = (url.searchParams.get("q") ?? "").trim();
+      if (query.length < 2) {
+        json(res, 400, { error: "Search for at least two characters." });
+        return true;
+      }
+      const conn = store.get(url.searchParams.get("c"));
+      if (!conn) throw new Error("No TrueNAS server is configured.");
+
+      res.writeHead(200, {
+        "content-type": "text/event-stream",
+        "cache-control": "no-store",
+        connection: "keep-alive",
+        // Without this a reverse proxy buffers the whole stream and delivers
+        // every result at the end, which is the one thing this must not do.
+        "x-accel-buffering": "no",
+      });
+
+      const send = (event: string, data: unknown) =>
+        res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+
+      // A browser that navigated away is not owed the rest of the search, and
+      // writing to a closed response throws.
+      let stopped = false;
+      req.on("close", () => { stopped = true; });
+
+      const limits = { maxResults: 500, maxMs: 60_000 };
+      let count = 0;
+      try {
+        for await (const hit of searchFiles(nas, conn, root, query, limits)) {
+          if (stopped) break;
+          send("hit", hit);
+          count += 1;
+        }
+        if (!stopped) send("done", { count, truncated: count >= limits.maxResults });
+      } catch (e) {
+        if (!stopped) send("failed", { error: e instanceof Error ? e.message : String(e) });
+      }
+      res.end();
+      return true;
+    }
+
     if (path === "/api/files/upload" && method === "POST") {
       const dir = underMnt(url.searchParams.get("path") ?? "");
       const name = url.searchParams.get("name") ?? "";

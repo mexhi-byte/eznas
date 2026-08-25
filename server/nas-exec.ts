@@ -122,6 +122,105 @@ export async function run(conn: store.Connection, command: string): Promise<Comm
 }
 
 /**
+ * Run a command as the API user and hand back everything it printed.
+ *
+ * Deliberately not built on top of run() above, and not the other way round.
+ * That one exists to get a short error message out of a command that failed,
+ * so it uses sudo, needs the stored password, and keeps only the last few
+ * lines. This one exists to collect a command's whole output, needs no
+ * password, and must not lose a byte of it. Sharing a body would mean five
+ * flags deciding which of two functions you actually get, and the sudo path is
+ * the one that moves and deletes files — not somewhere to take a chance on a
+ * refactor that cannot be tested without a NAS to hand.
+ *
+ * The caller is expected to make the output terminal-safe; this arrives over a
+ * pseudo-terminal, which mangles anything that looks like a control code. See
+ * base64Command in search.ts.
+ */
+export async function runCapture(
+  conn: store.Connection,
+  command: string,
+  timeoutMs = TIMEOUT,
+): Promise<CommandResult> {
+  const token = await store.clientFor(conn).call<string>("auth.generate_token", [300, {}, false]);
+  const target = conn.url.replace(/\/api\/current$/, "/websocket/shell");
+
+  return await new Promise<CommandResult>((resolve, reject) => {
+    const ws = new WebSocket(target, { rejectUnauthorized: false });
+    const send = (text: string) => ws.send(Buffer.from(text, "utf8"), { binary: true });
+    let buffer = "";
+    let ready = false;
+    let settled = false;
+
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      ws.close();
+      fn();
+    };
+
+    const timer = setTimeout(
+      () => finish(() => reject(new Error("The NAS did not answer in time."))),
+      timeoutMs,
+    );
+
+    ws.on("open", () => {
+      ws.send(JSON.stringify({ token, options: { command: "", tty_size: { rows: 24, cols: 400 } } }));
+    });
+
+    ws.on("message", (raw) => {
+      const text = raw.toString();
+
+      if (!ready) {
+        if (!text.includes('"connected"')) return;
+        ready = true;
+        setTimeout(() => send("unset HISTFILE; stty -echo\r"), CONNECT_WAIT);
+        setTimeout(() => {
+          // Same two-piece marker as run(): the shell echoes the command line
+          // itself, and a one-piece marker in that echo would look like the
+          // command having already finished.
+          send(
+            `${command}; __rc=$?; stty echo; printf '\\n__TNUI'; printf '_RC_%s__\\n' "$__rc"\r`,
+          );
+        }, CONNECT_WAIT + STEP_WAIT);
+        return;
+      }
+
+      buffer += text;
+      const done = /__TNUI_RC_(\d+)__/.exec(buffer);
+      if (done) {
+        finish(() => resolve({ code: Number(done[1]), output: between(buffer) }));
+      }
+    });
+
+    ws.on("error", (e) => finish(() => reject(new Error(`Could not reach the NAS shell: ${e.message}`))));
+    ws.on("close", () =>
+      finish(() => reject(new Error("The NAS closed the shell before the command finished."))),
+    );
+  });
+}
+
+/**
+ * What the command printed, without the shell's own noise around it.
+ *
+ * Everything before the echoed command line is the login banner and the
+ * prompt; everything from the marker on is the marker. Escape sequences are
+ * stripped for the same reason clean() strips them, but nothing else is
+ * dropped — the caller asked for the whole output.
+ */
+function between(raw: string): string {
+  const end = raw.indexOf("__TNUI_RC_");
+  const body = end === -1 ? raw : raw.slice(0, end);
+  return body
+    // eslint-disable-next-line no-control-regex
+    .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "")
+    // eslint-disable-next-line no-control-regex
+    .replace(/\x1b[>=]/g, "")
+    .replace(/\r/g, "");
+}
+
+/**
  * The readable part of what the shell said.
  *
  * Terminal output is full of cursor moves, colour codes and the prompt being
