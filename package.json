@@ -8,6 +8,8 @@
     "dev:server": "node --watch --experimental-strip-types server/index.ts",
     "build": "vite build && tsc -p tsconfig.server.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "start": "node dist/server/index.js"
   },
   "keywords": [],
@@ -31,6 +33,7 @@
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^6.1.0",
     "typescript": "^7.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "vitest": "^3.2.7"
   }
 }
