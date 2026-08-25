@@ -44,9 +44,29 @@ const safe = (u: string | null | undefined): string | undefined =>
  * party, and rendering it would mean trusting whoever wrote the chart with
  * markup inside the console.
  */
-export function AppDetailsModal({ name, train, footer, onClose }: {
+/** What the console already knows about an app it has installed. */
+export interface InstalledFacts {
+  state: string;
+  version: string;
+  containers: number;
+  ports: number[];
+  links: Array<{ port: number; url: string }>;
+  updatable: boolean;
+}
+
+export function AppDetailsModal({ name, train, local, footer, onClose }: {
   name: string;
   train?: string | null;
+  /**
+   * Facts from the running app, for one that is installed.
+   *
+   * An app deployed from a compose file has no catalog entry, so the lookup
+   * below finds nothing — which was every app on a server where they were set
+   * up that way. Showing an error there is answering "what is this?" with
+   * "the catalog has never heard of it", when the console knows perfectly well
+   * what is running, on which ports, in how many containers.
+   */
+  local?: InstalledFacts;
   /** The action this dialog leads to, if any — Install, or Open. */
   footer?: React.ReactNode;
   onClose: () => void;
@@ -60,15 +80,49 @@ export function AppDetailsModal({ name, train, footer, onClose }: {
   return (
     <Modal
       title={data?.title ?? name}
-      subtitle={[data?.version, data?.train].filter(Boolean).join(" · ") || " "}
+      subtitle={[local?.version ?? data?.version, data?.train ?? train].filter(Boolean).join(" · ") || " "}
       onClose={onClose}
       wide
       footer={footer ?? <button className="btn primary" onClick={onClose}>Close</button>}
     >
-      {loading && !data && <Loading rows={3} />}
-      {/* An app the catalog has never heard of is the common case for a
-          compose app, so it is stated as a fact rather than as a failure. */}
-      {error && <ErrorBanner>{error}</ErrorBanner>}
+      {loading && !data && !local && <Loading rows={3} />}
+
+      {/* What is actually running, which the console knows without asking the
+          catalog anything. Shown first because for a compose app it is the
+          only thing there is to say. */}
+      {local && (
+        <dl className="kv" style={{ marginBottom: 14 }}>
+          <dt>State</dt><dd>{local.state.toLowerCase()}</dd>
+          <dt>Version</dt><dd className="mono">{local.version}</dd>
+          <dt>Containers</dt><dd>{local.containers}</dd>
+          {!!local.links.length && (
+            <>
+              <dt>Reachable at</dt>
+              <dd>
+                {local.links.map((l) => (
+                  <a key={l.port} href={l.url} target="_blank" rel="noreferrer" style={{ display: "block" }}>{l.url}</a>
+                ))}
+              </dd>
+            </>
+          )}
+          {!local.links.length && !!local.ports.length && (
+            <><dt>Ports</dt><dd className="mono">{local.ports.join(", ")}</dd></>
+          )}
+          {local.updatable && <><dt>Update</dt><dd>one is available</dd></>}
+        </dl>
+      )}
+
+      {/*
+        * A compose app has no catalog entry and never will, so the lookup
+        * failing is a fact about how it was installed rather than a failure of
+        * this dialog. Only worth an error when there is nothing else to show.
+        */}
+      {error && !local && <ErrorBanner>{error}</ErrorBanner>}
+      {error && local && (
+        <p className="modal-text" style={{ color: "var(--muted)" }}>
+          This app was not installed from a catalog, so there is no published description for it.
+        </p>
+      )}
 
       {data && (
         <>

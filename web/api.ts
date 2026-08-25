@@ -283,8 +283,18 @@ export function uploadFile(
         const body = JSON.parse(xhr.responseText || "{}") as { error?: string };
         if (body.error) message = body.error;
       } catch {
-        // A proxy's HTML error page, not the console's JSON. The status is all
-        // there is to say.
+        /*
+         * An HTML error page, not the console's JSON — which means something
+         * between here and the console answered instead of the console. Saying
+         * so is more use than the number alone: it points at the proxy rather
+         * than at the NAS, and those need different people to fix them.
+         */
+        if (xhr.status >= 500) {
+          message =
+            `Upload failed (${xhr.status}), and the reply did not come from the console — ` +
+            "something in between answered instead. If this is behind a tunnel or reverse proxy, " +
+            "check its upload size limit and timeout.";
+        }
       }
       reject(new ApiError(message));
     };

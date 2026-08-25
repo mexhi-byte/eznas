@@ -591,24 +591,37 @@ export function AppsPage() {
                 </div>
               )}
 
+              {/*
+                * Only the actions that apply.
+                *
+                * This was seven controls in a row that could not wrap, so they
+                * overlapped each other and the ones underneath could not be
+                * clicked. Start and Stop are mutually exclusive — one of them
+                * was always present only to be greyed out — and Restart means
+                * nothing for an app that is not running, so each card now
+                * carries at most five.
+                */}
               <div className="app-actions">
                 {portalOf(a) && running && (
-                  <a className="btn primary" href={portalOf(a)} target="_blank" rel="noreferrer" style={{ textAlign: "center" }}>
-                    Open
-                  </a>
+                  <a className="btn primary" href={portalOf(a)} target="_blank" rel="noreferrer">Open</a>
                 )}
                 <button className="btn" onClick={() => setDetailing(a)}>Details</button>
                 <button className="btn" onClick={() => setEditing(a.name)}>Settings</button>
-                <button className="btn" disabled={working || running} onClick={() => void act(a.name, "start")}>
-                  {busy[a.name] === "start" ? "Starting…" : "Start"}
-                </button>
-                <button className="btn" disabled={working || !running} onClick={() => void act(a.name, "restart")}>
-                  {busy[a.name] === "restart" ? "Restarting…" : "Restart"}
-                </button>
-                <button className="btn danger" disabled={working || !running} onClick={() => void act(a.name, "stop")}>
-                  {busy[a.name] === "stop" ? "Stopping…" : "Stop"}
-                </button>
-                <button className="btn danger" style={{ flex: "none", padding: "6px 9px" }} title="Delete this app" onClick={() => setRemoving(a)}>
+                {running ? (
+                  <>
+                    <button className="btn" disabled={working} onClick={() => void act(a.name, "restart")}>
+                      {busy[a.name] === "restart" ? "Restarting…" : "Restart"}
+                    </button>
+                    <button className="btn danger" disabled={working} onClick={() => void act(a.name, "stop")}>
+                      {busy[a.name] === "stop" ? "Stopping…" : "Stop"}
+                    </button>
+                  </>
+                ) : (
+                  <button className="btn" disabled={working} onClick={() => void act(a.name, "start")}>
+                    {busy[a.name] === "start" ? "Starting…" : "Start"}
+                  </button>
+                )}
+                <button className="btn danger app-remove" title={`Delete ${a.name}`} onClick={() => setRemoving(a)}>
                   ✕
                 </button>
               </div>
@@ -622,6 +635,14 @@ export function AppsPage() {
         <AppDetailsModal
           name={detailing.name}
           train={detailing.train}
+          local={{
+            state: detailing.state,
+            version: detailing.version,
+            containers: detailing.containers,
+            ports: detailing.ports,
+            links: detailing.links,
+            updatable: detailing.updatable,
+          }}
           onClose={() => setDetailing(null)}
           footer={
             <>

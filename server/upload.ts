@@ -1,5 +1,6 @@
 import { request } from "node:https";
 import type { TrueNas } from "./truenas.js";
+import { HttpError } from "./http.js";
 import type { Connection } from "./store.js";
 import { connectPinned, httpBase } from "./pinned.js";
 
@@ -135,7 +136,10 @@ export async function uploadTo(
         });
         res.on("end", () => {
           if ((res.statusCode ?? 500) >= 400) {
-            reject(new Error(`the NAS refused the upload (${res.statusCode}) ${text.slice(0, 200)}`.trim()));
+            // 400, not 502: the NAS answered, it just said no. Reporting that
+            // as a gateway failure lets a proxy replace the body and destroy
+            // the reason it gave.
+            reject(new HttpError(`the NAS refused the upload (${res.statusCode}) ${text.slice(0, 200)}`.trim(), 400));
           } else {
             resolve();
           }
@@ -143,13 +147,50 @@ export async function uploadTo(
       },
     );
 
-    req.on("error", reject);
+    /*
+     * A dropped connection to the NAS, reported as what it is.
+     *
+     * This used to reject with the raw socket error, whose message is
+     * "socket hang up" — which the top-level handler read as "the console
+     * cannot reach the NAS" and sent as a 502. Behind a proxy that becomes an
+     * HTML error page, the browser cannot parse it, and the upload fails with
+     * a number and no reason. The connection to the NAS was fine a moment
+     * earlier; something about this transfer ended it.
+     */
+    req.on("error", (e: Error) =>
+      reject(new HttpError(`the NAS closed the connection while receiving the file (${e.message})`, 400)));
     // A browser that hangs up mid-upload must tear down the NAS side too,
     // rather than leave it waiting for a body that will never finish.
     body.on("error", (e: Error) => req.destroy(e));
 
     req.write(prologue);
+
+    /*
+     * Count what actually arrives, because content-length is a promise.
+     *
+     * The length comes from the browser, and the request may have crossed a
+     * proxy on the way here. If fewer bytes turn up than were promised, the
+     * NAS is left waiting for a body that has already ended and the transfer
+     * dies as a bare "socket hang up" — true, useless, and indistinguishable
+     * from the NAS being down. Counting turns that into a sentence naming both
+     * numbers.
+     */
+    let seen = 0;
+    body.on("data", (chunk: Buffer | string) => {
+      seen += Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk);
+    });
     body.pipe(req, { end: false });
-    body.on("end", () => req.end(epilogue));
+    body.on("end", () => {
+      if (seen !== size) {
+        req.destroy();
+        reject(new HttpError(
+          `the file arrived here as ${seen} bytes but was announced as ${size}. ` +
+            "Something between the browser and this console changed the request.",
+          400,
+        ));
+        return;
+      }
+      req.end(epilogue);
+    });
   });
 }
