@@ -1,0 +1,31 @@
+# Weekly, grouped, so an update is one pull request to read rather than nine.
+# Security advisories still arrive on their own the day they are published.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      production:
+        dependency-type: production
+      development:
+        dependency-type: development
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "Update"
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "Update"
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: "Update"
