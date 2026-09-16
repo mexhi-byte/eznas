@@ -59,8 +59,8 @@ describe("every shipped feature is reachable from the interface", () => {
     // The modal is shared, so one page wiring it up would look like success
     // while the other still had no way in.
     const pages = mentions("AppDetailsModal").filter((f) => f !== "app-details.tsx");
-    expect(pages).toContain("pages.tsx");
-    expect(pages).toContain("pages3.tsx");
+    expect(pages).toContain("apps.tsx");
+    expect(pages).toContain("catalog.tsx");
   });
 
   it("the recycle bin is reachable as a folder, not only a button", () => {
@@ -75,9 +75,24 @@ describe("every shipped feature is reachable from the interface", () => {
   });
 
   it("installing an app renders the app's own questions, not only a name field", () => {
-    const page = componentSources().find((s) => s.file === "pages3.tsx");
+    const page = componentSources().find((s) => s.file === "catalog.tsx");
     expect(page?.text).toContain("/api/catalog/app/schema");
     expect(page?.text).toContain("QuestionList");
+  });
+
+  it("app logs and a container shell are buttons on the app card", () => {
+    expect(mentions("AppConsoleModal")).toContain("apps.tsx");
+    const modal = componentSources().find((s) => s.file === "app-console.tsx");
+    expect(modal?.text).toContain("/containers");
+    // The browser sends a mode and a container, never a command.
+    expect(modal?.text).not.toMatch(/command=/);
+  });
+
+  it("groups can be created, edited and deleted from a page, with the orphan warning", () => {
+    const page = componentSources().find((s) => s.file === "groups.tsx");
+    expect(page?.text).toContain("/api/groups");
+    expect(page?.text).toContain("/orphans");
+    expect(mentions("GroupsPage")).toContain("users.tsx");
   });
 
   it("restart and shutdown have buttons, and go through the typed confirmation", () => {

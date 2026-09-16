@@ -30,8 +30,11 @@ npm run dev:server     # the API, on :8080
 npm run dev:web        # the browser build, on :5173, proxying /api to :8080
 ```
 
-You need a TrueNAS box to point it at. Set `SESSION_SECRET` to anything; without
-it one is generated and kept beside the data file.
+You do not need a TrueNAS box. `npm run mock` starts one that is not there,
+answering every method the console calls from fixtures; add it in the console
+as `ws://127.0.0.1:18443` with the API key `1-mock`. For a real one, set
+`SESSION_SECRET` to anything; without it one is generated and kept beside the
+data file.
 
 ## Before you open a pull request
 
@@ -42,6 +45,7 @@ npx tsc -p tsconfig.json --noEmit
 npx tsc -p tsconfig.server.json --noEmit
 npm run test:coverage # the summary is a list of what nothing exercises
 npm run build
+npm run e2e           # the browser, against the mock; needs `npx playwright install chromium` once
 ```
 
 CI runs exactly these. Running them first saves a round trip.

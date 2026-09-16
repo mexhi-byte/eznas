@@ -771,6 +771,52 @@ th.num {
   margin: 0;
 }
 
+/* ---------------------------------------------------------- app console */
+
+.app-console {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel-solid);
+}
+.app-console-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+}
+.app-console-term {
+  height: min(60vh, 520px);
+  padding: 6px;
+}
+
+/* --------------------------------------------------------------- groups */
+
+.member-pick {
+  display: grid;
+  gap: 4px;
+  max-height: 240px;
+  overflow: auto;
+  margin-top: 8px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--input-bg);
+}
+.member-pick .toggle {
+  padding: 5px 8px;
+  border-radius: 8px;
+}
+.member-pick .toggle.on {
+  background: var(--accent-dim);
+}
+.btn.small.danger {
+  color: var(--bad);
+}
+
 /* ---------------------------------------------------------- certificate */
 
 .cert-block {

@@ -14,7 +14,10 @@
     "lint": "oxlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "mock": "node --experimental-strip-types mock/truenas-mock.ts",
+    "e2e": "playwright test",
+    "screenshots": "SCREENSHOTS=1 playwright test"
   },
   "keywords": [],
   "author": "",
@@ -30,6 +33,7 @@
   "private": true,
   "type": "module",
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^22.20.3",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",

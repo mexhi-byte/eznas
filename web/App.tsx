@@ -2,16 +2,21 @@ import { useCallback, useEffect, useState, type ReactElement } from "react";
 import { del, get, getConnection, post, put, setConnection, useResource } from "./api";
 import { Modal, Tabs } from "./ui";
 import { Icons, TAGLINE } from "./components";
-import { AppsPage, DatasetsPage, StoragePage } from "./pages";
-import { AlertsPage, DisksPage, ServicesPage } from "./pages2";
+import { DatasetsPage, StoragePage } from "./storage";
+import { AppsPage } from "./apps";
+import { DisksPage } from "./disks";
+import { AlertsPage, ServicesPage } from "./advanced";
 import { SharesPage } from "./shares";
 import { SnapshotsPage } from "./snapshots";
 import { HomePage } from "./home";
 import { FirstRunSetup } from "./first-run";
 import { DriveMapPage } from "./drivemap";
-import { CatalogPage, SettingsPage, UsersPage, type Conn } from "./pages3";
+import { SettingsPage, type Conn } from "./settings";
+import { UsersPage } from "./users";
+import { CatalogPage } from "./catalog";
 import { FilesPage } from "./files-page";
-import { NetworkPage, TerminalPage } from "./pages4";
+import { NetworkPage } from "./network";
+import { TerminalPage } from "./terminal";
 
 /**
  * Named for what people want, not for how TrueNAS is organised.
@@ -519,7 +524,7 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
         {page === "apps" && (
           <>
             <Tabs tabs={SUBS.apps} active={subOf("apps") as "installed"} onChange={(id) => go("apps", id)} />
-            {subOf("apps") === "installed" && <AppsPage />}
+            {subOf("apps") === "installed" && <AppsPage admin={me.role === "admin"} />}
             {subOf("apps") === "catalog" && <CatalogPage />}
           </>
         )}

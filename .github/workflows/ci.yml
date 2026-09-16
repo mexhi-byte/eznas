@@ -59,3 +59,25 @@ jobs:
       # when reading a red run.
       - name: Build
         run: npm run build
+
+  # A real browser against the built console and the mock NAS: sign in, set
+  # up, see every page. Separate job so a flaky browser cannot mask a real
+  # unit failure, and so its two minutes run alongside the checks.
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
