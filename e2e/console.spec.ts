@@ -82,6 +82,14 @@ test("every page renders against the mock", async ({ page }) => {
   await expect(page.getByText("family", { exact: true })).toBeVisible();
   if (shots) await page.screenshot({ path: "docs/screenshots/groups.png" });
 
+  await page.goto("/#/home");
+  await page.getByRole("button", { name: /Set up this NAS/ }).click();
+  await expect(page.getByRole("heading", { name: "Set up this NAS" })).toBeVisible();
+  // The mock has one spare drive, so the only layout is a stripe, said plainly.
+  await expect(page.getByText(/loses everything/)).toBeVisible();
+  if (shots) await page.screenshot({ path: "docs/screenshots/setup.png" });
+  await page.getByRole("button", { name: "Cancel" }).click();
+
   await page.goto("/#/safety");
   await expect(page.getByRole("heading", { name: "Backups and checks" })).toBeVisible();
   await expect(page.getByText("Family photos to Backblaze")).toBeVisible();

@@ -771,6 +771,30 @@ th.num {
   margin: 0;
 }
 
+/* ---------------------------------------------------------- setup wizard */
+
+.layout-options {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+.layout-option {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+}
+.layout-option.on {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.layout-option input {
+  margin-top: 5px;
+}
+
 /* --------------------------------------------------------------- safety */
 
 .kv-row {
