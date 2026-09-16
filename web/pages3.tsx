@@ -14,6 +14,7 @@ import {
   type Webhook,
 } from "./settings-tabs";
 import { ConsoleUsersTab } from "./console-users";
+import { describeCertificate, prettyFingerprint, type SeenCertificate } from "./certificate";
 
 /* --------------------------------------------------------------- settings */
 
@@ -214,15 +215,53 @@ function ConnectionForm({ conn, onClose, onSaved }: { conn: Conn | null; onClose
   const [name, setName] = useState(conn?.name ?? "");
   const [url, setUrl] = useState(conn?.url ?? "");
   const [apiKey, setApiKey] = useState("");
-  const [fingerprint, setFingerprint] = useState(conn?.fingerprint ?? "");
   const [sudoPassword, setSudoPassword] = useState("");
   const [tested, setTested] = useState<{ ok: boolean; error?: string; version?: string; hostname?: string } | null>(
     null,
   );
   const [testing, setTesting] = useState(false);
 
+  /*
+   * Trust on first use. The console looks at the certificate the address
+   * presents and offers to remember it; the operator sees what is being
+   * trusted rather than pasting a hex string from somewhere else. On by
+   * default for a new server, because a pin is the only authentication this
+   * connection will ever have. For an existing pinned server the switch
+   * reflects the pin, and a changed certificate is pointed out rather than
+   * silently re-pinned.
+   */
+  const [cert, setCert] = useState<SeenCertificate | null>(null);
+  const [certError, setCertError] = useState<string | null>(null);
+  const [pin, setPin] = useState(conn ? !!conn.fingerprint : true);
+  const changed = !!conn?.fingerprint && !!cert && cert.fingerprint !== conn.fingerprint;
+
+  async function look(): Promise<SeenCertificate | null> {
+    if (!url.trim()) return null;
+    setCertError(null);
+    try {
+      const seen = await post<SeenCertificate>("/api/connections/certificate", { url });
+      setCert(seen);
+      return seen;
+    } catch (e) {
+      setCert(null);
+      setCertError(e instanceof Error ? e.message : String(e));
+      return null;
+    }
+  }
+
   const { busy, error, submit } = useSubmit(async () => {
-    const payload = { name, url, apiKey, fingerprint: fingerprint || null, sudoPassword: sudoPassword || undefined };
+    // Pinning without having looked is not pinning. Look now, and refuse to
+    // save a pin that could not be read rather than saving none quietly.
+    let seen = cert;
+    if (pin && !seen) {
+      seen = await look();
+      if (!seen)
+        throw new Error(
+          "The certificate could not be read, so it cannot be pinned. Turn pinning off to save without it.",
+        );
+    }
+    const fingerprint = pin ? (seen?.fingerprint ?? conn?.fingerprint ?? null) : null;
+    const payload = { name, url, apiKey, fingerprint, sudoPassword: sudoPassword || undefined };
     if (conn) await put(`/api/connections/${conn.id}`, payload);
     else await post("/api/connections", payload);
     onSaved();
@@ -232,7 +271,16 @@ function ConnectionForm({ conn, onClose, onSaved }: { conn: Conn | null; onClose
     setTesting(true);
     setTested(null);
     try {
-      setTested(await post("/api/connections/test", { url, apiKey, fingerprint: fingerprint || null }));
+      const r = await post<{
+        ok: boolean;
+        error?: string;
+        version?: string;
+        hostname?: string;
+        certificate: SeenCertificate | null;
+      }>("/api/connections/test", { url, apiKey, fingerprint: pin ? (conn?.fingerprint ?? null) : null });
+      setTested(r);
+      if (r.certificate) setCert(r.certificate);
+      if (r.ok && r.hostname && !name) setName(r.hostname);
     } catch (e) {
       setTested({ ok: false, error: e instanceof Error ? e.message : String(e) });
     } finally {
@@ -268,7 +316,12 @@ function ConnectionForm({ conn, onClose, onSaved }: { conn: Conn | null; onClose
       </Field>
 
       <Field label="Address" hint="An address is enough — 192.168.1.10. https:// and /api/current are added for you.">
-        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="192.168.1.10" />
+        <Input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onBlur={() => void look()}
+          placeholder="192.168.1.10"
+        />
       </Field>
 
       <Field
@@ -283,12 +336,40 @@ function ConnectionForm({ conn, onClose, onSaved }: { conn: Conn | null; onClose
         />
       </Field>
 
-      <Field
-        label="Certificate fingerprint (optional)"
-        hint="SHA-256, hex. TrueNAS uses a self-signed certificate, so pinning is the only way this connection can be authenticated. Without it the key travels over a link nothing has verified."
-      >
-        <Input value={fingerprint} onChange={(e) => setFingerprint(e.target.value)} placeholder="ec0d17f7…" />
-      </Field>
+      <div className="cert-block">
+        <div className="cert-head">
+          <span className="field-label">Certificate</span>
+          <button type="button" className="btn small" onClick={() => void look()} disabled={!url.trim()}>
+            {cert ? "Look again" : "Look"}
+          </button>
+        </div>
+        {cert ? (
+          <>
+            <p className="modal-text" style={{ marginTop: 6 }}>
+              {describeCertificate(cert)}
+            </p>
+            <div className="mono cert-fp">{prettyFingerprint(cert.fingerprint)}</div>
+            {changed && (
+              <p className="modal-text" style={{ color: "var(--warn)" }}>
+                This is not the certificate that was pinned. If the NAS renewed it, save to pin the new one. If it did
+                not, do not trust this connection.
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="modal-text" style={{ marginTop: 6 }}>
+            {certError ??
+              (conn?.fingerprint
+                ? `Pinned to ${prettyFingerprint(conn.fingerprint).slice(0, 23)}…`
+                : "Enter the address and the console will look at the certificate it presents.")}
+          </p>
+        )}
+        <Toggle checked={pin} onChange={setPin} label="Pin this certificate, so a different one is refused" />
+        <div className="field-hint" style={{ marginTop: 4 }}>
+          TrueNAS uses a self-signed certificate, so this pin is the only way the connection can be authenticated.
+          Without it the API key travels over a link nothing has verified.
+        </div>
+      </div>
 
       <Field
         label={
