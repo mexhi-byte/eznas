@@ -1,7 +1,7 @@
 {
   "name": "eznas",
-  "version": "0.5.2",
-  "description": "EzNAS \u2014 a beautifully simplified, open-source web UI for TrueNAS. Built for homelabs, powered by WebSockets.",
+  "version": "0.6.0",
+  "description": "EzNAS — a beautifully simplified, open-source web UI for TrueNAS. Built for homelabs, powered by WebSockets.",
   "main": "index.js",
   "scripts": {
     "dev:web": "vite",
@@ -26,8 +26,8 @@
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "qrcode": "^1.5.4",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "ws": "^8.21.3"
   },
   "private": true,
@@ -39,12 +39,12 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/ws": "^8.18.1",
-    "@vitejs/plugin-react": "^6.1.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "@vitest/coverage-v8": "^3.2.7",
     "oxlint": "^1.83.0",
     "prettier": "^3.9.7",
     "typescript": "^7.0.2",
-    "vite": "^8.2.2",
+    "vite": "^8.3.0",
     "vitest": "^3.2.7"
   },
   "engines": {

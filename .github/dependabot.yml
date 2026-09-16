@@ -15,6 +15,11 @@ updates:
     open-pull-requests-limit: 5
     commit-message:
       prefix: "Update"
+    ignore:
+      # The runtime is Node 22 and the types are pinned to match it; a newer
+      # major here would describe APIs the container does not have.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -29,3 +34,8 @@ updates:
       day: monday
     commit-message:
       prefix: "Update"
+    ignore:
+      # Moving the runtime to a new Node major is a decision, not an update:
+      # it is tested on a real NAS first and done by hand.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
