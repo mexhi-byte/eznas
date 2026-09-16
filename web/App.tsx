@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactElement } from "react";
-import { del, get, getConnection, post, setConnection, useResource } from "./api";
+import { useCallback, useEffect, useState, type ReactElement } from "react";
+import { del, get, getConnection, post, put, setConnection, useResource } from "./api";
 import { Modal, Tabs } from "./ui";
 import { Icons, TAGLINE } from "./components";
 import { AppsPage, DatasetsPage, StoragePage } from "./pages";
@@ -86,29 +86,130 @@ export interface Me { username: string; role: "admin" | "viewer" }
 /** What the running build calls itself, filled in from /api/session. */
 interface Build { version: string; channel: string }
 
+interface Session {
+  authenticated: boolean;
+  username: string | null;
+  role: Me["role"] | null;
+  mustChangePassword?: boolean;
+  accountId?: string | null;
+  theme?: string;
+  version?: string;
+  channel?: string;
+}
+
 export default function App() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [build, setBuild] = useState<Build | null>(null);
+  const [forced, setForced] = useState<{ id: string; username: string } | null>(null);
+
+  const readSession = useCallback(
+    () =>
+      get<Session>("/api/session")
+        .then((s) => {
+          setAuthed(s.authenticated);
+          if (s.version) setBuild({ version: s.version, channel: s.channel ?? "" });
+          if (s.authenticated && s.username && s.role) setMe({ username: s.username, role: s.role });
+          setForced(
+            s.mustChangePassword && s.accountId && s.username
+              ? { id: s.accountId, username: s.username }
+              : null,
+          );
+          // Only when this browser has no preference of its own.
+          if (s.theme && !localStorage.getItem("tnui:theme")) document.documentElement.dataset.theme = s.theme;
+        })
+        .catch(() => setAuthed(false)),
+    [],
+  );
 
   useEffect(() => {
-    void get<{ authenticated: boolean; username: string | null; role: Me["role"] | null; theme?: string; version?: string; channel?: string }>("/api/session")
-      .then((s) => {
-        setAuthed(s.authenticated);
-        if (s.version) setBuild({ version: s.version, channel: s.channel ?? "" });
-        if (s.authenticated && s.username && s.role) setMe({ username: s.username, role: s.role });
-        // Only when this browser has no preference of its own.
-        if (s.theme && !localStorage.getItem("tnui:theme")) document.documentElement.dataset.theme = s.theme;
-      })
-      .catch(() => setAuthed(false));
-    const out = () => { setAuthed(false); setMe(null); };
+    void readSession();
+    const out = () => { setAuthed(false); setMe(null); setForced(null); };
     window.addEventListener("tnui:signed-out", out);
     return () => window.removeEventListener("tnui:signed-out", out);
-  }, []);
+  }, [readSession]);
 
   if (authed === null) return <div className="login-wrap" />;
-  if (!authed || !me) return <Login build={build} onIn={(who) => { setMe(who); setAuthed(true); }} />;
+  if (!authed || !me) return <Login build={build} onIn={() => void readSession()} />;
+  /*
+   * Nothing else until the generated password is replaced.
+   *
+   * The server refuses every write from this account anyway, so letting the
+   * console render normally would be an interface where everything fails with
+   * the same message. This asks once, in the one place it can be acted on.
+   */
+  if (forced) return <ForcedPasswordChange account={forced} onDone={() => void readSession()} />;
   return <Shell me={me} build={build} onOut={() => { setAuthed(false); setMe(null); }} />;
+}
+
+/**
+ * The console picked this password; the owner has not yet.
+ *
+ * Shown instead of the console rather than over it, because it is not a
+ * suggestion — until it is done the server refuses every request that would
+ * change anything.
+ */
+function ForcedPasswordChange({ account, onDone }: {
+  account: { id: string; username: string };
+  onDone: () => void;
+}) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [again, setAgain] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const mismatch = again.length > 0 && next !== again;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await put(`/api/accounts/${encodeURIComponent(account.id)}`, {
+        password: next,
+        currentPassword: current,
+      });
+      onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="login-wrap">
+      <form className="login-card" onSubmit={submit}>
+        <h1>Choose a password</h1>
+        <p className="login-sub">
+          This console generated the password for <strong>{account.username}</strong> and printed it
+          in its own log. Replace it before going any further — anyone who can read that log can sign
+          in as you.
+        </p>
+        <label>
+          The generated password
+          <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)}
+                 autoComplete="current-password" autoFocus />
+        </label>
+        <label>
+          New password
+          <input type="password" value={next} onChange={(e) => setNext(e.target.value)}
+                 autoComplete="new-password" />
+        </label>
+        <label>
+          New password again
+          <input type="password" value={again} onChange={(e) => setAgain(e.target.value)}
+                 autoComplete="new-password" />
+        </label>
+        {mismatch && <div className="login-error">Those two do not match.</div>}
+        {error && <div className="login-error">{error}</div>}
+        <button className="btn primary" type="submit" disabled={busy || !current || !next || next !== again}>
+          {busy ? "Saving…" : "Set it and continue"}
+        </button>
+      </form>
+    </div>
+  );
 }
 
 function Login({ build, onIn }: { build: Build | null; onIn: (me: Me) => void }) {

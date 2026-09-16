@@ -175,6 +175,10 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       authenticated: !!who,
       username: who?.username ?? null,
       role: who?.role ?? null,
+      // So the console can put the change in front of the person rather than
+      // letting them find out by having everything they try refused.
+      mustChangePassword: who?.mustChangePassword === true,
+      accountId: who?.id ?? null,
       // The sign-in page needs the theme before there is a session, or it
       // flashes the default theme and then repaints.
       theme: settings.get().theme,
@@ -247,6 +251,26 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
    */
   if (me.role !== "admin" && method !== "GET") {
     json(res, 403, { error: "This account can view the console but not change anything." });
+    return true;
+  }
+
+  /*
+   * An account still using the password the console generated may do one thing.
+   *
+   * Enforced here rather than by showing a dialog, for the same reason the
+   * viewer rule is: the browser is not a boundary. A generated password that
+   * is never changed is a credential sitting in a log file and in whatever
+   * scrollback or terminal history the install left behind.
+   *
+   * Reads are allowed so the console still renders — a change-password form on
+   * an otherwise blank page is harder to act on than one on the page it
+   * belongs to.
+   */
+  if (me.mustChangePassword && method !== "GET" && !(path === `/api/accounts/${me.id}` && method === "PUT")) {
+    json(res, 403, {
+      error: "Change the password this console generated before doing anything else with it.",
+      mustChangePassword: true,
+    });
     return true;
   }
 

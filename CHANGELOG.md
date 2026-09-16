@@ -6,6 +6,18 @@ Versions follow [semantic versioning](https://semver.org/), loosely: the
 console is pre-1.0, so a minor bump may still change behaviour you relied on.
 Anything that does is called out under **Changed** or **Upgrading**.
 
+## Unreleased
+
+### Added
+
+- **A first run with no `UI_PASSWORD` now works.** It used to log "nobody can
+  sign in" and start anyway, leaving a console that ran and could not be
+  used. There is still no default password — a fixed one would be published
+  with this source, and the console holds a key equivalent to root on the
+  NAS — so one is generated, printed once in the log, and the account is
+  refused every write until that password has been replaced. The refusal is
+  on the server, not in the browser.
+
 ## 0.5.2 — 2026-09-16
 
 A security release. Nothing new to look at; one thing to read under
