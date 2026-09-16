@@ -524,7 +524,7 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
         {page === "apps" && (
           <>
             <Tabs tabs={SUBS.apps} active={subOf("apps") as "installed"} onChange={(id) => go("apps", id)} />
-            {subOf("apps") === "installed" && <AppsPage />}
+            {subOf("apps") === "installed" && <AppsPage admin={me.role === "admin"} />}
             {subOf("apps") === "catalog" && <CatalogPage />}
           </>
         )}

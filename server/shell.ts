@@ -4,6 +4,7 @@ import type { Duplex } from "node:stream";
 import * as store from "./store.js";
 import * as accounts from "./accounts.js";
 import { COOKIE, read as readSession, readCookie } from "./auth.js";
+import { commandFor, isAppName, isConsoleMode, isContainerId, type ConsoleMode } from "./app-shell.js";
 
 /**
  * A shell on the NAS, proxied to the browser.
@@ -51,14 +52,81 @@ export function handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer
     return true;
   }
 
-  wss.handleUpgrade(req, socket, head, (client) => void bridge(client, conn));
+  /*
+   * Which shell. No mode is the Terminal page: a login shell on the NAS.
+   * A mode is an app's container — its logs, or a shell inside it — and the
+   * command for it is built here from two validated parts. The query string
+   * never carries a command, and anything that is not a mode this console
+   * knows, or not an id and a name in the only shapes they can take, is
+   * refused at the upgrade before anything is bridged.
+   */
+  const mode = url.searchParams.get("mode");
+  const container = url.searchParams.get("container");
+  const app = url.searchParams.get("app");
+  let target: { mode: ConsoleMode; container: string; app: string } | null = null;
+  if (mode !== null) {
+    if (!isConsoleMode(mode) || !isContainerId(container) || !isAppName(app)) {
+      socket.write("HTTP/1.1 400 Bad Request\r\n\r\n");
+      socket.destroy();
+      return true;
+    }
+    target = { mode, container, app };
+  }
+
+  wss.handleUpgrade(req, socket, head, (client) => void bridge(client, conn, target));
   return true;
 }
 
-async function bridge(client: WebSocket, conn: store.Connection): Promise<void> {
+/** The containers an app is running, from the NAS's own account of it. */
+export async function containersOf(
+  nas: { call<T>(method: string, params?: unknown[]): Promise<T> },
+  app: string,
+): Promise<Array<{ id: string; name: string; image: string; state: string }>> {
+  const [row] = await nas.call<Array<Record<string, unknown>>>("app.query", [[["name", "=", app]]]);
+  if (!row) throw new Error(`There is no app called "${app}".`);
+  const details = ((row.active_workloads as Record<string, unknown> | undefined)?.container_details ?? []) as Array<
+    Record<string, unknown>
+  >;
+  return details
+    .map((c) => ({
+      id: String(c.id ?? ""),
+      name: String(c.service_name ?? c.name ?? ""),
+      image: String(c.image ?? ""),
+      state: String(c.state ?? ""),
+    }))
+    .filter((c) => isContainerId(c.id));
+}
+
+async function bridge(
+  client: WebSocket,
+  conn: store.Connection,
+  wanted: { mode: ConsoleMode; container: string; app: string } | null,
+): Promise<void> {
   const say = (text: string) => {
     if (client.readyState === WebSocket.OPEN) client.send(`\r\n\x1b[31m${text}\x1b[0m\r\n`);
   };
+
+  // The container has to belong to the app it was asked for. The id shape was
+  // checked at the upgrade; this is the check that it is one of *this* app's,
+  // so a valid-looking id for some other container is refused too.
+  let command = "";
+  if (wanted) {
+    try {
+      const mine = await containersOf(store.clientFor(conn), wanted.app);
+      if (!mine.some((c) => c.id === wanted.container)) {
+        say(
+          `${wanted.app} has no container ${wanted.container.slice(0, 12)}. It may have been restarted; open this again.`,
+        );
+        client.close();
+        return;
+      }
+      command = commandFor(wanted.mode, wanted.container);
+    } catch (e) {
+      say(e instanceof Error ? e.message : String(e));
+      client.close();
+      return;
+    }
+  }
 
   let token: string;
   try {
@@ -78,7 +146,9 @@ async function bridge(client: WebSocket, conn: store.Connection): Promise<void> 
   let sessionId = "";
 
   nas.on("open", () => {
-    nas.send(JSON.stringify({ token, options: { command: "", tty_size: { rows: 24, cols: 80 } } }));
+    // An empty command is a login shell, which is what the Terminal page
+    // has always asked for.
+    nas.send(JSON.stringify({ token, options: { command, tty_size: { rows: 24, cols: 80 } } }));
   });
 
   nas.on("message", (raw) => {

@@ -4,6 +4,7 @@ import { Empty, ErrorBanner, Icons, Loading, Pill } from "./components";
 import { AppDetailsModal } from "./app-details";
 import { DangerConfirm, JobProgress } from "./ui";
 import { AppConfigModal } from "./app-config";
+import { AppConsoleModal } from "./app-console";
 
 /* -------------------------------------------------------------------- apps */
 
@@ -56,13 +57,14 @@ function AppIcon({ app }: { app: App }) {
   );
 }
 
-export function AppsPage() {
+export function AppsPage({ admin = true }: { admin?: boolean }) {
   const { data, error, loading, reload } = useResource<App[]>("/api/apps", 10_000);
   const [busy, setBusy] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState<string | null>(null);
   const [removing, setRemoving] = useState<App | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [detailing, setDetailing] = useState<App | null>(null);
+  const [consoleOf, setConsoleOf] = useState<{ app: string; mode: "logs" | "exec" } | null>(null);
   const [jobs, setJobs] = useState<Array<{ id: number; label: string }>>([]);
 
   async function upgrade(name: string) {
@@ -195,6 +197,16 @@ export function AppsPage() {
                 <button className="btn" onClick={() => setEditing(a.name)}>
                   Settings
                 </button>
+                {admin && running && (
+                  <>
+                    <button className="btn" onClick={() => setConsoleOf({ app: a.name, mode: "logs" })}>
+                      Logs
+                    </button>
+                    <button className="btn" onClick={() => setConsoleOf({ app: a.name, mode: "exec" })}>
+                      Shell
+                    </button>
+                  </>
+                )}
                 {running ? (
                   <>
                     <button className="btn" disabled={working} onClick={() => void act(a.name, "restart")}>
@@ -246,6 +258,8 @@ export function AppsPage() {
           }
         />
       )}
+
+      {consoleOf && <AppConsoleModal app={consoleOf.app} mode={consoleOf.mode} onClose={() => setConsoleOf(null)} />}
 
       {editing && (
         <AppConfigModal

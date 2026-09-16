@@ -6,6 +6,7 @@ import { catalogIconIndex, hostOf, iconFor, portLinks } from "../app-links.js";
 import { appDetail } from "../catalog-detail.js";
 import type { AppRow } from "../nas-shapes.js";
 import type { NasRouteContext } from "./context.js";
+import { containersOf } from "../shell.js";
 
 /**
  * Apps and the catalog: list, install, configure, start, stop, upgrade,
@@ -27,6 +28,13 @@ export async function handleAppRoutes(ctx: NasRouteContext): Promise<boolean> {
     }
     await nas.call(APP_ACTIONS[action], [name]);
     json(res, 200, { ok: true });
+    return true;
+  }
+
+  // For the logs and shell buttons: which container to point them at.
+  const appContainers = /^\/api\/apps\/([^/]+)\/containers$/.exec(path);
+  if (appContainers && method === "GET") {
+    json(res, 200, await containersOf(nas, appContainers[1]));
     return true;
   }
 
