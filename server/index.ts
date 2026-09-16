@@ -19,7 +19,7 @@ import { CHANNEL, VERSION } from "./version.js";
 import { appTitle, isCustomApp } from "./apps.js";
 
 export { VERSION };
-import { bodyOf, clientAddress, confirmed, json, optStr, statusForError, str, trustProxy, underMnt } from "./http.js";
+import { acceptableWriteType, bodyOf, clientAddress, confirmed, json, optStr, sameOrigin, SECURITY_HEADERS, statusForError, str, trustProxy, underMnt } from "./http.js";
 import { levelToPerms, type AclEntry } from "./acl.js";
 import { handleFileRoutes } from "./routes/files.js";
 import { diskVerdict, failedTestCount, temperatureOf, testsForDisk } from "./disk-verdict.js";
@@ -168,6 +168,28 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
   const path = url.pathname;
   if (!path.startsWith("/api/")) return false;
   const method = req.method ?? "GET";
+
+  /*
+   * Writes must come from this console's own pages, in one of the two shapes
+   * its client sends. Checked before anything else, including sign-in: a
+   * cross-site sign-in form is how a session gets planted in someone's
+   * browser.
+   */
+  if (method !== "GET" && method !== "HEAD") {
+    if (!sameOrigin(req.headers, TRUST_PROXY)) {
+      json(res, 403, {
+        error:
+          "This request came from a different site than the console is served from, so it was refused. " +
+          "If the console is behind a reverse proxy, set TRUST_PROXY=1 and make sure the proxy passes " +
+          "x-forwarded-host.",
+      });
+      return true;
+    }
+    if (!acceptableWriteType(req.headers["content-type"])) {
+      json(res, 415, { error: "Send JSON. This console does not accept form posts." });
+      return true;
+    }
+  }
 
   /* --- unauthenticated --- */
   if (path === "/api/session") {
@@ -1988,6 +2010,7 @@ async function serveStatic(url: URL, res: ServerResponse): Promise<void> {
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
   try {
     if (await handleApi(req, res, url)) return;
     await serveStatic(url, res);

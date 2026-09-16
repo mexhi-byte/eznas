@@ -31,6 +31,17 @@ Anything that does is called out under **Changed** or **Upgrading**.
   signer did not know that and made up its own on every start, so each
   restart signed everyone out. Both now use the kept one.
 
+### Security
+
+- **Every response now carries a content security policy** and the usual
+  companions: no framing by other sites, no MIME sniffing, no referrer
+  leaking past this origin. Scripts run only from the console itself.
+- **Writes are refused when they come from another site.** A request naming
+  an `Origin` other than the host it arrived at gets a 403; a body that is
+  not JSON or an upload gets a 415. The session cookie was already
+  `SameSite=Lax`; this is the second lock. Behind a reverse proxy, set
+  `TRUST_PROXY=1` and pass `x-forwarded-host`, or writes will be refused.
+
 ### Added
 
 - **A first run with no `UI_PASSWORD` now works.** It used to log "nobody can

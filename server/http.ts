@@ -140,3 +140,84 @@ export function clientAddress(
 
 /** Whether TRUST_PROXY is set to something that means yes. */
 export const trustProxy = (value: string | undefined): boolean => /^(1|true|yes|on)$/i.test((value ?? "").trim());
+
+/**
+ * Headers every response carries.
+ *
+ * The console's own pages load scripts and styles from itself, images from
+ * itself and from wherever an app catalog keeps its logos, and nothing else;
+ * the policy says so, which means a script that somehow lands in a page — a
+ * catalog description, a filename — has nowhere to run and nowhere to send
+ * anything. frame-ancestors is 'self', not 'none', because the file browser
+ * previews PDFs in an iframe served from this same origin and a stricter
+ * value would blank it. 'unsafe-inline' for styles is what React's style
+ * attributes and xterm's injected stylesheet need; scripts get no such
+ * allowance.
+ */
+export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
+  "content-security-policy": [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' blob:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "frame-src 'self'",
+    "frame-ancestors 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join("; "),
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "SAMEORIGIN",
+  "referrer-policy": "same-origin",
+  "permissions-policy": "camera=(), microphone=(), geolocation=(), payment=()",
+};
+
+/**
+ * Whether a write came from this console's own pages.
+ *
+ * The session cookie is SameSite=Lax, which already stops a browser attaching
+ * it to a cross-site POST. This is the second lock on the same door: a
+ * request that names an Origin is refused when that origin is not the host
+ * the request arrived at. Behind a trusted proxy the public host is in
+ * x-forwarded-host, since the proxy may have rewritten Host to its upstream.
+ * A request with no Origin at all — curl, a script, an old browser — is
+ * allowed through; it carries no ambient cookie to abuse.
+ */
+export function sameOrigin(
+  headers: Record<string, string | string[] | undefined>,
+  trustProxy: boolean,
+): boolean {
+  const origin = headers.origin;
+  if (typeof origin !== "string" || !origin) return true;
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host.toLowerCase();
+  } catch {
+    return false;
+  }
+  const candidates = new Set<string>();
+  const host = Array.isArray(headers.host) ? headers.host[0] : headers.host;
+  if (host) candidates.add(host.toLowerCase());
+  if (trustProxy) {
+    const fwd = Array.isArray(headers["x-forwarded-host"]) ? headers["x-forwarded-host"][0] : headers["x-forwarded-host"];
+    for (const h of (fwd ?? "").split(",")) if (h.trim()) candidates.add(h.trim().toLowerCase());
+  }
+  return candidates.has(originHost);
+}
+
+/**
+ * The body types a write may carry.
+ *
+ * Everything the console's own client sends is JSON, except an upload, which
+ * is the file's bytes. A form post from another site arrives as
+ * x-www-form-urlencoded or text/plain — the two types a browser will send
+ * cross-site without asking — and is refused before a route ever sees it.
+ * No content type at all is allowed: a POST with no body has none.
+ */
+export function acceptableWriteType(contentType: string | undefined): boolean {
+  const type = (contentType ?? "").split(";")[0].trim().toLowerCase();
+  return type === "" || type === "application/json" || type === "application/octet-stream";
+}
