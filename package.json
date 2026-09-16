@@ -14,7 +14,8 @@
     "lint": "oxlint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "mock": "node --experimental-strip-types mock/truenas-mock.ts"
   },
   "keywords": [],
   "author": "",
