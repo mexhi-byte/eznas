@@ -80,6 +80,11 @@ describe("every shipped feature is reachable from the interface", () => {
     expect(page?.text).toContain("QuestionList");
   });
 
+  it("the fresh-NAS setup is a launcher on Home and asks the server for layouts", () => {
+    expect(mentions("SetupNasWizard")).toContain("home.tsx");
+    expect(componentSources().find((s) => s.file === "setup-nas.tsx")?.text).toContain("/api/pools/layouts");
+  });
+
   it("backups and checks have a page and a card on Home", () => {
     expect(mentions("SafetyPage")).toContain("App.tsx");
     expect(componentSources().find((s) => s.file === "home.tsx")?.text).toContain("/api/safety");

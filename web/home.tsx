@@ -2,6 +2,7 @@ import { useState } from "react";
 import { bytes, duration, post, put, rate, useRealtime, useResource, when } from "./api";
 import { Empty, ErrorBanner, Loading, Sparkline } from "./components";
 import { describeSchedule, type Safety } from "./safety";
+import { SetupNasWizard } from "./setup-nas";
 import { Field, Input, JobProgress, Modal, Select, Toggle, useSubmit } from "./ui";
 
 /* --------------------------------------------------------------------- data */
@@ -80,7 +81,7 @@ export function HomePage({ go }: { go: Go }) {
   const { now, live, history } = useRealtime();
 
   const [renaming, setRenaming] = useState<string | "server" | null>(null);
-  const [action, setAction] = useState<"share" | "scan" | null>(null);
+  const [action, setAction] = useState<"share" | "scan" | "setup" | null>(null);
   const [jobs, setJobs] = useState<Array<{ id: number; label: string }>>([]);
 
   const names = settings?.names ?? { server: "", pools: {} };
@@ -155,6 +156,12 @@ export function HomePage({ go }: { go: Go }) {
             title="Install an app"
             sub="Plex, Nextcloud, and the rest"
             onClick={() => go("apps", "catalog")}
+          />
+          <Launcher
+            emoji="🧭"
+            title="Set up this NAS"
+            sub="Pool, folders, people, shares, protection"
+            onClick={() => setAction("setup")}
           />
           <Launcher
             emoji="🛡️"
@@ -271,6 +278,7 @@ export function HomePage({ go }: { go: Go }) {
       )}
 
       {action === "share" && <CreateShare onClose={() => setAction(null)} />}
+      {action === "setup" && <SetupNasWizard onClose={() => setAction(null)} onDone={() => window.location.reload()} />}
       {action === "scan" && (
         <RunScan
           pools={pools.map((p) => ({ name: p.name, label: names.pools[p.name]?.label }))}

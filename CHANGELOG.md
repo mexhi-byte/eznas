@@ -10,6 +10,16 @@ Anything that does is called out under **Changed** or **Upgrading**.
 
 ### Added
 
+- **Set up this NAS**, on Home: a box with empty drives to a working home
+  server in one sitting. The recommended layout is explained in usable space
+  and survivable failures; then folders, people, shares, nightly snapshots, a
+  monthly scrub and weekly self-tests, run in order with a line per step.
+- **A layout recommendation** for the drives not in any pool, offered by the
+  pool dialog's neighbour route and tested as pure logic.
+- **`npm run demo`**: the console against the mock, already connected, for a
+  public demo or a first look. **ROADMAP.md** says what 1.0 means;
+  **ARCHITECTURE.md** is the picture.
+
 - **Backups & checks**, one page for what keeps the data safe: scrub
   schedules, drive self-test schedules, copies off the NAS to Backblaze B2
   or S3, copies to a second pool by replication, locked folders, and whether
