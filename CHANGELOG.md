@@ -6,6 +6,16 @@ Versions follow [semantic versioning](https://semver.org/), loosely: the
 console is pre-1.0, so a minor bump may still change behaviour you relied on.
 Anything that does is called out under **Changed** or **Upgrading**.
 
+## 0.7.1 — 2026-09-16
+
+Housekeeping. No behaviour change.
+
+### Changed
+
+- The test runner and its coverage provider moved to Vitest 5, the React
+  type definitions to 19.3, and the actions the release workflow uses to
+  their current majors. This release is the first built by those actions.
+
 ## 0.7.0 — 2026-09-16
 
 Safety, and a fresh box set up in one sitting. One page for what keeps the
