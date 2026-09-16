@@ -3,7 +3,16 @@ import { del, get, getConnection, post, put, setConnection, useResource } from "
 import { Card, Empty, ErrorBanner, Loading, Pill, TAGLINE } from "./components";
 import { AppDetailsModal } from "./app-details";
 import { DangerConfirm, Field, Input, JobProgress, Modal, Select, Toggle, useSubmit } from "./ui";
-import { AppearanceTab, ConsoleUpdateTab, EmailTab, NotificationsTab, SecurityTab, UpdatesTab, type WatchConfig, type Webhook } from "./settings-tabs";
+import {
+  AppearanceTab,
+  ConsoleUpdateTab,
+  EmailTab,
+  NotificationsTab,
+  SecurityTab,
+  UpdatesTab,
+  type WatchConfig,
+  type Webhook,
+} from "./settings-tabs";
 import { ConsoleUsersTab } from "./console-users";
 
 /* --------------------------------------------------------------- settings */
@@ -27,7 +36,9 @@ function ServersTab() {
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 12 }}>
+      <div
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 12 }}
+      >
         <span className="card-title">Which TrueNAS machines this console can manage.</span>
         <button className="btn primary" style={{ flex: "none", padding: "8px 16px" }} onClick={() => setEditing("new")}>
           Add a server
@@ -47,26 +58,45 @@ function ServersTab() {
                   {c.isDefault && <span className="pill info">default</span>}
                   <Pill state={c.connected ? "ONLINE" : "OFFLINE"}>{c.connected ? "connected" : "not connected"}</Pill>
                 </div>
-                <div className="stat-foot mono" style={{ marginTop: 4 }}>{c.url}</div>
-                {c.error && <div className="stat-foot" style={{ color: "var(--bad)", marginTop: 4 }}>{c.error}</div>}
+                <div className="stat-foot mono" style={{ marginTop: 4 }}>
+                  {c.url}
+                </div>
+                {c.error && (
+                  <div className="stat-foot" style={{ color: "var(--bad)", marginTop: 4 }}>
+                    {c.error}
+                  </div>
+                )}
                 <div className="stat-foot" style={{ marginTop: 4 }}>
                   {c.fingerprint ? `certificate pinned · ${c.fingerprint.slice(0, 16)}…` : "certificate not pinned"}
                 </div>
               </div>
               <div style={{ display: "flex", gap: 7 }}>
                 {getConnection() !== c.id && (
-                  <button className="btn" style={{ flex: "none" }} onClick={() => { setConnection(c.id); window.location.reload(); }}>
+                  <button
+                    className="btn"
+                    style={{ flex: "none" }}
+                    onClick={() => {
+                      setConnection(c.id);
+                      window.location.reload();
+                    }}
+                  >
                     Use
                   </button>
                 )}
-                <button className="btn" style={{ flex: "none" }} onClick={() => setEditing(c)}>Edit</button>
-                <button className="btn danger" style={{ flex: "none" }} onClick={() => setRemoving(c)}>Remove</button>
+                <button className="btn" style={{ flex: "none" }} onClick={() => setEditing(c)}>
+                  Edit
+                </button>
+                <button className="btn danger" style={{ flex: "none" }} onClick={() => setRemoving(c)}>
+                  Remove
+                </button>
               </div>
             </div>
           </Card>
         ))}
         {!loading && !data?.length && (
-          <Card><Empty>No servers yet. Add one to get started.</Empty></Card>
+          <Card>
+            <Empty>No servers yet. Add one to get started.</Empty>
+          </Card>
         )}
       </div>
 
@@ -76,7 +106,10 @@ function ServersTab() {
         <ConnectionForm
           conn={editing === "new" ? null : editing}
           onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); void reload(); }}
+          onSaved={() => {
+            setEditing(null);
+            void reload();
+          }}
         />
       )}
 
@@ -91,7 +124,11 @@ function ServersTab() {
             if (getConnection() === removing.id) setConnection(null);
             await reload();
           }}
-          extra={<p className="modal-text" style={{ marginTop: 10 }}>This only forgets the connection here. Nothing on the NAS changes.</p>}
+          extra={
+            <p className="modal-text" style={{ marginTop: 10 }}>
+              This only forgets the connection here. Nothing on the NAS changes.
+            </p>
+          }
         />
       )}
     </>
@@ -128,14 +165,22 @@ function PowerCard() {
   return (
     <Card title="Power" className="power-card">
       <p className="modal-text" style={{ marginTop: 0 }}>
-        Every app and every shared folder goes offline while the NAS is down. A restart comes back on its own in a
-        few minutes; after a shutdown, somebody has to press the button on the machine.
+        Every app and every shared folder goes offline while the NAS is down. A restart comes back on its own in a few
+        minutes; after a shutdown, somebody has to press the button on the machine.
       </p>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button className="btn" onClick={() => void ask("reboot")}>Restart the NAS…</button>
-        <button className="btn danger" onClick={() => void ask("shutdown")}>Shut down the NAS…</button>
+        <button className="btn" onClick={() => void ask("reboot")}>
+          Restart the NAS…
+        </button>
+        <button className="btn danger" onClick={() => void ask("shutdown")}>
+          Shut down the NAS…
+        </button>
       </div>
-      {done && <div className="job done" style={{ marginTop: 12, marginBottom: 0 }}>{done}</div>}
+      {done && (
+        <div className="job done" style={{ marginTop: 12, marginBottom: 0 }}>
+          {done}
+        </div>
+      )}
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
       {action && hostname !== null && (
@@ -171,7 +216,9 @@ function ConnectionForm({ conn, onClose, onSaved }: { conn: Conn | null; onClose
   const [apiKey, setApiKey] = useState("");
   const [fingerprint, setFingerprint] = useState(conn?.fingerprint ?? "");
   const [sudoPassword, setSudoPassword] = useState("");
-  const [tested, setTested] = useState<{ ok: boolean; error?: string; version?: string; hostname?: string } | null>(null);
+  const [tested, setTested] = useState<{ ok: boolean; error?: string; version?: string; hostname?: string } | null>(
+    null,
+  );
   const [testing, setTesting] = useState(false);
 
   const { busy, error, submit } = useSubmit(async () => {
@@ -200,11 +247,17 @@ function ConnectionForm({ conn, onClose, onSaved }: { conn: Conn | null; onClose
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
           <button className="btn" onClick={() => void test()} disabled={testing || !url || (!apiKey && !conn)}>
             {testing ? "Testing…" : "Test"}
           </button>
-          <button className="btn primary" disabled={busy || !name || !url || (!conn && !apiKey)} onClick={() => void submit(undefined as void)}>
+          <button
+            className="btn primary"
+            disabled={busy || !name || !url || (!conn && !apiKey)}
+            onClick={() => void submit(undefined as void)}
+          >
             {busy ? "Saving…" : "Save"}
           </button>
         </>
@@ -222,7 +275,12 @@ function ConnectionForm({ conn, onClose, onSaved }: { conn: Conn | null; onClose
         label={conn ? "API key (leave blank to keep the current one)" : "API key"}
         hint="TrueNAS → Credentials → Local Users → API keys. The key inherits that user's privileges."
       >
-        <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={conn ? "unchanged" : "1-…"} />
+        <Input
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder={conn ? "unchanged" : "1-…"}
+        />
       </Field>
 
       <Field
@@ -233,7 +291,9 @@ function ConnectionForm({ conn, onClose, onSaved }: { conn: Conn | null; onClose
       </Field>
 
       <Field
-        label={conn?.hasSudo ? "Account password (saved — type a new one to replace it)" : "Account password (optional)"}
+        label={
+          conn?.hasSudo ? "Account password (saved — type a new one to replace it)" : "Account password (optional)"
+        }
         hint="Only needed to move, rename or reorganise files. TrueNAS has no API for those, so they run as a shell command, and that shell cannot write into a pool without this. Stored encrypted, never sent back to the browser. Leave empty and the file browser stays read-only."
       >
         <Input
@@ -254,7 +314,8 @@ function ConnectionForm({ conn, onClose, onSaved }: { conn: Conn | null; onClose
   );
 }
 
-type TabId = "servers" | "people" | "appearance" | "security" | "notifications" | "email" | "updates" | "console-update" | "about";
+type TabId =
+  "servers" | "people" | "appearance" | "security" | "notifications" | "email" | "updates" | "console-update" | "about";
 
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "servers", label: "Servers" },
@@ -272,9 +333,13 @@ export interface ConsoleSettings {
   theme: string;
   mfa: { enabled: boolean; recoveryRemaining: number };
   notify: {
-    watchDisks: boolean; email: boolean; recipients: string[];
-    watch: WatchConfig; emailLevel: "info" | "warn" | "bad";
-    webhooks: Webhook[]; greetName: string;
+    watchDisks: boolean;
+    email: boolean;
+    recipients: string[];
+    watch: WatchConfig;
+    emailLevel: "info" | "warn" | "bad";
+    webhooks: Webhook[];
+    greetName: string;
   };
 }
 
@@ -332,18 +397,28 @@ function AboutTab() {
   return (
     <div className="grid two">
       <Card title="This console">
-        <p className="modal-text" style={{ fontSize: 14.5, marginTop: 0 }}>{TAGLINE}</p>
+        <p className="modal-text" style={{ fontSize: 14.5, marginTop: 0 }}>
+          {TAGLINE}
+        </p>
         <p className="modal-text">
           Everything here speaks the JSON-RPC API on <span className="mono">wss://…/api/current</span> — the same
           interface the NAS's own interface uses, and the only one that survives the removal of the REST API. The live
           numbers on Overview are a subscription, not a poll: the NAS pushes them about once a second.
         </p>
         <div className="kv" style={{ marginTop: 12 }}>
-          <div><span>NAS connection</span><b>{data ? (data.connected ? "connected" : "unreachable") : "…"}</b></div>
-          <div><span>Transport</span><b>JSON-RPC 2.0 over WebSocket</b></div>
+          <div>
+            <span>NAS connection</span>
+            <b>{data ? (data.connected ? "connected" : "unreachable") : "…"}</b>
+          </div>
+          <div>
+            <span>Transport</span>
+            <b>JSON-RPC 2.0 over WebSocket</b>
+          </div>
         </div>
         {data && !data.connected && data.error && (
-          <p className="modal-text" style={{ color: "var(--bad)" }}>{data.error}</p>
+          <p className="modal-text" style={{ color: "var(--bad)" }}>
+            {data.error}
+          </p>
         )}
       </Card>
 
@@ -381,7 +456,10 @@ interface User {
 export function UsersPage() {
   const [showBuiltin, setShowBuiltin] = useState(false);
   const { data, error, loading, reload } = useResource<User[]>(`/api/users?builtin=${showBuiltin ? 1 : 0}`, 30_000);
-  const { data: groups } = useResource<Array<{ id: number; gid: number; name: string; builtin: boolean }>>("/api/groups", 0);
+  const { data: groups } = useResource<Array<{ id: number; gid: number; name: string; builtin: boolean }>>(
+    "/api/groups",
+    0,
+  );
   const [editing, setEditing] = useState<User | "new" | null>(null);
   const [removing, setRemoving] = useState<User | null>(null);
 
@@ -394,7 +472,11 @@ export function UsersPage() {
         </div>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <Toggle checked={showBuiltin} onChange={setShowBuiltin} label="Show built-in" />
-          <button className="btn primary" style={{ flex: "none", padding: "8px 16px" }} onClick={() => setEditing("new")}>
+          <button
+            className="btn primary"
+            style={{ flex: "none", padding: "8px 16px" }}
+            onClick={() => setEditing("new")}
+          >
             Add user
           </button>
         </div>
@@ -410,8 +492,12 @@ export function UsersPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Username</th><th>Name</th><th className="num">UID</th>
-                  <th>Shell</th><th>Flags</th><th style={{ width: 150 }} />
+                  <th>Username</th>
+                  <th>Name</th>
+                  <th className="num">UID</th>
+                  <th>Shell</th>
+                  <th>Flags</th>
+                  <th style={{ width: 150 }} />
                 </tr>
               </thead>
               <tbody>
@@ -420,7 +506,9 @@ export function UsersPage() {
                     <td style={{ fontWeight: 600 }}>{u.username}</td>
                     <td style={{ color: "var(--muted)" }}>{u.fullName || "—"}</td>
                     <td className="num">{u.uid}</td>
-                    <td className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{u.shell?.split("/").pop()}</td>
+                    <td className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
+                      {u.shell?.split("/").pop()}
+                    </td>
                     <td>
                       <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                         {u.builtin && <span className="pill mute">built-in</span>}
@@ -431,15 +519,28 @@ export function UsersPage() {
                     </td>
                     <td>
                       <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                        <button className="btn" style={{ flex: "none" }} onClick={() => setEditing(u)}>Edit</button>
-                        <button className="btn danger" style={{ flex: "none" }} disabled={u.builtin} onClick={() => setRemoving(u)}>
+                        <button className="btn" style={{ flex: "none" }} onClick={() => setEditing(u)}>
+                          Edit
+                        </button>
+                        <button
+                          className="btn danger"
+                          style={{ flex: "none" }}
+                          disabled={u.builtin}
+                          onClick={() => setRemoving(u)}
+                        >
                           Delete
                         </button>
                       </div>
                     </td>
                   </tr>
                 ))}
-                {!data?.length && <tr><td colSpan={6}><Empty>No accounts.</Empty></td></tr>}
+                {!data?.length && (
+                  <tr>
+                    <td colSpan={6}>
+                      <Empty>No accounts.</Empty>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -451,7 +552,10 @@ export function UsersPage() {
           user={editing === "new" ? null : editing}
           groups={groups ?? []}
           onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); void reload(); }}
+          onSaved={() => {
+            setEditing(null);
+            void reload();
+          }}
         />
       )}
 
@@ -471,7 +575,12 @@ export function UsersPage() {
   );
 }
 
-function UserForm({ user, groups, onClose, onSaved }: {
+function UserForm({
+  user,
+  groups,
+  onClose,
+  onSaved,
+}: {
   user: User | null;
   groups: Array<{ id: number; gid: number; name: string; builtin: boolean }>;
   onClose: () => void;
@@ -491,8 +600,13 @@ function UserForm({ user, groups, onClose, onSaved }: {
       await put(`/api/users/${user.id}`, { fullName, email, password: password || undefined, smb, locked });
     } else {
       await post("/api/users", {
-        username, fullName, email: email || undefined, password: password || undefined,
-        group: group || undefined, smb, homeCreate,
+        username,
+        fullName,
+        email: email || undefined,
+        password: password || undefined,
+        group: group || undefined,
+        smb,
+        homeCreate,
       });
     }
     onSaved();
@@ -504,8 +618,14 @@ function UserForm({ user, groups, onClose, onSaved }: {
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="btn primary" disabled={busy || (!user && !username)} onClick={() => void submit(undefined as void)}>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className="btn primary"
+            disabled={busy || (!user && !username)}
+            onClick={() => void submit(undefined as void)}
+          >
             {busy ? "Saving…" : user ? "Save" : "Create"}
           </button>
         </>
@@ -522,12 +642,21 @@ function UserForm({ user, groups, onClose, onSaved }: {
       </Field>
 
       <Field label="Email">
-        <Input type="email" value={email ?? ""} onChange={(e) => setEmail(e.target.value)} placeholder="jane@example.com" />
+        <Input
+          type="email"
+          value={email ?? ""}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="jane@example.com"
+        />
       </Field>
 
       <Field
         label={user ? "New password (blank to leave unchanged)" : "Password"}
-        hint={user ? undefined : "Leave blank to create the account with password login disabled — useful for key-only or SMB-only accounts."}
+        hint={
+          user
+            ? undefined
+            : "Leave blank to create the account with password login disabled — useful for key-only or SMB-only accounts."
+        }
       >
         <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
       </Field>
@@ -536,9 +665,13 @@ function UserForm({ user, groups, onClose, onSaved }: {
         <Field label="Primary group" hint="Blank creates a group named after the user, which is what you usually want.">
           <Select value={group} onChange={(e) => setGroup(e.target.value)}>
             <option value="">Create a new group</option>
-            {groups.filter((g) => !g.builtin).map((g) => (
-              <option key={g.id} value={g.id}>{g.name} ({g.gid})</option>
-            ))}
+            {groups
+              .filter((g) => !g.builtin)
+              .map((g) => (
+                <option key={g.id} value={g.id}>
+                  {g.name} ({g.gid})
+                </option>
+              ))}
           </Select>
         </Field>
       )}
@@ -551,7 +684,6 @@ function UserForm({ user, groups, onClose, onSaved }: {
     </Modal>
   );
 }
-
 
 /* ---------------------------------------------------------------- catalog */
 
@@ -583,21 +715,20 @@ export function CatalogPage() {
           <h1>App catalog</h1>
           <div className="page-sub">{data ? `${data.total} apps available` : " "}</div>
         </div>
-        <Input
-          style={{ maxWidth: 240 }}
-          placeholder="Search apps…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+        <Input style={{ maxWidth: 240 }} placeholder="Search apps…" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
       {!!data?.categories.length && (
         <div className="chip-row" style={{ marginBottom: 16 }}>
-          <button className={`chip ${!category ? "on" : ""}`} onClick={() => setCategory("")}>all</button>
+          <button className={`chip ${!category ? "on" : ""}`} onClick={() => setCategory("")}>
+            all
+          </button>
           {data.categories.slice(0, 14).map((c) => (
-            <button key={c} className={`chip ${category === c ? "on" : ""}`} onClick={() => setCategory(c)}>{c}</button>
+            <button key={c} className={`chip ${category === c ? "on" : ""}`} onClick={() => setCategory(c)}>
+              {c}
+            </button>
           ))}
         </div>
       )}
@@ -618,13 +749,19 @@ export function CatalogPage() {
               <div className="app-icon">{a.title.slice(0, 2).toUpperCase()}</div>
               <div style={{ minWidth: 0 }}>
                 <div className="app-name">{a.title}</div>
-                <div className="app-meta">{a.latest_version} · {a.train}</div>
+                <div className="app-meta">
+                  {a.latest_version} · {a.train}
+                </div>
               </div>
             </div>
             {a.description && <div className="cat-desc">{a.description}</div>}
             <div className="cat-actions">
-              <button className="btn" onClick={() => setDetailing(a)}>Details</button>
-              <button className="btn primary" onClick={() => setInstalling(a)}>Install</button>
+              <button className="btn" onClick={() => setDetailing(a)}>
+                Details
+              </button>
+              <button className="btn primary" onClick={() => setInstalling(a)}>
+                Install
+              </button>
             </div>
           </div>
         ))}
@@ -638,10 +775,16 @@ export function CatalogPage() {
           onClose={() => setDetailing(null)}
           footer={
             <>
-              <button className="btn" onClick={() => setDetailing(null)}>Close</button>
+              <button className="btn" onClick={() => setDetailing(null)}>
+                Close
+              </button>
               <button
                 className="btn primary"
-                onClick={() => { const a = detailing; setDetailing(null); setInstalling(a); }}
+                onClick={() => {
+                  const a = detailing;
+                  setDetailing(null);
+                  setInstalling(a);
+                }}
               >
                 Install
               </button>
@@ -677,7 +820,11 @@ export function CatalogPage() {
   );
 }
 
-function InstallForm({ app, onClose, onStarted }: {
+function InstallForm({
+  app,
+  onClose,
+  onStarted,
+}: {
   app: CatalogApp;
   onClose: () => void;
   onStarted: (jobId: number, label: string) => void;
@@ -699,15 +846,24 @@ function InstallForm({ app, onClose, onStarted }: {
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
           <button className="btn primary" disabled={busy || !name} onClick={() => void submit(undefined as void)}>
             {busy ? "Starting…" : "Install"}
           </button>
         </>
       }
     >
-      <Field label="Name for this instance" hint="Lower-case letters, numbers and dashes. This is how it appears under Apps.">
-        <Input value={name} onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} autoFocus />
+      <Field
+        label="Name for this instance"
+        hint="Lower-case letters, numbers and dashes. This is how it appears under Apps."
+      >
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+          autoFocus
+        />
       </Field>
       <p className="modal-text">
         The app is installed with its default configuration. Anything it needs beyond that — storage paths, ports,

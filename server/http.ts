@@ -11,12 +11,7 @@ import { posix } from "node:path";
  * half-initialised module. A third module both sides import has no such edge.
  */
 
-export function json(
-  res: ServerResponse,
-  status: number,
-  body: unknown,
-  headers: Record<string, string> = {},
-): void {
+export function json(res: ServerResponse, status: number, body: unknown, headers: Record<string, string> = {}): void {
   res.writeHead(status, { "content-type": "application/json", "cache-control": "no-store", ...headers });
   res.end(JSON.stringify(body));
 }
@@ -89,7 +84,10 @@ export function underMnt(raw: string): string {
  * The browser could only say "Upload failed (502)".
  */
 export class HttpError extends Error {
-  constructor(message: string, readonly status: number) {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
     super(message);
     this.name = "HttpError";
   }
@@ -186,10 +184,7 @@ export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
  * A request with no Origin at all — curl, a script, an old browser — is
  * allowed through; it carries no ambient cookie to abuse.
  */
-export function sameOrigin(
-  headers: Record<string, string | string[] | undefined>,
-  trustProxy: boolean,
-): boolean {
+export function sameOrigin(headers: Record<string, string | string[] | undefined>, trustProxy: boolean): boolean {
   const origin = headers.origin;
   if (typeof origin !== "string" || !origin) return true;
   let originHost: string;
@@ -202,7 +197,9 @@ export function sameOrigin(
   const host = Array.isArray(headers.host) ? headers.host[0] : headers.host;
   if (host) candidates.add(host.toLowerCase());
   if (trustProxy) {
-    const fwd = Array.isArray(headers["x-forwarded-host"]) ? headers["x-forwarded-host"][0] : headers["x-forwarded-host"];
+    const fwd = Array.isArray(headers["x-forwarded-host"])
+      ? headers["x-forwarded-host"][0]
+      : headers["x-forwarded-host"];
     for (const h of (fwd ?? "").split(",")) if (h.trim()) candidates.add(h.trim().toLowerCase());
   }
   return candidates.has(originHost);

@@ -28,12 +28,24 @@ function readableWithPublicConstant(blob: string): boolean {
   }
 }
 
-writeFileSync(FILE, JSON.stringify([{
-  id: "x", name: "nas", url: "wss://10.0.0.2/api/current", fingerprint: null,
-  apiKeyEnc: encryptWithPublicConstant("SECRET-API-KEY-1234"),
-  sudoEnc: encryptWithPublicConstant("root-password"),
-  isDefault: true,
-}], null, 2));
+writeFileSync(
+  FILE,
+  JSON.stringify(
+    [
+      {
+        id: "x",
+        name: "nas",
+        url: "wss://10.0.0.2/api/current",
+        fingerprint: null,
+        apiKeyEnc: encryptWithPublicConstant("SECRET-API-KEY-1234"),
+        sudoEnc: encryptWithPublicConstant("root-password"),
+        isDefault: true,
+      },
+    ],
+    null,
+    2,
+  ),
+);
 
 process.env.DATA_FILE = FILE;
 delete process.env.SESSION_SECRET;
@@ -46,8 +58,7 @@ describe("upgrading an install that ran without SESSION_SECRET", () => {
 
   const stored = () => JSON.parse(readFileSync(FILE, "utf8"))[0] as { apiKeyEnc: string; sudoEnc: string };
 
-  it("generates a key of its own and keeps it beside the data", () =>
-    expect(existsSync(`${FILE}.key`)).toBe(true));
+  it("generates a key of its own and keeps it beside the data", () => expect(existsSync(`${FILE}.key`)).toBe(true));
 
   it("does not lose the credentials it could already read", () => {
     expect(store.decrypt(stored().apiKeyEnc)).toBe("SECRET-API-KEY-1234");

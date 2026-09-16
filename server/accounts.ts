@@ -111,16 +111,18 @@ export function init(legacyMfa?: Account["mfa"]): void {
    * once, and the account is marked as needing it changed.
    */
   const password = seed ?? generatedPassword();
-  accounts = [{
-    id: randomUUID(),
-    username,
-    hash: hashPassword(password),
-    role: "admin",
-    mfa: legacyMfa?.enabled ? legacyMfa : { enabled: false, secretEnc: null, recoveryHashes: [] },
-    createdAt: Date.now(),
-    lastSeen: null,
-    mustChangePassword: !seed,
-  }];
+  accounts = [
+    {
+      id: randomUUID(),
+      username,
+      hash: hashPassword(password),
+      role: "admin",
+      mfa: legacyMfa?.enabled ? legacyMfa : { enabled: false, secretEnc: null, recoveryHashes: [] },
+      createdAt: Date.now(),
+      lastSeen: null,
+      mustChangePassword: !seed,
+    },
+  ];
   save();
   if (seed) {
     console.log(`[accounts] created the first admin "${username}" from UI_PASSWORD`);
@@ -257,7 +259,9 @@ export function setMfa(id: string, secret: string | null, recovery: string[]): v
 }
 
 const hashRecovery = (code: string): string =>
-  createHash("sha256").update(code.replace(/[^A-Z0-9]/gi, "").toUpperCase()).digest("hex");
+  createHash("sha256")
+    .update(code.replace(/[^A-Z0-9]/gi, "").toUpperCase())
+    .digest("hex");
 
 /** Spend a recovery code. Used once, it stops working — that is the point. */
 export function consumeRecovery(id: string, code: string): boolean {

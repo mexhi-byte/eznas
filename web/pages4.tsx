@@ -22,8 +22,12 @@ interface Iface {
 interface NetworkData {
   pendingChanges: boolean;
   global: {
-    hostname: string; domain: string; ipv4gateway: string;
-    nameserver1: string; nameserver2: string; nameserver3: string;
+    hostname: string;
+    domain: string;
+    ipv4gateway: string;
+    nameserver1: string;
+    nameserver2: string;
+    nameserver3: string;
   };
   interfaces: Iface[];
 }
@@ -86,21 +90,29 @@ export function NetworkPage() {
       </div>
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
-      {note && <div className="job done" style={{ marginBottom: 14 }}><span className="job-label">{note}</span></div>}
+      {note && (
+        <div className="job done" style={{ marginBottom: 14 }}>
+          <span className="job-label">{note}</span>
+        </div>
+      )}
 
       {/* The single most dangerous thing in this console: an address change
           applied over the link being changed. The NAS reverts unless someone
           confirms, and this makes that window visible. */}
       {data?.pendingChanges && !commit && (
-        <Card className="" >
+        <Card className="">
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span className="pill warn">unapplied changes</span>
             <span style={{ flex: 1, fontSize: 13, color: "var(--muted)" }}>
-              Interface changes are staged but not live. Applying starts a 60-second timer — if you do not confirm,
-              the NAS puts the old settings back, so a mistake cannot lock you out.
+              Interface changes are staged but not live. Applying starts a 60-second timer — if you do not confirm, the
+              NAS puts the old settings back, so a mistake cannot lock you out.
             </span>
-            <button className="btn primary" style={{ flex: "none" }} onClick={() => void doCommit()}>Apply</button>
-            <button className="btn" style={{ flex: "none" }} onClick={() => void revert()}>Discard</button>
+            <button className="btn primary" style={{ flex: "none" }} onClick={() => void doCommit()}>
+              Apply
+            </button>
+            <button className="btn" style={{ flex: "none" }} onClick={() => void revert()}>
+              Discard
+            </button>
           </div>
         </Card>
       )}
@@ -112,8 +124,12 @@ export function NetworkPage() {
             <span style={{ flex: 1, fontSize: 13, color: "var(--muted)" }}>
               The new settings are live. If this page still works, confirm them. Doing nothing reverts automatically.
             </span>
-            <button className="btn primary" style={{ flex: "none" }} onClick={() => void keep()}>Keep them</button>
-            <button className="btn danger" style={{ flex: "none" }} onClick={() => void revert()}>Revert now</button>
+            <button className="btn primary" style={{ flex: "none" }} onClick={() => void keep()}>
+              Keep them
+            </button>
+            <button className="btn danger" style={{ flex: "none" }} onClick={() => void revert()}>
+              Revert now
+            </button>
           </div>
         </Card>
       )}
@@ -127,7 +143,14 @@ export function NetworkPage() {
               <tbody>
                 <Row k="Hostname" v={`${data.global.hostname}${data.global.domain ? "." + data.global.domain : ""}`} />
                 <Row k="Gateway" v={data.global.ipv4gateway || "—"} />
-                <Row k="DNS" v={[data.global.nameserver1, data.global.nameserver2, data.global.nameserver3].filter(Boolean).join(", ") || "—"} />
+                <Row
+                  k="DNS"
+                  v={
+                    [data.global.nameserver1, data.global.nameserver2, data.global.nameserver3]
+                      .filter(Boolean)
+                      .join(", ") || "—"
+                  }
+                />
               </tbody>
             </table>
           )}
@@ -137,7 +160,9 @@ export function NetworkPage() {
           <div className="grid" style={{ gap: 10 }}>
             {data?.interfaces.map((i) => (
               <div key={i.id} style={{ display: "flex", alignItems: "center", gap: 11, flexWrap: "wrap" }}>
-                <strong className="mono" style={{ fontSize: 13.5 }}>{i.id}</strong>
+                <strong className="mono" style={{ fontSize: 13.5 }}>
+                  {i.id}
+                </strong>
                 <Pill state={i.linkState === "LINK_STATE_UP" ? "ONLINE" : "OFFLINE"}>
                   {i.linkState === "LINK_STATE_UP" ? "up" : "down"}
                 </Pill>
@@ -145,7 +170,9 @@ export function NetworkPage() {
                 <span style={{ flex: 1, minWidth: 120, color: "var(--muted)", fontSize: 12.5 }} className="mono">
                   {i.aliases.map((a) => `${a.address}/${a.netmask}`).join(", ") || "no address"}
                 </span>
-                <button className="btn" style={{ flex: "none" }} onClick={() => setEditing(i)}>Edit</button>
+                <button className="btn" style={{ flex: "none" }} onClick={() => setEditing(i)}>
+                  Edit
+                </button>
               </div>
             ))}
             {!data?.interfaces.length && !loading && <Empty>No interfaces.</Empty>}
@@ -154,10 +181,24 @@ export function NetworkPage() {
       </div>
 
       {editing && (
-        <IfaceForm iface={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void reload(); }} />
+        <IfaceForm
+          iface={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            void reload();
+          }}
+        />
       )}
       {editGlobal && data && (
-        <GlobalForm cfg={data.global} onClose={() => setEditGlobal(false)} onSaved={() => { setEditGlobal(false); void reload(); }} />
+        <GlobalForm
+          cfg={data.global}
+          onClose={() => setEditGlobal(false)}
+          onSaved={() => {
+            setEditGlobal(false);
+            void reload();
+          }}
+        />
       )}
     </>
   );
@@ -194,8 +235,14 @@ function IfaceForm({ iface, onClose, onSaved }: { iface: Iface; onClose: () => v
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="btn primary" disabled={busy || (!dhcp && !address)} onClick={() => void submit(undefined as void)}>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className="btn primary"
+            disabled={busy || (!dhcp && !address)}
+            onClick={() => void submit(undefined as void)}
+          >
             {busy ? "Saving…" : "Stage change"}
           </button>
         </>
@@ -231,7 +278,15 @@ function IfaceForm({ iface, onClose, onSaved }: { iface: Iface; onClose: () => v
   );
 }
 
-function GlobalForm({ cfg, onClose, onSaved }: { cfg: NetworkData["global"]; onClose: () => void; onSaved: () => void }) {
+function GlobalForm({
+  cfg,
+  onClose,
+  onSaved,
+}: {
+  cfg: NetworkData["global"];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const [v, setV] = useState({ ...cfg });
   const { busy, error, submit } = useSubmit(async () => {
     await put("/api/network/global", v);
@@ -246,7 +301,9 @@ function GlobalForm({ cfg, onClose, onSaved }: { cfg: NetworkData["global"]; onC
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
           <button className="btn primary" disabled={busy} onClick={() => void submit(undefined as void)}>
             {busy ? "Saving…" : "Save"}
           </button>
@@ -254,13 +311,23 @@ function GlobalForm({ cfg, onClose, onSaved }: { cfg: NetworkData["global"]; onC
       }
     >
       <div className="row">
-        <Field label="Hostname"><Input value={v.hostname} onChange={set("hostname")} /></Field>
-        <Field label="Domain"><Input value={v.domain} onChange={set("domain")} /></Field>
+        <Field label="Hostname">
+          <Input value={v.hostname} onChange={set("hostname")} />
+        </Field>
+        <Field label="Domain">
+          <Input value={v.domain} onChange={set("domain")} />
+        </Field>
       </div>
-      <Field label="Default gateway"><Input value={v.ipv4gateway} onChange={set("ipv4gateway")} /></Field>
+      <Field label="Default gateway">
+        <Input value={v.ipv4gateway} onChange={set("ipv4gateway")} />
+      </Field>
       <div className="row">
-        <Field label="DNS 1"><Input value={v.nameserver1} onChange={set("nameserver1")} /></Field>
-        <Field label="DNS 2"><Input value={v.nameserver2} onChange={set("nameserver2")} /></Field>
+        <Field label="DNS 1">
+          <Input value={v.nameserver1} onChange={set("nameserver1")} />
+        </Field>
+        <Field label="DNS 2">
+          <Input value={v.nameserver2} onChange={set("nameserver2")} />
+        </Field>
       </div>
       {error && <ErrorBanner>{error}</ErrorBanner>}
     </Modal>

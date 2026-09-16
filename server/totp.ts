@@ -91,6 +91,10 @@ export function provisioningUri(secret: string, label: string, issuer: string): 
 /** Single-use codes for when the phone is lost, stored hashed by the caller. */
 export function recoveryCodes(count = 8): string[] {
   return Array.from({ length: count }, () =>
-    randomBytes(5).toString("hex").toUpperCase().match(/.{1,5}/g)!.join("-"),
+    randomBytes(5)
+      .toString("hex")
+      .toUpperCase()
+      .match(/.{1,5}/g)!
+      .join("-"),
   );
 }

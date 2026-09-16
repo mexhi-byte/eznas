@@ -37,10 +37,7 @@ describe("base64Command", () => {
 describe("decodeFindOutput", () => {
   it("reads only what sits between the sentinels", () => {
     const raw = "/mnt/tank/a.txt\0/mnt/tank/b.txt\0";
-    expect(decodeFindOutput(BANNER + fenced(b64(raw)))).toEqual([
-      "/mnt/tank/a.txt",
-      "/mnt/tank/b.txt",
-    ]);
+    expect(decodeFindOutput(BANNER + fenced(b64(raw)))).toEqual(["/mnt/tank/a.txt", "/mnt/tank/b.txt"]);
   });
 
   it("returns nothing for a banner with an empty payload", () => {
@@ -55,17 +52,12 @@ describe("decodeFindOutput", () => {
 
   it("ignores the prompt being redrawn after the payload", () => {
     const raw = "/mnt/tank/report.pdf\0";
-    expect(decodeFindOutput(`${fenced(b64(raw))}\ntruenas_admin@truenas[~]$ `)).toEqual([
-      "/mnt/tank/report.pdf",
-    ]);
+    expect(decodeFindOutput(`${fenced(b64(raw))}\ntruenas_admin@truenas[~]$ `)).toEqual(["/mnt/tank/report.pdf"]);
   });
 
   it("keeps a filename containing a newline as one path", () => {
     const raw = "/mnt/tank/two\nlines.txt\0/mnt/tank/b.txt\0";
-    expect(decodeFindOutput(fenced(b64(raw)))).toEqual([
-      "/mnt/tank/two\nlines.txt",
-      "/mnt/tank/b.txt",
-    ]);
+    expect(decodeFindOutput(fenced(b64(raw)))).toEqual(["/mnt/tank/two\nlines.txt", "/mnt/tank/b.txt"]);
   });
 
   it("tolerates the terminal wrapping the payload across lines", () => {

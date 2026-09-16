@@ -73,15 +73,17 @@ export async function handleShareRoutes(ctx: ShareRouteContext): Promise<boolean
     // and read-only produced a writable share, silently. NO_PRESET is the only
     // way the ro flag survives the create.
     const readOnly = b.readOnly === true;
-    const share = await nas.call<Record<string, unknown>>("sharing.smb.create", [{
-      name: str(b, "name"),
-      path: target,
-      purpose: optStr(b, "purpose") ?? (readOnly ? "NO_PRESET" : "DEFAULT_SHARE"),
-      comment: optStr(b, "comment") ?? "",
-      ro: readOnly,
-      browsable: true,
-      enabled: true,
-    }]);
+    const share = await nas.call<Record<string, unknown>>("sharing.smb.create", [
+      {
+        name: str(b, "name"),
+        path: target,
+        purpose: optStr(b, "purpose") ?? (readOnly ? "NO_PRESET" : "DEFAULT_SHARE"),
+        comment: optStr(b, "comment") ?? "",
+        ro: readOnly,
+        browsable: true,
+        enabled: true,
+      },
+    ]);
     if (readOnly && share.ro !== true) {
       throw new Error("The NAS created the share but would not make it read-only. Check it under Shared folders.");
     }
@@ -91,7 +93,9 @@ export async function handleShareRoutes(ctx: ShareRouteContext): Promise<boolean
     const [cifs] = await nas.call<Array<{ state: string }>>("service.query", [[["service", "=", "cifs"]]]);
     let started = false;
     if (cifs?.state !== "RUNNING" && b.startService !== false) {
-      await nas.call("service.update", [{ service: "cifs" }, { enable: true }]).catch(() => nas.call("service.update", ["cifs", { enable: true }]));
+      await nas
+        .call("service.update", [{ service: "cifs" }, { enable: true }])
+        .catch(() => nas.call("service.update", ["cifs", { enable: true }]));
       await nas.call("service.start", ["cifs"]);
       started = true;
     }
@@ -115,7 +119,11 @@ export async function handleShareRoutes(ctx: ShareRouteContext): Promise<boolean
         default: false,
       }));
       const mask = named.reduce(
-        (acc, e) => ({ READ: acc.READ || e.perms.READ, WRITE: acc.WRITE || e.perms.WRITE, EXECUTE: acc.EXECUTE || e.perms.EXECUTE }),
+        (acc, e) => ({
+          READ: acc.READ || e.perms.READ,
+          WRITE: acc.WRITE || e.perms.WRITE,
+          EXECUTE: acc.EXECUTE || e.perms.EXECUTE,
+        }),
         { READ: true, WRITE: false, EXECUTE: true },
       );
       const dacl: AclEntry[] = [
@@ -128,9 +136,14 @@ export async function handleShareRoutes(ctx: ShareRouteContext): Promise<boolean
         { tag: "OTHER", id: -1, perms: levelToPerms("none"), default: false },
       ];
       for (const e of [...dacl]) dacl.push({ ...e, default: true });
-      permissions = await nas.startJob("filesystem.setacl", [{
-        path: target, dacl, acltype: "POSIX1E", options: { recursive: b.recursive === true, traverse: false },
-      }]);
+      permissions = await nas.startJob("filesystem.setacl", [
+        {
+          path: target,
+          dacl,
+          acltype: "POSIX1E",
+          options: { recursive: b.recursive === true, traverse: false },
+        },
+      ]);
     }
 
     json(res, 200, { share, startedService: started, permissionsJobId: permissions });
@@ -164,7 +177,8 @@ export async function handleShareRoutes(ctx: ShareRouteContext): Promise<boolean
     const [nfs] = await nas.call<Array<{ state: string }>>("service.query", [[["service", "=", "nfs"]]]);
     let started = false;
     if (nfs?.state !== "RUNNING" && b.startService !== false) {
-      await nas.call("service.update", [{ service: "nfs" }, { enable: true }])
+      await nas
+        .call("service.update", [{ service: "nfs" }, { enable: true }])
         .catch(() => nas.call("service.update", ["nfs", { enable: true }]));
       await nas.call("service.start", ["nfs"]);
       started = true;
@@ -181,12 +195,14 @@ export async function handleShareRoutes(ctx: ShareRouteContext): Promise<boolean
     let permissions: number | null = null;
     const groupId = typeof b.group === "number" ? b.group : null;
     if (!payload.ro && groupId !== null) {
-      permissions = await nas.startJob("filesystem.setperm", [{
-        path: target,
-        gid: groupId,
-        mode: "775",
-        options: { recursive: b.recursive === true, traverse: false },
-      }]);
+      permissions = await nas.startJob("filesystem.setperm", [
+        {
+          path: target,
+          gid: groupId,
+          mode: "775",
+          options: { recursive: b.recursive === true, traverse: false },
+        },
+      ]);
     }
 
     json(res, 200, { share, startedService: started, permissionsJobId: permissions });

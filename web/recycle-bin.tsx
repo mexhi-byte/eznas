@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { bytes, del, post, put, useResource } from "./api";
+import { bytes, del, put, useResource } from "./api";
 import { Empty, ErrorBanner, Loading } from "./components";
 import { Field, Input, Modal, Select } from "./ui";
 
@@ -20,11 +20,7 @@ interface BinEntry {
  * file between pools copies every byte of it — a bin somewhere else would make
  * deleting a large file take minutes and briefly need the space twice.
  */
-export function RecycleBin({ path, onClose, onChanged }: {
-  path: string;
-  onClose: () => void;
-  onChanged: () => void;
-}) {
+export function RecycleBin({ path, onClose, onChanged }: { path: string; onClose: () => void; onChanged: () => void }) {
   const { data, error, loading, reload } = useResource<{ bin: string | null; entries: BinEntry[] }>(
     `/api/files/recycle?path=${encodeURIComponent(path)}`,
     0,
@@ -71,7 +67,9 @@ export function RecycleBin({ path, onClose, onChanged }: {
   return (
     <Modal
       title="Recycle bin"
-      subtitle={data?.bin ? `${data.bin} · ${bytes(total)} still taking up space` : "Nothing deleted from this pool yet."}
+      subtitle={
+        data?.bin ? `${data.bin} · ${bytes(total)} still taking up space` : "Nothing deleted from this pool yet."
+      }
       onClose={onClose}
       wide
       footer={
@@ -86,7 +84,9 @@ export function RecycleBin({ path, onClose, onChanged }: {
               Empty the bin
             </button>
           )}
-          <button className="btn primary" onClick={onClose}>Close</button>
+          <button className="btn primary" onClick={onClose}>
+            Close
+          </button>
         </>
       }
     >
@@ -102,16 +102,27 @@ export function RecycleBin({ path, onClose, onChanged }: {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Name</th><th>Came from</th><th className="num">Size</th><th style={{ width: 110 }} /></tr>
+              <tr>
+                <th>Name</th>
+                <th>Came from</th>
+                <th className="num">Size</th>
+                <th style={{ width: 110 }} />
+              </tr>
             </thead>
             <tbody>
               {data.entries.map((e) => (
                 <tr key={e.path}>
                   <td>
                     {e.name}
-                    {e.type === "DIRECTORY" && <span className="pill mute" style={{ marginLeft: 8 }}>folder</span>}
+                    {e.type === "DIRECTORY" && (
+                      <span className="pill mute" style={{ marginLeft: 8 }}>
+                        folder
+                      </span>
+                    )}
                   </td>
-                  <td className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{e.from}</td>
+                  <td className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
+                    {e.from}
+                  </td>
                   <td className="num">{e.type === "DIRECTORY" ? "—" : bytes(e.size)}</td>
                   <td>
                     <div className="row-actions">
@@ -147,7 +158,9 @@ export function RecycleBin({ path, onClose, onChanged }: {
           onClose={() => setEmptying(false)}
           footer={
             <>
-              <button className="btn" onClick={() => setEmptying(false)}>Cancel</button>
+              <button className="btn" onClick={() => setEmptying(false)}>
+                Cancel
+              </button>
               <button
                 className="btn danger-solid"
                 disabled={confirmText !== data?.bin || busy === "empty"}
@@ -186,7 +199,12 @@ export function RecycleBin({ path, onClose, onChanged }: {
  * The original location stays the first option and the preselected one, so the
  * common case is still one click.
  */
-function RestoreTo({ entry, busy, onCancel, onRestore }: {
+function RestoreTo({
+  entry,
+  busy,
+  onCancel,
+  onRestore,
+}: {
   entry: BinEntry;
   busy: boolean;
   onCancel: () => void;
@@ -212,15 +230,15 @@ function RestoreTo({ entry, busy, onCancel, onRestore }: {
       onClose={onCancel}
       footer={
         <>
-          <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
           <button
             className="btn primary"
             disabled={busy || !ready}
             onClick={() =>
               onRestore(
-                choice === "original" ? undefined
-                  : choice === "rename" ? { name: name.trim() }
-                  : { toDir: dir.trim() },
+                choice === "original" ? undefined : choice === "rename" ? { name: name.trim() } : { toDir: dir.trim() },
               )
             }
           >

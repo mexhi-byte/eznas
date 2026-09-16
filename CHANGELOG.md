@@ -6,10 +6,29 @@ Versions follow [semantic versioning](https://semver.org/), loosely: the
 console is pre-1.0, so a minor bump may still change behaviour you relied on.
 Anything that does is called out under **Changed** or **Upgrading**.
 
-## 0.5.2 — 2026-09-16
+## Unreleased
 
-A security release. Nothing new to look at; one thing to read under
-**Upgrading**.
+### Added
+
+- **Install as a TrueNAS Custom App.** Apps → Discover → Custom App, paste
+  `deploy/truenas-custom-app.yaml`, change one line. No shell, no build.
+- **A published image**, `ghcr.io/mexhi-byte/eznas`, for amd64 and arm64,
+  built by the release workflow from every `v*` tag along with a tarball of
+  the build and release notes taken from this file.
+- **The container fixes its data folder's ownership on start** and runs as
+  `PUID`:`PGID`, 1000:1000 unless told otherwise. Nothing to `chown` first.
+- Formatting, linting and coverage in CI. Dependabot for npm, Actions and the
+  base image.
+
+### Changed
+
+- **`install.sh` pulls the published image** instead of cloning and building
+  on the NAS. Install and update are each one pull. `--build` keeps the old
+  behaviour and is the only mode that needs git. The host time zone is passed
+  through so notification timestamps read as local time.
+- **The Updates tab knows how this copy was installed.** A container is told
+  to update from TrueNAS Apps or the installer, a git checkout can still
+  update itself, a copied build is pointed at the release tarball.
 
 ### Security
 

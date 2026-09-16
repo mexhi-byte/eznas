@@ -2,8 +2,9 @@
 #
 # Install or update EzNAS on a TrueNAS SCALE box.
 #
-# Run it once to install. Run it again to update: it pulls the latest release,
-# rebuilds, and restarts, keeping everything under the data directory.
+# Run it once to install. Run it again to update: it pulls the latest release
+# image and restarts, keeping everything under the data directory. Nothing is
+# built on the NAS unless you ask with --build.
 #
 #   curl -fsSL https://raw.githubusercontent.com/mexhi-byte/eznas/main/install.sh | sudo bash -s -- --pool tank
 #
@@ -18,8 +19,10 @@
 set -euo pipefail
 
 REPO_URL="${EZNAS_REPO:-https://github.com/mexhi-byte/eznas.git}"
-IMAGE="eznas:local"
+REGISTRY_IMAGE="${EZNAS_IMAGE:-ghcr.io/mexhi-byte/eznas}"
+LOCAL_IMAGE="eznas:local"
 CONTAINER="eznas"
+BUILD="no"
 
 POOL=""
 PORT="8080"
@@ -90,8 +93,11 @@ Install or update EzNAS on TrueNAS SCALE.
   --port N           Port to serve on (default 8080).
   --dir PATH         Install somewhere other than /mnt/<pool>/eznas. It must
                      still be under /mnt to survive a TrueNAS update.
-  --ref TAG          Install a particular tag or branch instead of the latest
-                     release. Useful for going back to one that worked.
+  --ref TAG          Install a particular release instead of the latest —
+                     "0.6.0" or "v0.6.0". Useful for going back to one that
+                     worked. With --build, any git tag or branch.
+  --build            Build the image from source on this machine instead of
+                     pulling the published one. Needs git and a few minutes.
   --username NAME    First admin account (default "admin"). First install only.
   --password PASS    Its password. Generated and printed if not given.
   --yes              Do not ask anything; take the defaults.
@@ -110,6 +116,7 @@ while [ $# -gt 0 ]; do
     --port)      PORT="${2:-}"; shift 2 ;;
     --dir)       BASE="${2:-}"; shift 2 ;;
     --ref)       REF="${2:-}"; shift 2 ;;
+    --build)     BUILD="yes"; shift ;;
     --username)  USERNAME="${2:-}"; shift 2 ;;
     --password)  PASSWORD="${2:-}"; shift 2 ;;
     --yes|-y)    ASSUME_YES="yes"; shift ;;
@@ -129,7 +136,9 @@ command -v docker >/dev/null 2>&1 \
 docker info >/dev/null 2>&1 \
   || die "Docker is installed but not running. On TrueNAS, check that Apps are enabled and a pool is chosen for them."
 
-command -v git >/dev/null 2>&1 || die "git is not on this machine, and the build needs it."
+if [ "$BUILD" = "yes" ]; then
+  command -v git >/dev/null 2>&1 || die "git is not on this machine, and --build needs it."
+fi
 
 # ---------------------------------------------------------------- where
 
@@ -170,30 +179,55 @@ if [ "$UNINSTALL" = "yes" ]; then
   exit 0
 fi
 
-# ---------------------------------------------------------------- source
+# ---------------------------------------------------------------- image
 
-say "Fetching the source into ${SRC}"
 mkdir -p "$BASE"
-if [ -d "${SRC}/.git" ]; then
-  git -C "$SRC" remote set-url origin "$REPO_URL"
-  git -C "$SRC" fetch --tags --prune origin --quiet
-else
-  rm -rf "$SRC"
-  git clone --quiet "$REPO_URL" "$SRC"
-fi
 
-if [ -z "$REF" ]; then
-  # The newest release tag, or the default branch if none has been cut yet.
-  REF="$(git -C "$SRC" tag --list 'v*' --sort=-v:refname | head -n1)"
-  if [ -z "$REF" ]; then
-    REF="origin/HEAD"
-    note "No release tags published yet; using the default branch."
+if [ "$BUILD" = "yes" ]; then
+  say "Fetching the source into ${SRC}"
+  if [ -d "${SRC}/.git" ]; then
+    git -C "$SRC" remote set-url origin "$REPO_URL"
+    git -C "$SRC" fetch --tags --prune origin --quiet
+  else
+    rm -rf "$SRC"
+    git clone --quiet "$REPO_URL" "$SRC"
   fi
-fi
 
-git -C "$SRC" checkout --force --quiet "$REF"
-VERSION="$(git -C "$SRC" describe --tags --always 2>/dev/null || echo unknown)"
-note "Building ${VERSION}"
+  if [ -z "$REF" ]; then
+    # The newest release tag, or the default branch if none has been cut yet.
+    REF="$(git -C "$SRC" tag --list 'v*' --sort=-v:refname | head -n1)"
+    if [ -z "$REF" ]; then
+      REF="origin/HEAD"
+      note "No release tags published yet; using the default branch."
+    fi
+  fi
+
+  git -C "$SRC" checkout --force --quiet "$REF"
+  VERSION="$(git -C "$SRC" describe --tags --always 2>/dev/null || echo unknown)"
+  IMAGE="$LOCAL_IMAGE"
+  say "Building ${VERSION} (this takes a few minutes on a NAS)"
+  docker build --quiet --tag "$IMAGE" "$SRC" >/dev/null
+else
+  # Published images are tagged without the v: 0.6.0, 0.6, latest.
+  TAG="${REF#v}"
+  [ -n "$TAG" ] || TAG="latest"
+  IMAGE="${REGISTRY_IMAGE}:${TAG}"
+  say "Pulling ${IMAGE}"
+  if ! docker pull --quiet "$IMAGE" >/dev/null; then
+    echo
+    warn "Could not pull ${IMAGE}."
+    if [ "$TAG" = "latest" ]; then
+      note "Either this machine cannot reach ghcr.io, or no image has been published yet."
+    else
+      note "Either this machine cannot reach ghcr.io, or no image exists for ${TAG}."
+      note "Published versions: https://github.com/mexhi-byte/eznas/releases"
+    fi
+    die "Run again with --build to build from source on this machine instead."
+  fi
+  VERSION="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$IMAGE" 2>/dev/null || true)"
+  [ -n "$VERSION" ] || VERSION="$TAG"
+  note "Got ${VERSION}"
+fi
 
 # ---------------------------------------------------------------- settings
 
@@ -224,17 +258,13 @@ fi
 
 # ---------------------------------------------------------------- data
 
+# Ownership is fixed by the container itself on start (see
+# docker-entrypoint.sh), so a directory made here as root is fine.
 mkdir -p "$DATA"
-# 1000 is the node user inside the image. A bind mount takes its ownership from
-# the host, so without this the container starts and cannot write its own
-# accounts file — which looks like a crash with no explanation.
-chown -R 1000:1000 "$DATA"
 chmod 700 "$DATA"
 
-# ---------------------------------------------------------------- build
-
-say "Building the image"
-docker build --quiet --tag "$IMAGE" "$SRC" >/dev/null
+# The household's own time zone, so notification timestamps read right.
+HOST_TZ="$(cat /etc/timezone 2>/dev/null || readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||' || true)"
 
 # ---------------------------------------------------------------- run
 
@@ -246,6 +276,7 @@ docker run --detach \
   --publish "${PORT}:8080" \
   --volume "${DATA}:/data" \
   --env-file "$ENV_FILE" \
+  ${HOST_TZ:+--env "TZ=${HOST_TZ}"} \
   --label "eznas.version=${VERSION}" \
   --health-cmd "node -e \"fetch('http://127.0.0.1:8080/api/session').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"" \
   --health-interval 30s \
@@ -286,7 +317,7 @@ if [ "$NEW_INSTALL" = "yes" ]; then
   note "TrueNAS → Credentials → Local Users → API keys."
 fi
 echo
-note "Update    sudo $0            (re-run; your data is kept)"
+note "Update    sudo $0            (re-run; pulls the newest release, your data is kept)"
 note "Logs      docker logs -f ${CONTAINER}"
 note "Stop      docker stop ${CONTAINER}"
 note "Remove    sudo $0 --uninstall"

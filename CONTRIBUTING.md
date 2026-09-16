@@ -36,9 +36,11 @@ it one is generated and kept beside the data file.
 ## Before you open a pull request
 
 ```sh
-npm test
+npm run format        # Prettier writes; CI only checks
+npm run lint          # oxlint, for behaviour rather than style
 npx tsc -p tsconfig.json --noEmit
 npx tsc -p tsconfig.server.json --noEmit
+npm run test:coverage # the summary is a list of what nothing exercises
 npm run build
 ```
 
@@ -58,7 +60,7 @@ pass.**
 Prefer pure functions for anything with rules in it — path handling, name
 collisions, validation — and test those directly. Route logic is testable
 against a fake NAS object that records what it was asked to do; see
-`test/nfs.test.ts` for the pattern. What matters there is often the *order*:
+`test/nfs.test.ts` for the pattern. What matters there is often the _order_:
 that a bad request reaches the NAS not at all, rather than merely failing.
 
 ## Commits

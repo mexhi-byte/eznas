@@ -1,0 +1,8 @@
+dist/
+dist.prev/
+node_modules/
+data/
+coverage/
+package-lock.json
+CHANGELOG.md
+docs/

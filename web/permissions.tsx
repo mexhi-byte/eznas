@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
-import { post, put, useResource } from "./api";
+import { put, useResource } from "./api";
 import { ErrorBanner, Loading } from "./components";
-import { Field, JobProgress, Modal, Select, Toggle } from "./ui";
+import { Field, Modal, Select, Toggle } from "./ui";
 
 type Level = "none" | "read" | "write" | "full";
 
-interface Perms { read: boolean; write: boolean; execute: boolean }
+interface Perms {
+  read: boolean;
+  write: boolean;
+  execute: boolean;
+}
 
 interface Permissions {
   path: string;
@@ -20,7 +24,11 @@ interface Permissions {
   groups: Array<{ gid: number; group: string }>;
 }
 
-interface Grant { kind: "user" | "group"; id: number; level: Level }
+interface Grant {
+  kind: "user" | "group";
+  id: number;
+  level: Level;
+}
 
 const LEVELS: Array<{ id: Level; label: string }> = [
   { id: "none", label: "No access" },
@@ -29,8 +37,7 @@ const LEVELS: Array<{ id: Level; label: string }> = [
   { id: "full", label: "Full control" },
 ];
 
-const permsToLevel = (p: Perms): Level =>
-  p.write ? "write" : p.read ? "read" : "none";
+const permsToLevel = (p: Perms): Level => (p.write ? "write" : p.read ? "read" : "none");
 
 /**
  * Who can get at one folder.
@@ -40,7 +47,11 @@ const permsToLevel = (p: Perms): Level =>
  * because any friendlier abstraction would start lying the moment somebody
  * looks at the same folder in the TrueNAS interface.
  */
-export function PermissionsModal({ path, onClose, onJob }: {
+export function PermissionsModal({
+  path,
+  onClose,
+  onJob,
+}: {
   path: string;
   onClose: () => void;
   onJob: (jobId: number, label: string) => void;
@@ -89,7 +100,9 @@ export function PermissionsModal({ path, onClose, onJob }: {
       const r = await put<{ jobId: number }>("/api/files/permissions", {
         path,
         owner: { uid: ownerUid, gid: groupGid },
-        ownerLevel, groupLevel, otherLevel,
+        ownerLevel,
+        groupLevel,
+        otherLevel,
         access: grants,
         recursive,
         inherit,
@@ -105,8 +118,8 @@ export function PermissionsModal({ path, onClose, onJob }: {
 
   const nameOf = (g: Grant): string =>
     g.kind === "group"
-      ? data?.groups.find((x) => x.gid === g.id)?.group ?? `group ${g.id}`
-      : data?.users.find((x) => x.uid === g.id)?.username ?? `user ${g.id}`;
+      ? (data?.groups.find((x) => x.gid === g.id)?.group ?? `group ${g.id}`)
+      : (data?.users.find((x) => x.uid === g.id)?.username ?? `user ${g.id}`);
 
   const unassigned = [
     ...(data?.users ?? [])
@@ -125,7 +138,9 @@ export function PermissionsModal({ path, onClose, onJob }: {
       wide
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
           <button className="btn primary" disabled={busy || !data} onClick={() => void save()}>
             {busy ? "Applying…" : "Apply"}
           </button>
@@ -138,8 +153,8 @@ export function PermissionsModal({ path, onClose, onJob }: {
 
       {data && data.acltype !== "POSIX1E" && (
         <ErrorBanner>
-          This folder uses {data.acltype} permissions. This console can read them but only writes POSIX ones, so
-          saving is disabled — use the TrueNAS interface for this one.
+          This folder uses {data.acltype} permissions. This console can read them but only writes POSIX ones, so saving
+          is disabled — use the TrueNAS interface for this one.
         </ErrorBanner>
       )}
 
@@ -153,7 +168,11 @@ export function PermissionsModal({ path, onClose, onJob }: {
                   {!data.users.some((u) => u.uid === data.owner.uid) && (
                     <option value={data.owner.uid}>{data.owner.name ?? `uid ${data.owner.uid}`}</option>
                   )}
-                  {data.users.map((u) => <option key={u.uid} value={u.uid}>{u.username}</option>)}
+                  {data.users.map((u) => (
+                    <option key={u.uid} value={u.uid}>
+                      {u.username}
+                    </option>
+                  ))}
                 </Select>
               </Field>
               <Field label="Group">
@@ -161,7 +180,11 @@ export function PermissionsModal({ path, onClose, onJob }: {
                   {!data.groups.some((g) => g.gid === data.group.gid) && (
                     <option value={data.group.gid}>{data.group.name ?? `gid ${data.group.gid}`}</option>
                   )}
-                  {data.groups.map((g) => <option key={g.gid} value={g.gid}>{g.group}</option>)}
+                  {data.groups.map((g) => (
+                    <option key={g.gid} value={g.gid}>
+                      {g.group}
+                    </option>
+                  ))}
                 </Select>
               </Field>
             </div>
@@ -186,14 +209,21 @@ export function PermissionsModal({ path, onClose, onJob }: {
             <div className="perm-rows">
               {grants.map((g, i) => (
                 <div key={`${g.kind}-${g.id}`} className="perm-row">
-                  <span>{nameOf(g)}{g.kind === "group" ? " (group)" : ""}</span>
+                  <span>
+                    {nameOf(g)}
+                    {g.kind === "group" ? " (group)" : ""}
+                  </span>
                   <Select
                     value={g.level}
                     onChange={(e) =>
                       setGrants(grants.map((x, j) => (j === i ? { ...x, level: e.target.value as Level } : x)))
                     }
                   >
-                    {LEVELS.filter((l) => l.id !== "none").map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+                    {LEVELS.filter((l) => l.id !== "none").map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.label}
+                      </option>
+                    ))}
                   </Select>
                   <button className="btn danger" onClick={() => setGrants(grants.filter((_, j) => j !== i))}>
                     Remove
@@ -213,7 +243,9 @@ export function PermissionsModal({ path, onClose, onJob }: {
                   >
                     <option value="">Add somebody…</option>
                     {unassigned.map((u) => (
-                      <option key={`${u.kind}:${u.id}`} value={`${u.kind}:${u.id}`}>{u.label}</option>
+                      <option key={`${u.kind}:${u.id}`} value={`${u.kind}:${u.id}`}>
+                        {u.label}
+                      </option>
                     ))}
                   </Select>
                   <span />
@@ -237,17 +269,13 @@ export function PermissionsModal({ path, onClose, onJob }: {
                 label="Give new files and folders created in here the same access"
               />
             )}
-            <Toggle
-              checked={recursive}
-              onChange={setRecursive}
-              label="Apply to everything already inside as well"
-            />
+            <Toggle checked={recursive} onChange={setRecursive} label="Apply to everything already inside as well" />
           </div>
 
           {recursive && (
             <p className="modal-text" style={{ color: "var(--warn)" }}>
-              This rewrites the permissions of every file and folder underneath, replacing whatever they have now.
-              There is no undo.
+              This rewrites the permissions of every file and folder underneath, replacing whatever they have now. There
+              is no undo.
             </p>
           )}
 
@@ -262,7 +290,12 @@ export function PermissionsModal({ path, onClose, onJob }: {
   );
 }
 
-function PermRow({ label, level, onChange, hint }: {
+function PermRow({
+  label,
+  level,
+  onChange,
+  hint,
+}: {
   label: string;
   level: Level;
   onChange: (l: Level) => void;
@@ -275,7 +308,11 @@ function PermRow({ label, level, onChange, hint }: {
         {hint && <small>{hint}</small>}
       </span>
       <Select value={level} onChange={(e) => onChange(e.target.value as Level)}>
-        {LEVELS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+        {LEVELS.map((l) => (
+          <option key={l.id} value={l.id}>
+            {l.label}
+          </option>
+        ))}
       </Select>
       <span />
     </div>

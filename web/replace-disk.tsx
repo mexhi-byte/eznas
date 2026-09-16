@@ -14,9 +14,20 @@ interface Faulted {
   size: number | null;
 }
 
-interface Spare { name: string; model: string; serial: string; size: number; type: string }
+interface Spare {
+  name: string;
+  model: string;
+  serial: string;
+  size: number;
+  type: string;
+}
 
-interface Identify { pool: string; status: string; faulted: Faulted[]; spare: Spare[] }
+interface Identify {
+  pool: string;
+  status: string;
+  faulted: Faulted[];
+  spare: Spare[];
+}
 
 type Step = "identify" | "offline" | "swap" | "replace" | "running";
 
@@ -32,15 +43,16 @@ type Step = "identify" | "offline" | "swap" | "replace" | "running";
  * So this leads with the serial number to look for, and never asks anybody to
  * retype an identifier it already knows.
  */
-export function ReplaceDiskWizard({ pool, onClose, onJob }: {
+export function ReplaceDiskWizard({
+  pool,
+  onClose,
+  onJob,
+}: {
   pool: string;
   onClose: () => void;
   onJob: (jobId: number, label: string) => void;
 }) {
-  const { data, error, loading, reload } = useResource<Identify>(
-    `/api/pools/${encodeURIComponent(pool)}/replace/identify`,
-    0,
-  );
+  const { data, error, loading } = useResource<Identify>(`/api/pools/${encodeURIComponent(pool)}/replace/identify`, 0);
   const [step, setStep] = useState<Step>("identify");
   const [target, setTarget] = useState<Faulted | null>(null);
   const [chosen, setChosen] = useState<string>("");
@@ -86,7 +98,9 @@ export function ReplaceDiskWizard({ pool, onClose, onJob }: {
     if (!picked?.guid || !chosen) return;
     const r = await act(() =>
       post<{ jobId: number }>(`/api/pools/${encodeURIComponent(pool)}/replace/replace`, {
-        label: picked.guid, disk: chosen, confirm: chosen,
+        label: picked.guid,
+        disk: chosen,
+        confirm: chosen,
       }),
     );
     if (r) {
@@ -113,27 +127,35 @@ export function ReplaceDiskWizard({ pool, onClose, onJob }: {
       footer={
         step === "identify" ? (
           <>
-            <button className="btn" onClick={onClose}>Cancel</button>
+            <button className="btn" onClick={onClose}>
+              Cancel
+            </button>
             <button className="btn danger-solid" disabled={!picked?.guid || busy} onClick={() => void offline()}>
               {busy ? "Working…" : "Take this drive offline"}
             </button>
           </>
         ) : step === "swap" ? (
           <>
-            <button className="btn" onClick={onClose}>Finish later</button>
+            <button className="btn" onClick={onClose}>
+              Finish later
+            </button>
             <button className="btn primary" disabled={busy} onClick={() => void scan()}>
               {busy ? "Scanning…" : "I have swapped it — scan"}
             </button>
           </>
         ) : step === "replace" ? (
           <>
-            <button className="btn" onClick={() => setStep("swap")}>Back</button>
+            <button className="btn" onClick={() => setStep("swap")}>
+              Back
+            </button>
             <button className="btn primary" disabled={!chosen || busy} onClick={() => void replace()}>
               {busy ? "Starting…" : "Start rebuilding"}
             </button>
           </>
         ) : (
-          <button className="btn primary" onClick={onClose}>Close</button>
+          <button className="btn primary" onClick={onClose}>
+            Close
+          </button>
         )
       }
     >
@@ -150,8 +172,9 @@ export function ReplaceDiskWizard({ pool, onClose, onJob }: {
         ))}
       </ol>
 
-      {step === "identify" && data && (
-        faulted.length === 0 ? (
+      {step === "identify" &&
+        data &&
+        (faulted.length === 0 ? (
           <p className="modal-text">
             Every drive in {pool} is reporting as online, so there is nothing to replace. If you are replacing a drive
             that is failing but has not been marked faulted yet, do it from the NAS's own interface — this wizard
@@ -183,10 +206,24 @@ export function ReplaceDiskWizard({ pool, onClose, onJob }: {
                   <strong>{picked.device ?? "no longer visible"}</strong>
                 </div>
                 <div className="kv" style={{ marginTop: 12 }}>
-                  <div><span>Serial to look for</span><b className="mono">{picked.serial ?? "unknown"}</b></div>
-                  <div><span>Model</span><b>{picked.model ?? "unknown"}</b></div>
-                  <div><span>Size</span><b>{picked.size ? bytes(picked.size) : "unknown"}</b></div>
-                  <div><span>In</span><b>{picked.vdev.toLowerCase()} ({picked.role})</b></div>
+                  <div>
+                    <span>Serial to look for</span>
+                    <b className="mono">{picked.serial ?? "unknown"}</b>
+                  </div>
+                  <div>
+                    <span>Model</span>
+                    <b>{picked.model ?? "unknown"}</b>
+                  </div>
+                  <div>
+                    <span>Size</span>
+                    <b>{picked.size ? bytes(picked.size) : "unknown"}</b>
+                  </div>
+                  <div>
+                    <span>In</span>
+                    <b>
+                      {picked.vdev.toLowerCase()} ({picked.role})
+                    </b>
+                  </div>
                 </div>
                 {!picked.serial && (
                   <p className="modal-text" style={{ color: "var(--warn)" }}>
@@ -198,12 +235,11 @@ export function ReplaceDiskWizard({ pool, onClose, onJob }: {
             )}
 
             <p className="modal-text">
-              Taking it offline tells ZFS to stop using it, so it can be unplugged safely. The pool keeps running on
-              the remaining members, with no redundancy left until the rebuild finishes.
+              Taking it offline tells ZFS to stop using it, so it can be unplugged safely. The pool keeps running on the
+              remaining members, with no redundancy left until the rebuild finishes.
             </p>
           </>
-        )
-      )}
+        ))}
 
       {step === "swap" && (
         <>
@@ -211,8 +247,13 @@ export function ReplaceDiskWizard({ pool, onClose, onJob }: {
             <strong>{picked?.device ?? "The drive"}</strong> is offline and safe to remove.
           </p>
           <ol className="plain-steps">
-            <li>Find the drive with serial <strong className="mono">{picked?.serial ?? "unknown"}</strong> and pull it.</li>
-            <li>Put the new drive in the same bay. It should be at least {picked?.size ? bytes(picked.size) : "the same size"}.</li>
+            <li>
+              Find the drive with serial <strong className="mono">{picked?.serial ?? "unknown"}</strong> and pull it.
+            </li>
+            <li>
+              Put the new drive in the same bay. It should be at least{" "}
+              {picked?.size ? bytes(picked.size) : "the same size"}.
+            </li>
             <li>Come back here and scan.</li>
           </ol>
           <p className="modal-text">
@@ -229,7 +270,9 @@ export function ReplaceDiskWizard({ pool, onClose, onJob }: {
                 No unused drive was found. If you have just plugged one in, give it a few seconds and scan again — and
                 check that it is not still carrying an old pool, which would make the NAS treat it as in use.
               </p>
-              <button className="btn" style={{ flex: "none" }} disabled={busy} onClick={() => void scan()}>Scan again</button>
+              <button className="btn" style={{ flex: "none" }} disabled={busy} onClick={() => void scan()}>
+                Scan again
+              </button>
             </>
           ) : (
             <>
@@ -244,11 +287,13 @@ export function ReplaceDiskWizard({ pool, onClose, onJob }: {
                   </option>
                 ))}
               </Select>
-              {picked?.size && spare.find((d) => d.name === chosen) && spare.find((d) => d.name === chosen)!.size < picked.size && (
-                <p className="modal-text" style={{ color: "var(--bad)" }}>
-                  That drive is smaller than the one it replaces. ZFS will refuse.
-                </p>
-              )}
+              {picked?.size &&
+                spare.find((d) => d.name === chosen) &&
+                spare.find((d) => d.name === chosen)!.size < picked.size && (
+                  <p className="modal-text" style={{ color: "var(--bad)" }}>
+                    That drive is smaller than the one it replaces. ZFS will refuse.
+                  </p>
+                )}
               <p className="modal-text">
                 Rebuilding copies everything the failed drive held back onto the new one from the other members. It
                 takes hours on a full pool and the pool stays usable throughout, just slower.

@@ -99,7 +99,10 @@ export class TrueNas {
       if (!this.fingerprint) return;
       // The certificate is only available once the TLS handshake has produced
       // a peer certificate; checking earlier compares against an empty object.
-      const socket = res.socket as unknown as { getPeerX509Certificate?: () => { fingerprint256?: string } | undefined; getPeerCertificate?: () => PeerCertificate };
+      const socket = res.socket as unknown as {
+        getPeerX509Certificate?: () => { fingerprint256?: string } | undefined;
+        getPeerCertificate?: () => PeerCertificate;
+      };
       const x509 = socket.getPeerX509Certificate?.();
       const raw = x509?.fingerprint256 ?? socket.getPeerCertificate?.()?.fingerprint256;
       const seen = (raw ?? "").replace(/:/g, "").toLowerCase();
@@ -139,7 +142,11 @@ export class TrueNas {
         void this.rpc("core.get_methods")
           .then((m) => {
             const methods = m as Record<string, { job?: boolean }>;
-            this.jobMethods = new Set(Object.entries(methods).filter(([, x]) => x?.job).map(([name]) => name));
+            this.jobMethods = new Set(
+              Object.entries(methods)
+                .filter(([, x]) => x?.job)
+                .map(([name]) => name),
+            );
           })
           .catch(() => {
             // Only used to describe a method as long-running; the routes that
@@ -179,7 +186,13 @@ export class TrueNas {
   }
 
   private dispatch(text: string): void {
-    let msg: { id?: number; result?: unknown; error?: unknown; method?: string; params?: { collection?: string; fields?: Realtime } };
+    let msg: {
+      id?: number;
+      result?: unknown;
+      error?: unknown;
+      method?: string;
+      params?: { collection?: string; fields?: Realtime };
+    };
     try {
       msg = JSON.parse(text);
     } catch {

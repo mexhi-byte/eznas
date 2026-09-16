@@ -54,7 +54,13 @@ export interface InstalledFacts {
   updatable: boolean;
 }
 
-export function AppDetailsModal({ name, train, local, footer, onClose }: {
+export function AppDetailsModal({
+  name,
+  train,
+  local,
+  footer,
+  onClose,
+}: {
   name: string;
   train?: string | null;
   /**
@@ -83,7 +89,13 @@ export function AppDetailsModal({ name, train, local, footer, onClose }: {
       subtitle={[local?.version ?? data?.version, data?.train ?? train].filter(Boolean).join(" · ") || " "}
       onClose={onClose}
       wide
-      footer={footer ?? <button className="btn primary" onClick={onClose}>Close</button>}
+      footer={
+        footer ?? (
+          <button className="btn primary" onClick={onClose}>
+            Close
+          </button>
+        )
+      }
     >
       {loading && !data && !local && <Loading rows={3} />}
 
@@ -92,31 +104,44 @@ export function AppDetailsModal({ name, train, local, footer, onClose }: {
           only thing there is to say. */}
       {local && (
         <dl className="kv" style={{ marginBottom: 14 }}>
-          <dt>State</dt><dd>{local.state.toLowerCase()}</dd>
-          <dt>Version</dt><dd className="mono">{local.version}</dd>
-          <dt>Containers</dt><dd>{local.containers}</dd>
+          <dt>State</dt>
+          <dd>{local.state.toLowerCase()}</dd>
+          <dt>Version</dt>
+          <dd className="mono">{local.version}</dd>
+          <dt>Containers</dt>
+          <dd>{local.containers}</dd>
           {!!local.links.length && (
             <>
               <dt>Reachable at</dt>
               <dd>
                 {local.links.map((l) => (
-                  <a key={l.port} href={l.url} target="_blank" rel="noreferrer" style={{ display: "block" }}>{l.url}</a>
+                  <a key={l.port} href={l.url} target="_blank" rel="noreferrer" style={{ display: "block" }}>
+                    {l.url}
+                  </a>
                 ))}
               </dd>
             </>
           )}
           {!local.links.length && !!local.ports.length && (
-            <><dt>Ports</dt><dd className="mono">{local.ports.join(", ")}</dd></>
+            <>
+              <dt>Ports</dt>
+              <dd className="mono">{local.ports.join(", ")}</dd>
+            </>
           )}
-          {local.updatable && <><dt>Update</dt><dd>one is available</dd></>}
+          {local.updatable && (
+            <>
+              <dt>Update</dt>
+              <dd>one is available</dd>
+            </>
+          )}
         </dl>
       )}
 
       {/*
-        * A compose app has no catalog entry and never will, so the lookup
-        * failing is a fact about how it was installed rather than a failure of
-        * this dialog. Only worth an error when there is nothing else to show.
-        */}
+       * A compose app has no catalog entry and never will, so the lookup
+       * failing is a fact about how it was installed rather than a failure of
+       * this dialog. Only worth an error when there is nothing else to show.
+       */}
       {error && !local && <ErrorBanner>{error}</ErrorBanner>}
       {error && local && (
         <p className="modal-text" style={{ color: "var(--muted)" }}>
@@ -148,12 +173,21 @@ export function AppDetailsModal({ name, train, local, footer, onClose }: {
 
           {!!data.categories.length && (
             <div className="chip-row" style={{ marginBottom: 12 }}>
-              {data.categories.map((c) => <span key={c} className="chip">{c}</span>)}
+              {data.categories.map((c) => (
+                <span key={c} className="chip">
+                  {c}
+                </span>
+              ))}
             </div>
           )}
 
           <dl className="kv">
-            {data.version && <><dt>Version</dt><dd className="mono">{data.version}</dd></>}
+            {data.version && (
+              <>
+                <dt>Version</dt>
+                <dd className="mono">{data.version}</dd>
+              </>
+            )}
             {data.versionCount > 1 && (
               <>
                 <dt>Older versions</dt>
@@ -162,11 +196,20 @@ export function AppDetailsModal({ name, train, local, footer, onClose }: {
                 <dd>{data.versionCount - 1} to roll back to</dd>
               </>
             )}
-            {data.lastUpdated && <><dt>Updated</dt><dd>{data.lastUpdated}</dd></>}
+            {data.lastUpdated && (
+              <>
+                <dt>Updated</dt>
+                <dd>{data.lastUpdated}</dd>
+              </>
+            )}
             {safe(data.home) && (
               <>
                 <dt>Website</dt>
-                <dd><a href={safe(data.home)} target="_blank" rel="noreferrer">{data.home}</a></dd>
+                <dd>
+                  <a href={safe(data.home)} target="_blank" rel="noreferrer">
+                    {data.home}
+                  </a>
+                </dd>
               </>
             )}
             {!!data.sources.length && (
@@ -174,7 +217,9 @@ export function AppDetailsModal({ name, train, local, footer, onClose }: {
                 <dt>Source</dt>
                 <dd>
                   {data.sources.map((u) => (
-                    <a key={u} href={safe(u)} target="_blank" rel="noreferrer" style={{ display: "block" }}>{u}</a>
+                    <a key={u} href={safe(u)} target="_blank" rel="noreferrer" style={{ display: "block" }}>
+                      {u}
+                    </a>
                   ))}
                 </dd>
               </>
@@ -185,7 +230,13 @@ export function AppDetailsModal({ name, train, local, footer, onClose }: {
                 <dd>
                   {data.maintainers.map((m) => (
                     <span key={m.name} style={{ display: "block" }}>
-                      {safe(m.url) ? <a href={safe(m.url)} target="_blank" rel="noreferrer">{m.name}</a> : m.name}
+                      {safe(m.url) ? (
+                        <a href={safe(m.url)} target="_blank" rel="noreferrer">
+                          {m.name}
+                        </a>
+                      ) : (
+                        m.name
+                      )}
                     </span>
                   ))}
                 </dd>

@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { TrueNas } from "./truenas.js";
@@ -37,8 +37,12 @@ export interface Connection {
   isDefault: boolean;
 }
 
-export type PublicConnection = Omit<Connection, "apiKeyEnc" | "sudoEnc"> &
-  { hasKey: boolean; hasSudo: boolean; connected: boolean; error: string | null };
+export type PublicConnection = Omit<Connection, "apiKeyEnc" | "sudoEnc"> & {
+  hasKey: boolean;
+  hasSudo: boolean;
+  connected: boolean;
+  error: string | null;
+};
 
 const FILE = dataFile("DATA_FILE", "connections.json");
 
@@ -199,7 +203,13 @@ export function get(id: string | null | undefined): Connection | undefined {
   return connections.find((c) => c.id === id);
 }
 
-export function add(input: { name: string; url: string; apiKey: string; fingerprint?: string | null; sudoPassword?: string }): Connection {
+export function add(input: {
+  name: string;
+  url: string;
+  apiKey: string;
+  fingerprint?: string | null;
+  sudoPassword?: string;
+}): Connection {
   const conn: Connection = {
     id: randomUUID(),
     name: input.name,
@@ -214,7 +224,17 @@ export function add(input: { name: string; url: string; apiKey: string; fingerpr
   return conn;
 }
 
-export function update(id: string, patch: { name?: string; url?: string; apiKey?: string; fingerprint?: string | null; isDefault?: boolean; sudoPassword?: string | null }): Connection {
+export function update(
+  id: string,
+  patch: {
+    name?: string;
+    url?: string;
+    apiKey?: string;
+    fingerprint?: string | null;
+    isDefault?: boolean;
+    sudoPassword?: string | null;
+  },
+): Connection {
   const conn = connections.find((c) => c.id === id);
   if (!conn) throw new Error("No such connection.");
   if (patch.name !== undefined) conn.name = patch.name;
@@ -260,8 +280,11 @@ export function publicView(conn: Connection): PublicConnection {
   const client = clients.get(conn.id);
   const { apiKeyEnc, sudoEnc, ...rest } = conn;
   return {
-    ...rest, hasKey: !!apiKeyEnc, hasSudo: !!sudoEnc,
-    connected: client?.connected ?? false, error: client?.lastError ?? null,
+    ...rest,
+    hasKey: !!apiKeyEnc,
+    hasSudo: !!sudoEnc,
+    connected: client?.connected ?? false,
+    error: client?.lastError ?? null,
   };
 }
 
@@ -272,7 +295,11 @@ export function publicView(conn: Connection): PublicConnection {
  * entry they then have to guess the fault in; this reports the NAS's own reason
  * before anything is written.
  */
-export async function test(input: { url: string; apiKey: string; fingerprint?: string | null }): Promise<{ ok: boolean; error?: string; version?: string; hostname?: string }> {
+export async function test(input: {
+  url: string;
+  apiKey: string;
+  fingerprint?: string | null;
+}): Promise<{ ok: boolean; error?: string; version?: string; hostname?: string }> {
   const probe = new TrueNas(input.url, input.apiKey, input.fingerprint || undefined);
   try {
     const info = await probe.call<{ version: string; hostname: string }>("system.info");
@@ -285,8 +312,7 @@ export async function test(input: { url: string; apiKey: string; fingerprint?: s
 }
 
 /** The stored sudo password, or null when this connection has none. */
-export const sudoPasswordFor = (conn: Connection): string | null =>
-  conn.sudoEnc ? decrypt(conn.sudoEnc) : null;
+export const sudoPasswordFor = (conn: Connection): string | null => (conn.sudoEnc ? decrypt(conn.sudoEnc) : null);
 
 export function closeAll(): void {
   for (const c of clients.values()) c.close();

@@ -62,18 +62,16 @@ describe("resolveSecret", () => {
   });
 
   it("gives two installations different keys", () => {
-    expect(resolveSecret(undefined, join(fresh(), "s")).secret)
-      .not.toBe(resolveSecret(undefined, join(fresh(), "s")).secret);
+    expect(resolveSecret(undefined, join(fresh(), "s")).secret).not.toBe(
+      resolveSecret(undefined, join(fresh(), "s")).secret,
+    );
   });
 });
 
 describe("keyFrom", () => {
-  it("is a 32-byte key, which is what aes-256 wants", () =>
-    expect(keyFrom("anything").length).toBe(32));
+  it("is a 32-byte key, which is what aes-256 wants", () => expect(keyFrom("anything").length).toBe(32));
 
-  it("is stable for the same secret", () =>
-    expect(keyFrom("abc").equals(keyFrom("abc"))).toBe(true));
+  it("is stable for the same secret", () => expect(keyFrom("abc").equals(keyFrom("abc"))).toBe(true));
 
-  it("differs for different secrets", () =>
-    expect(keyFrom("abc").equals(keyFrom("abd"))).toBe(false));
+  it("differs for different secrets", () => expect(keyFrom("abc").equals(keyFrom("abd"))).toBe(false));
 });

@@ -119,7 +119,10 @@ async function bridge(client: WebSocket, conn: store.Connection): Promise<void> 
       try {
         const { resize } = JSON.parse(text) as { resize: { cols: number; rows: number } };
         if (sessionId) {
-          void store.clientFor(conn).call("core.resize_shell", [sessionId, resize.cols, resize.rows]).catch(() => {});
+          void store
+            .clientFor(conn)
+            .call("core.resize_shell", [sessionId, resize.cols, resize.rows])
+            .catch(() => {});
         }
         return;
       } catch {

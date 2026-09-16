@@ -6,11 +6,22 @@ import { Modal, Select } from "./ui";
 interface Health {
   name: string;
   identity: {
-    identifier: string | null; model: string | null; serial: string | null; size: number | null;
-    type: string | null; rpm: number | null; bus: string | null; subsystem: string | null;
-    description: string | null; lunid: string | null; sectorSize: number | null;
-    transferMode: string | null; standby: string | null; powerManagement: string | null;
-    smartEnabled: boolean; duplicateSerial: string[];
+    identifier: string | null;
+    model: string | null;
+    serial: string | null;
+    size: number | null;
+    type: string | null;
+    rpm: number | null;
+    bus: string | null;
+    subsystem: string | null;
+    description: string | null;
+    lunid: string | null;
+    sectorSize: number | null;
+    transferMode: string | null;
+    standby: string | null;
+    powerManagement: string | null;
+    smartEnabled: boolean;
+    duplicateSerial: string[];
   };
   tempC: number | null;
   /** Why there is no reading, when there is none. */
@@ -20,13 +31,29 @@ interface Health {
   exportedPool: string | null;
   partitions: Array<{ name?: unknown; size?: unknown; type?: unknown }>;
   zfs: {
-    pool: string; role: string; vdev: string; status: string | null;
-    readErrors: number; writeErrors: number; checksumErrors: number; selfHealed: number;
-    size: number | null; allocated: number | null; fragmentation: number | null;
-    readBytes: number | null; writeBytes: number | null;
+    pool: string;
+    role: string;
+    vdev: string;
+    status: string | null;
+    readErrors: number;
+    writeErrors: number;
+    checksumErrors: number;
+    selfHealed: number;
+    size: number | null;
+    allocated: number | null;
+    fragmentation: number | null;
+    readBytes: number | null;
+    writeBytes: number | null;
   } | null;
   smart: { supported: boolean; reason: string | null; attributes: Array<Record<string, unknown>> };
-  tests: Array<{ num?: unknown; type?: unknown; status?: unknown; remaining?: unknown; lifetime?: unknown; description?: unknown }>;
+  tests: Array<{
+    num?: unknown;
+    type?: unknown;
+    status?: unknown;
+    remaining?: unknown;
+    lifetime?: unknown;
+    description?: unknown;
+  }>;
   runningTest: unknown;
   health: { level: "ok" | "warn" | "bad"; reasons: string[] };
 }
@@ -74,7 +101,11 @@ export function DiskHealthModal({ name, onClose }: { name: string; onClose: () =
       subtitle={id ? `${id.model || "unknown model"} · ${bytes(id.size)}` : "Reading the drive…"}
       onClose={onClose}
       wide
-      footer={<button className="btn primary" onClick={onClose}>Close</button>}
+      footer={
+        <button className="btn primary" onClick={onClose}>
+          Close
+        </button>
+      }
     >
       {error && <ErrorBanner>{error}</ErrorBanner>}
       {loading && !data && <Loading rows={4} />}
@@ -82,11 +113,15 @@ export function DiskHealthModal({ name, onClose }: { name: string; onClose: () =
       {data && (
         <>
           <div className={`health ${data.health.level}`}>
-            <span className={`pill ${data.health.level === "ok" ? "ok" : data.health.level === "warn" ? "warn" : "bad"}`}>
+            <span
+              className={`pill ${data.health.level === "ok" ? "ok" : data.health.level === "warn" ? "warn" : "bad"}`}
+            >
               {data.health.level === "ok" ? "healthy" : data.health.level === "warn" ? "watch" : "attention"}
             </span>
             <ul>
-              {data.health.reasons.map((r) => <li key={r}>{r}</li>)}
+              {data.health.reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
             </ul>
           </div>
 
@@ -108,7 +143,9 @@ export function DiskHealthModal({ name, onClose }: { name: string; onClose: () =
                 facts are — "not reported" on its own invites a hunt for a
                 setting that would fix it, and on a virtual disk there is none. */}
             {data.tempC === null && data.tempNote && (
-              <p className="modal-text" style={{ color: "var(--muted)" }}>{data.tempNote}</p>
+              <p className="modal-text" style={{ color: "var(--muted)" }}>
+                {data.tempNote}
+              </p>
             )}
             {id!.duplicateSerial.length > 0 && (
               <p className="modal-text" style={{ color: "var(--warn)" }}>
@@ -124,7 +161,10 @@ export function DiskHealthModal({ name, onClose }: { name: string; onClose: () =
                 <KV
                   rows={[
                     ["Pool", data.zfs.pool, true],
-                    ["Role", data.zfs.role === "data" ? `${data.zfs.vdev} data vdev` : `${data.zfs.role} (${data.zfs.vdev})`],
+                    [
+                      "Role",
+                      data.zfs.role === "data" ? `${data.zfs.vdev} data vdev` : `${data.zfs.role} (${data.zfs.vdev})`,
+                    ],
                     ["State", data.zfs.status ?? "—"],
                     ["Read errors", String(data.zfs.readErrors)],
                     ["Write errors", String(data.zfs.writeErrors)],
@@ -146,10 +186,10 @@ export function DiskHealthModal({ name, onClose }: { name: string; onClose: () =
                 {data.pool === "boot-pool"
                   ? "This is the drive TrueNAS itself boots from. It is not part of your storage, and its layout is not reported here."
                   : data.pool
-                  ? `Reported as part of ${data.pool}, but no vdev on this NAS claims it.`
-                  : data.exportedPool
-                    ? `Holds an exported pool called ${data.exportedPool}. Importing that pool would put this drive back to work.`
-                    : "Not part of any pool. It can be added to one, or wiped."}
+                    ? `Reported as part of ${data.pool}, but no vdev on this NAS claims it.`
+                    : data.exportedPool
+                      ? `Holds an exported pool called ${data.exportedPool}. Importing that pool would put this drive back to work.`
+                      : "Not part of any pool. It can be added to one, or wiped."}
               </p>
             )}
           </Section>
@@ -160,7 +200,14 @@ export function DiskHealthModal({ name, onClose }: { name: string; onClose: () =
                 <div className="table-wrap">
                   <table>
                     <thead>
-                      <tr><th>#</th><th>Attribute</th><th className="num">Value</th><th className="num">Worst</th><th className="num">Threshold</th><th className="num">Raw</th></tr>
+                      <tr>
+                        <th>#</th>
+                        <th>Attribute</th>
+                        <th className="num">Value</th>
+                        <th className="num">Worst</th>
+                        <th className="num">Threshold</th>
+                        <th className="num">Raw</th>
+                      </tr>
                     </thead>
                     <tbody>
                       {data.smart.attributes.map((a, i) => {
@@ -171,10 +218,18 @@ export function DiskHealthModal({ name, onClose }: { name: string; onClose: () =
                           <tr key={String(pick(a, "id") ?? i)}>
                             <td style={{ color: "var(--muted)" }}>{String(pick(a, "id") ?? "—")}</td>
                             <td>{String(pick(a, "name", "attribute_name") ?? "—")}</td>
-                            <td className="num" style={{ color: failing ? "var(--bad)" : undefined }}>{String(value ?? "—")}</td>
-                            <td className="num" style={{ color: "var(--muted)" }}>{String(pick(a, "worst") ?? "—")}</td>
-                            <td className="num" style={{ color: "var(--muted)" }}>{String(thresh ?? "—")}</td>
-                            <td className="num mono" style={{ fontSize: 12 }}>{String(pick(a, "raw", "raw_value") ?? "—")}</td>
+                            <td className="num" style={{ color: failing ? "var(--bad)" : undefined }}>
+                              {String(value ?? "—")}
+                            </td>
+                            <td className="num" style={{ color: "var(--muted)" }}>
+                              {String(pick(a, "worst") ?? "—")}
+                            </td>
+                            <td className="num" style={{ color: "var(--muted)" }}>
+                              {String(thresh ?? "—")}
+                            </td>
+                            <td className="num mono" style={{ fontSize: 12 }}>
+                              {String(pick(a, "raw", "raw_value") ?? "—")}
+                            </td>
                           </tr>
                         );
                       })}
@@ -197,14 +252,23 @@ export function DiskHealthModal({ name, onClose }: { name: string; onClose: () =
             {data.tests.length ? (
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>#</th><th>Type</th><th>Result</th><th className="num">Powered hours</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Type</th>
+                      <th>Result</th>
+                      <th className="num">Powered hours</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {data.tests.map((t, i) => (
                       <tr key={String(t.num ?? i)}>
                         <td style={{ color: "var(--muted)" }}>{String(t.num ?? "—")}</td>
                         <td>{String(t.type ?? t.description ?? "—")}</td>
                         <td>{String(t.status ?? "—")}</td>
-                        <td className="num" style={{ color: "var(--muted)" }}>{String(t.lifetime ?? "—")}</td>
+                        <td className="num" style={{ color: "var(--muted)" }}>
+                          {String(t.lifetime ?? "—")}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -216,14 +280,26 @@ export function DiskHealthModal({ name, onClose }: { name: string; onClose: () =
 
             <div className="row" style={{ marginTop: 12, alignItems: "flex-end" }}>
               <Select value={kind} onChange={(e) => setKind(e.target.value)} disabled={!data.identity.smartEnabled}>
-                {TEST_KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+                {TEST_KINDS.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.label}
+                  </option>
+                ))}
               </Select>
               <button className="btn" style={{ flex: "none" }} disabled={busy} onClick={() => void runTest()}>
                 {busy ? "Starting…" : "Run test"}
               </button>
             </div>
-            {note && <p className="modal-text" style={{ color: "var(--ok)" }}>{note}</p>}
-            {failed && <div className="error-banner" style={{ marginTop: 12, marginBottom: 0 }}>{failed}</div>}
+            {note && (
+              <p className="modal-text" style={{ color: "var(--ok)" }}>
+                {note}
+              </p>
+            )}
+            {failed && (
+              <div className="error-banner" style={{ marginTop: 12, marginBottom: 0 }}>
+                {failed}
+              </div>
+            )}
             <p className="modal-text">
               A test runs inside the drive's own firmware, so the pool stays up. A long test on a full-size disk takes
               hours and slows it down while it runs.

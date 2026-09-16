@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { diskVerdict, failedTestCount, temperatureOf, testsForDisk, type VerdictInput } from "../server/disk-verdict.js";
+import {
+  diskVerdict,
+  failedTestCount,
+  temperatureOf,
+  testsForDisk,
+  type VerdictInput,
+} from "../server/disk-verdict.js";
 
 const healthy: VerdictInput = {
   zfs: { pool: "tank", status: "ONLINE", readErrors: 0, writeErrors: 0, checksumErrors: 0, selfHealed: 0 },
@@ -11,8 +17,7 @@ describe("temperatureOf", () => {
   // A drive that cannot answer reports 0, not null. Every virtual disk does
   // this, and drawing it as a healthy green 0°C is how the reading got
   // distrusted in the first place.
-  it("treats 0 as no reading rather than as a very cold drive", () =>
-    expect(temperatureOf(0)).toBeNull());
+  it("treats 0 as no reading rather than as a very cold drive", () => expect(temperatureOf(0)).toBeNull());
   it("treats null as no reading", () => expect(temperatureOf(null)).toBeNull());
   it("treats a missing entry as no reading", () => expect(temperatureOf(undefined)).toBeNull());
   it("keeps a real reading", () => expect(temperatureOf(38)).toBe(38));
@@ -109,14 +114,12 @@ describe("testsForDisk", () => {
   // Which field carries the name depends on the TrueNAS version. Checking only
   // one of them reports "no failed tests" for every drive on the other version,
   // which reads as a clean bill of health rather than as a lookup that missed.
-  it("finds a row keyed by name instead", () =>
-    expect(failedTestCount(testsForDisk(rows, "sdb"))).toBe(1));
+  it("finds a row keyed by name instead", () => expect(failedTestCount(testsForDisk(rows, "sdb"))).toBe(1));
 
   it("returns nothing for a drive with no row, rather than throwing", () =>
     expect(testsForDisk(rows, "sdz")).toEqual([]));
 
-  it("returns nothing for a row that has no tests", () =>
-    expect(testsForDisk([{ disk: "sdc" }], "sdc")).toEqual([]));
+  it("returns nothing for a row that has no tests", () => expect(testsForDisk([{ disk: "sdc" }], "sdc")).toEqual([]));
 
   it("caps a very long history so one drive cannot dominate the verdict", () =>
     expect(testsForDisk([{ disk: "sdc", tests: Array.from({ length: 40 }, () => ({})) }], "sdc")).toHaveLength(12));

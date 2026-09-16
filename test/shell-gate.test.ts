@@ -19,8 +19,13 @@ const { handleUpgrade } = await import("../server/shell.js");
 class FakeSocket extends EventEmitter {
   written = "";
   destroyed = false;
-  write(s: string): boolean { this.written += s; return true; }
-  destroy(): void { this.destroyed = true; }
+  write(s: string): boolean {
+    this.written += s;
+    return true;
+  }
+  destroy(): void {
+    this.destroyed = true;
+  }
 }
 
 /** The status line handleUpgrade wrote, e.g. "HTTP/1.1 403 Forbidden". */
@@ -47,7 +52,9 @@ describe("the shell WebSocket upgrade", () => {
     accounts.init();
     adminId = accounts.byName("admin")!.id;
     viewerId = accounts.create({
-      username: "peeker", password: "hunter2hunter2", role: "viewer",
+      username: "peeker",
+      password: "hunter2hunter2",
+      role: "viewer",
     }).id;
   });
 

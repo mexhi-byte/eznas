@@ -25,8 +25,7 @@ describe("statusForError", () => {
     expect(statusForError(e)).toBe(400);
   });
 
-  it("still guesses when nothing chose a status", () =>
-    expect(statusForError(new Error("socket hang up"))).toBe(502));
+  it("still guesses when nothing chose a status", () => expect(statusForError(new Error("socket hang up"))).toBe(502));
 
   it("honours an explicit 502 as readily as an explicit 400", () =>
     expect(statusForError(new HttpError("gone", 502))).toBe(502));

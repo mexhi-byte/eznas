@@ -42,8 +42,7 @@ describe("acceptableWriteType", () => {
 describe("SECURITY_HEADERS", () => {
   const csp = SECURITY_HEADERS["content-security-policy"];
 
-  it("lets no script run from anywhere but the console", () =>
-    expect(csp).toMatch(/script-src 'self'(;|$)/));
+  it("lets no script run from anywhere but the console", () => expect(csp).toMatch(/script-src 'self'(;|$)/));
 
   /*
    * 'self', not 'none': the file browser previews PDFs in an iframe from this
@@ -55,6 +54,5 @@ describe("SECURITY_HEADERS", () => {
     expect(SECURITY_HEADERS["x-frame-options"]).toBe("SAMEORIGIN");
   });
 
-  it("stops MIME sniffing", () =>
-    expect(SECURITY_HEADERS["x-content-type-options"]).toBe("nosniff"));
+  it("stops MIME sniffing", () => expect(SECURITY_HEADERS["x-content-type-options"]).toBe("nosniff"));
 });

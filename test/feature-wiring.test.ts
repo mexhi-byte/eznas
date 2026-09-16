@@ -34,7 +34,9 @@ function componentSources(): Array<{ file: string; text: string }> {
  */
 const mentions = (needle: string): string[] => {
   const word = new RegExp(`\\b${needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
-  return componentSources().filter((s) => word.test(s.text)).map((s) => s.file);
+  return componentSources()
+    .filter((s) => word.test(s.text))
+    .map((s) => s.file);
 };
 
 describe("every shipped feature is reachable from the interface", () => {

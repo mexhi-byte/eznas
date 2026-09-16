@@ -22,18 +22,35 @@ import { VERSION } from "./version.js";
  * the next occurrence is reported afresh.
  */
 
-interface Known { name: string; model: string; size: number; serial: string; pool: string | null }
+interface Known {
+  name: string;
+  model: string;
+  size: number;
+  serial: string;
+  pool: string | null;
+}
 
 interface PoolRow {
-  name: string; status: string; healthy: boolean; size: number; allocated: number;
+  name: string;
+  status: string;
+  healthy: boolean;
+  size: number;
+  allocated: number;
   scan?: { function?: string; state?: string; errors?: number; end_time?: { $date: number } } | null;
   topology?: Record<string, VdevNode[]>;
 }
 interface VdevNode {
-  disk?: string | null; device?: string | null; status?: string; children?: VdevNode[];
+  disk?: string | null;
+  device?: string | null;
+  status?: string;
+  children?: VdevNode[];
   stats?: { read_errors?: number; write_errors?: number; checksum_errors?: number };
 }
-interface AppRow { name: string; state: string; upgrade_available?: boolean }
+interface AppRow {
+  name: string;
+  state: string;
+  upgrade_available?: boolean;
+}
 
 /** Per connection, because two NASes have their own sets of everything. */
 const lastDisks = new Map<string, Map<string, Known>>();
@@ -53,7 +70,11 @@ const shape = (d: Record<string, unknown>): Known => ({
 async function raise(
   conn: store.Connection,
   n: {
-    level: settings.NoticeLevel; category: string; key: string; title: string; detail: string;
+    level: settings.NoticeLevel;
+    category: string;
+    key: string;
+    title: string;
+    detail: string;
     /** Overrides the server name, for a notice that is not about a NAS. */
     server?: string;
   },
@@ -84,11 +105,17 @@ async function raise(
   if (rank[n.level] < rank[cfg.emailLevel]) return;
 
   try {
-    await store.clientFor(conn).call("mail.send", [{
-      subject: `[${n.server ?? conn.name}] ${n.title}`,
-      text: `${n.title}\n\n${n.detail}\n\nSeen on ${conn.name} at ${new Date().toLocaleString()}.`,
-      to: cfg.recipients,
-    }], 20_000);
+    await store.clientFor(conn).call(
+      "mail.send",
+      [
+        {
+          subject: `[${n.server ?? conn.name}] ${n.title}`,
+          text: `${n.title}\n\n${n.detail}\n\nSeen on ${conn.name} at ${new Date().toLocaleString()}.`,
+          to: cfg.recipients,
+        },
+      ],
+      20_000,
+    );
     settings.markEmailed(notice.id);
   } catch (e) {
     console.error("[watch] could not send mail:", e instanceof Error ? e.message : e);
@@ -103,7 +130,9 @@ const clear = (key: string) => settings.clearKey(key);
 async function checkDisks(conn: store.Connection, nas: TrueNas): Promise<void> {
   if (!settings.get().notify.watchDisks) return;
   const details = await nas.call<{ used?: Array<Record<string, unknown>>; unused?: Array<Record<string, unknown>> }>(
-    "disk.details", [], 8000,
+    "disk.details",
+    [],
+    8000,
   );
 
   const now = new Map<string, Known>();
@@ -129,7 +158,8 @@ async function checkDisks(conn: store.Connection, nas: TrueNas): Promise<void> {
       category: "disk",
       key: `disk:removed:${key}`,
       title: `Disk removed: ${d.name}`,
-      detail: `${d.model || "unknown model"} · ${gb(d.size)} · serial ${d.serial || "unknown"}` +
+      detail:
+        `${d.model || "unknown model"} · ${gb(d.size)} · serial ${d.serial || "unknown"}` +
         (d.pool ? `. This disk was part of pool "${d.pool}" — check that pool now.` : ". It was not part of a pool."),
     });
   }
@@ -156,7 +186,9 @@ async function checkPools(conn: store.Connection, nas: TrueNas): Promise<void> {
       const key = `pool:health:${p.name}`;
       if (!p.healthy || p.status !== "ONLINE") {
         await raise(conn, {
-          level: "bad", category: "pool", key,
+          level: "bad",
+          category: "pool",
+          key,
           title: `Pool ${p.name} is ${p.status.toLowerCase()}`,
           detail: `ZFS no longer reports this pool as healthy. Open the drive array map to see which member is at fault.`,
         });
@@ -171,9 +203,12 @@ async function checkPools(conn: store.Connection, nas: TrueNas): Promise<void> {
       const key = `pool:full:${p.name}`;
       if (pct >= cfg.capacityPercent) {
         await raise(conn, {
-          level: pct >= 95 ? "bad" : "warn", category: "capacity", key,
+          level: pct >= 95 ? "bad" : "warn",
+          category: "capacity",
+          key,
           title: `Pool ${p.name} is ${pct.toFixed(0)}% full`,
-          detail: `${((p.size - p.allocated) / 1024 ** 3).toFixed(0)} GB left. ZFS slows down noticeably past about 90%, ` +
+          detail:
+            `${((p.size - p.allocated) / 1024 ** 3).toFixed(0)} GB left. ZFS slows down noticeably past about 90%, ` +
             `and a pool with no free space cannot even delete files cleanly.`,
         });
       } else if (pct < cfg.capacityPercent - 2) {
@@ -193,9 +228,12 @@ async function checkPools(conn: store.Connection, nas: TrueNas): Promise<void> {
             const name = node.disk ?? node.device;
             if (name && total > 0) {
               await raise(conn, {
-                level: "bad", category: "zfs", key: `zfs:errors:${p.name}:${name}`,
+                level: "bad",
+                category: "zfs",
+                key: `zfs:errors:${p.name}:${name}`,
                 title: `${name} is returning errors in ${p.name}`,
-                detail: `${s.read_errors ?? 0} read, ${s.write_errors ?? 0} write, ${s.checksum_errors ?? 0} checksum ` +
+                detail:
+                  `${s.read_errors ?? 0} read, ${s.write_errors ?? 0} write, ${s.checksum_errors ?? 0} checksum ` +
                   `on the ${role} vdev. Checksum errors mean the drive handed back data that was wrong rather than failing outright.`,
               });
             }
@@ -219,11 +257,17 @@ async function checkPools(conn: store.Connection, nas: TrueNas): Promise<void> {
         if (!first) {
           const errors = p.scan.errors ?? 0;
           await raise(conn, {
-            level: errors > 0 ? "bad" : "info", category: "scrub", key: `scrub:${p.name}:${ended}`,
-            title: errors > 0 ? `Scrub of ${p.name} found ${errors} error${errors === 1 ? "" : "s"}` : `Scrub of ${p.name} finished cleanly`,
-            detail: errors > 0
-              ? "ZFS checked every byte and could not repair everything it found. Look at the drives in this pool."
-              : "ZFS read every byte in the pool and found nothing wrong.",
+            level: errors > 0 ? "bad" : "info",
+            category: "scrub",
+            key: `scrub:${p.name}:${ended}`,
+            title:
+              errors > 0
+                ? `Scrub of ${p.name} found ${errors} error${errors === 1 ? "" : "s"}`
+                : `Scrub of ${p.name} finished cleanly`,
+            detail:
+              errors > 0
+                ? "ZFS checked every byte and could not repair everything it found. Look at the drives in this pool."
+                : "ZFS read every byte in the pool and found nothing wrong.",
           });
         }
       }
@@ -241,7 +285,9 @@ async function checkTemperatures(conn: store.Connection, nas: TrueNas): Promise<
     const key = `temp:${disk}`;
     if (t >= cfg.temperatureC) {
       await raise(conn, {
-        level: t >= cfg.temperatureC + 8 ? "bad" : "warn", category: "temperature", key,
+        level: t >= cfg.temperatureC + 8 ? "bad" : "warn",
+        category: "temperature",
+        key,
         title: `${disk} is running at ${t}°C`,
         detail: `Above the ${cfg.temperatureC}°C mark set for this server. Check that the fans are turning and that nothing is blocking airflow.`,
       });
@@ -266,7 +312,9 @@ async function checkApps(conn: store.Connection, nas: TrueNas): Promise<void> {
       const key = `app:down:${name}`;
       if (was === "RUNNING" && state !== "RUNNING") {
         await raise(conn, {
-          level: "bad", category: "app", key,
+          level: "bad",
+          category: "app",
+          key,
           title: `${name} stopped`,
           detail: `The app was running and is now ${String(state).toLowerCase()}. TrueNAS does not raise an alert for this.`,
         });
@@ -281,7 +329,9 @@ async function checkApps(conn: store.Connection, nas: TrueNas): Promise<void> {
     const key = `apps:updates:${updatable.sort().join(",")}`;
     if (updatable.length) {
       await raise(conn, {
-        level: "info", category: "update", key,
+        level: "info",
+        category: "update",
+        key,
         title: `${updatable.length} app${updatable.length === 1 ? "" : "s"} can be updated`,
         detail: updatable.join(", "),
       });
@@ -313,10 +363,7 @@ let nextReleaseCheck = 0;
  */
 function deliveryConn(): store.Connection | null {
   const all = store.all();
-  return all.find((c) => store.clientFor(c).connected)
-    ?? all.find((c) => c.isDefault)
-    ?? all[0]
-    ?? null;
+  return all.find((c) => store.clientFor(c).connected) ?? all.find((c) => c.isDefault) ?? all[0] ?? null;
 }
 
 /**
@@ -352,9 +399,7 @@ async function checkConsoleRelease(): Promise<void> {
     server: "EzNAS",
     title: `EzNAS ${release.version} is available`,
     detail:
-      `You are running ${VERSION}.` +
-      (notes ? `\n\n${notes}` : "") +
-      `\n\nInstall it under Settings → App updates.`,
+      `You are running ${VERSION}.` + (notes ? `\n\n${notes}` : "") + `\n\nInstall it under Settings → App updates.`,
   });
 }
 
@@ -379,9 +424,13 @@ async function pollOnce(): Promise<void> {
     if (!nas.connected) {
       if (cfg.reachability) {
         await raise(conn, {
-          level: "bad", category: "reachability", key,
+          level: "bad",
+          category: "reachability",
+          key,
           title: `${conn.name} is not answering`,
-          detail: nas.lastError ?? "The console cannot reach this server. Nothing else about it can be checked until it comes back.",
+          detail:
+            nas.lastError ??
+            "The console cannot reach this server. Nothing else about it can be checked until it comes back.",
         });
       }
       // Everything below needs a live connection, and a NAS that is down has

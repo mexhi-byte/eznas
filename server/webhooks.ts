@@ -66,7 +66,11 @@ export function friendly(p: Payload, name?: string): { title: string; body: stri
  */
 const headerSafe = (s: string): string =>
   // eslint-disable-next-line no-control-regex
-  s.replace(/[^\x20-\x7e\xa0-\xff]/g, "").replace(/\s+/g, " ").trim().slice(0, 200) || "Notification";
+  s
+    .replace(/[^\x20-\x7e\xa0-\xff]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200) || "Notification";
 
 async function send(url: string, init: RequestInit): Promise<void> {
   const res = await fetch(url, { ...init, signal: AbortSignal.timeout(12_000) });
@@ -86,13 +90,15 @@ export async function deliver(hook: Webhook, p: Payload, name?: string): Promise
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           username: "EzNAS",
-          embeds: [{
-            title: msg.title,
-            description: msg.body,
-            color: COLOUR[p.level],
-            footer: { text: p.server || "EzNAS" },
-            timestamp: new Date().toISOString(),
-          }],
+          embeds: [
+            {
+              title: msg.title,
+              description: msg.body,
+              color: COLOUR[p.level],
+              footer: { text: p.server || "EzNAS" },
+              timestamp: new Date().toISOString(),
+            },
+          ],
         }),
       });
       return;

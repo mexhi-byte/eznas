@@ -74,9 +74,16 @@ const DEFAULTS: Settings = {
     email: false,
     recipients: [],
     watch: {
-      poolHealth: true, capacity: true, capacityPercent: 85,
-      temperature: true, temperatureC: 50,
-      zfsErrors: true, apps: true, scrubs: true, updates: true, consoleUpdates: true,
+      poolHealth: true,
+      capacity: true,
+      capacityPercent: 85,
+      temperature: true,
+      temperatureC: 50,
+      zfsErrors: true,
+      apps: true,
+      scrubs: true,
+      updates: true,
+      consoleUpdates: true,
       reachability: true,
     },
     emailLevel: "warn",
@@ -158,8 +165,7 @@ export function publicView() {
 
 /* ---------------------------------------------------------------- 2FA bits */
 
-export const mfaSecret = (): string | null =>
-  current.mfa.secretEnc ? decrypt(current.mfa.secretEnc) : null;
+export const mfaSecret = (): string | null => (current.mfa.secretEnc ? decrypt(current.mfa.secretEnc) : null);
 
 export function setMfa(secret: string | null, recovery: string[]): void {
   patch({
@@ -172,7 +178,9 @@ export function setMfa(secret: string | null, recovery: string[]): void {
 }
 
 const hashRecovery = (code: string): string =>
-  createHash("sha256").update(code.replace(/[^A-Z0-9]/gi, "").toUpperCase()).digest("hex");
+  createHash("sha256")
+    .update(code.replace(/[^A-Z0-9]/gi, "").toUpperCase())
+    .digest("hex");
 
 /**
  * Spend a recovery code.
@@ -221,9 +229,16 @@ export interface Notice {
 
 /** The old disk-shaped record, still on disk in installs that predate notices. */
 interface LegacyDiskEvent {
-  id: string; at: number; kind: "removed" | "added";
-  disk: string; model: string; size: number; serial: string;
-  pool: string | null; seen: boolean; emailed: boolean;
+  id: string;
+  at: number;
+  kind: "removed" | "added";
+  disk: string;
+  model: string;
+  size: number;
+  serial: string;
+  pool: string | null;
+  seen: boolean;
+  emailed: boolean;
 }
 
 const EVENTS_FILE = dataFile("EVENTS_FILE", "events.json");
@@ -238,7 +253,10 @@ export function loadEvents(): void {
     events = raw.map((e) =>
       "kind" in e
         ? {
-            id: e.id, at: e.at, seen: e.seen, emailed: e.emailed,
+            id: e.id,
+            at: e.at,
+            seen: e.seen,
+            emailed: e.emailed,
             level: e.kind === "removed" ? "bad" : "info",
             category: "disk",
             key: `disk:${e.kind}:${e.serial || e.disk}`,

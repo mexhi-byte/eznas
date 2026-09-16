@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "ignoreRestSiblings": true,
+        "caughtErrors": "none"
+      }
+    ],
+    "no-empty": [
+      "error",
+      {
+        "allowEmptyCatch": true
+      }
+    ],
+    "react/react-in-jsx-scope": "off",
+    "react/jsx-key": "error",
+    "react/set-state-in-effect": "warn",
+    "react/purity": "warn",
+    "react/refs": "warn",
+    "react/exhaustive-effect-dependencies": "warn",
+    "react/iframe-missing-sandbox": "warn"
+  },
+  "ignorePatterns": ["dist/", "dist.prev/", "node_modules/", "data/", "coverage/"]
+}

@@ -10,3 +10,10 @@ docs
 .DS_Store
 test
 vitest.config.ts
+coverage
+scripts
+deploy
+.oxlintrc.json
+.prettierrc
+.prettierignore
+*.md

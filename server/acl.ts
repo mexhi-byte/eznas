@@ -6,10 +6,24 @@
  * appears on the network and then refuses every write.
  */
 
-export interface AclPerms { READ?: boolean; WRITE?: boolean; EXECUTE?: boolean }
-export interface AclEntry { tag: string; id: number; who?: string | null; perms: Required<AclPerms>; default: boolean }
+export interface AclPerms {
+  READ?: boolean;
+  WRITE?: boolean;
+  EXECUTE?: boolean;
+}
+export interface AclEntry {
+  tag: string;
+  id: number;
+  who?: string | null;
+  perms: Required<AclPerms>;
+  default: boolean;
+}
 export interface AclResult {
-  path: string; uid: number; gid: number; acltype: string; trivial: boolean;
+  path: string;
+  uid: number;
+  gid: number;
+  acltype: string;
+  trivial: boolean;
   acl: Array<{ tag: string; id: number; who?: string | null; perms?: AclPerms; default?: boolean }>;
 }
 
@@ -22,9 +36,13 @@ export interface AclResult {
  */
 export function levelToPerms(level: string): Required<AclPerms> {
   switch (level) {
-    case "none": return { READ: false, WRITE: false, EXECUTE: false };
-    case "write": return { READ: true, WRITE: true, EXECUTE: true };
-    case "full": return { READ: true, WRITE: true, EXECUTE: true };
-    default: return { READ: true, WRITE: false, EXECUTE: true };
+    case "none":
+      return { READ: false, WRITE: false, EXECUTE: false };
+    case "write":
+      return { READ: true, WRITE: true, EXECUTE: true };
+    case "full":
+      return { READ: true, WRITE: true, EXECUTE: true };
+    default:
+      return { READ: true, WRITE: false, EXECUTE: true };
   }
 }

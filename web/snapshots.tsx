@@ -43,8 +43,12 @@ export function SnapshotsPage() {
   return (
     <>
       <div className="seg">
-        <button className={view === "snapshots" ? "on" : ""} onClick={() => setView("snapshots")}>Snapshots</button>
-        <button className={view === "schedules" ? "on" : ""} onClick={() => setView("schedules")}>Schedules</button>
+        <button className={view === "snapshots" ? "on" : ""} onClick={() => setView("snapshots")}>
+          Snapshots
+        </button>
+        <button className={view === "schedules" ? "on" : ""} onClick={() => setView("schedules")}>
+          Schedules
+        </button>
       </div>
       {view === "snapshots" ? <SnapshotList /> : <ScheduleList />}
     </>
@@ -86,11 +90,18 @@ function SnapshotList() {
         <div>
           <h1>Snapshots</h1>
           <div className="page-sub">
-            {data ? `${rows.length} snapshot${rows.length === 1 ? "" : "s"} · ${bytes(total)} held on top of live data` : " "}
+            {data
+              ? `${rows.length} snapshot${rows.length === 1 ? "" : "s"} · ${bytes(total)} held on top of live data`
+              : " "}
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <Input style={{ maxWidth: 220 }} placeholder="Filter…" value={filter} onChange={(e) => setFilter(e.target.value)} />
+          <Input
+            style={{ maxWidth: 220 }}
+            placeholder="Filter…"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
           <button className="btn primary" style={{ flex: "none", padding: "8px 16px" }} onClick={() => setTaking(true)}>
             Take snapshot
           </button>
@@ -118,11 +129,17 @@ function SnapshotList() {
               <tbody>
                 {rows.map((s) => (
                   <tr key={s.name}>
-                    <td className="mono" style={{ fontSize: 12.5 }}>{s.dataset}</td>
+                    <td className="mono" style={{ fontSize: 12.5 }}>
+                      {s.dataset}
+                    </td>
                     <td className="mono" style={{ fontSize: 12.5, color: "var(--accent)" }}>
                       {s.snapshot}
                       {s.held && (
-                        <span className="pill info" style={{ marginLeft: 8 }} title="Held: ZFS will refuse to delete this snapshot.">
+                        <span
+                          className="pill info"
+                          style={{ marginLeft: 8 }}
+                          title="Held: ZFS will refuse to delete this snapshot."
+                        >
                           held
                         </span>
                       )}
@@ -131,13 +148,33 @@ function SnapshotList() {
                     <td style={{ color: "var(--muted)" }}>{when(s.createdAt)}</td>
                     <td>
                       <div className="row-actions">
-                        <button className="btn" onClick={() => setCloning(s)} title="Mount a writable copy as a new dataset">Clone</button>
-                        <button className="btn" onClick={() => setCopying(s)} title="Replicate this dataset's snapshots to another pool">Copy to…</button>
-                        <button className="btn" onClick={() => void toggleHold(s)} title="A held snapshot cannot be deleted, by anyone">
+                        <button
+                          className="btn"
+                          onClick={() => setCloning(s)}
+                          title="Mount a writable copy as a new dataset"
+                        >
+                          Clone
+                        </button>
+                        <button
+                          className="btn"
+                          onClick={() => setCopying(s)}
+                          title="Replicate this dataset's snapshots to another pool"
+                        >
+                          Copy to…
+                        </button>
+                        <button
+                          className="btn"
+                          onClick={() => void toggleHold(s)}
+                          title="A held snapshot cannot be deleted, by anyone"
+                        >
                           {s.held ? "Release" : "Hold"}
                         </button>
-                        <button className="btn danger" onClick={() => setRolling(s)}>Roll back</button>
-                        <button className="btn danger" onClick={() => setRemoving(s)}>Delete</button>
+                        <button className="btn danger" onClick={() => setRolling(s)}>
+                          Roll back
+                        </button>
+                        <button className="btn danger" onClick={() => setRemoving(s)}>
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -159,12 +196,22 @@ function SnapshotList() {
         <TakeSnapshot
           datasets={datasets ?? []}
           onClose={() => setTaking(false)}
-          onSaved={() => { setTaking(false); void reload(); }}
+          onSaved={() => {
+            setTaking(false);
+            void reload();
+          }}
         />
       )}
 
       {cloning && (
-        <CloneSnapshot snap={cloning} onClose={() => setCloning(null)} onSaved={() => { setCloning(null); void reload(); }} />
+        <CloneSnapshot
+          snap={cloning}
+          onClose={() => setCloning(null)}
+          onSaved={() => {
+            setCloning(null);
+            void reload();
+          }}
+        />
       )}
 
       {copying && (
@@ -172,7 +219,10 @@ function SnapshotList() {
           snap={copying}
           datasets={datasets ?? []}
           onClose={() => setCopying(null)}
-          onStarted={(jobId, label) => { setCopying(null); setJobs((j) => [...j, { id: jobId, label }]); }}
+          onStarted={(jobId, label) => {
+            setCopying(null);
+            setJobs((j) => [...j, { id: jobId, label }]);
+          }}
         />
       )}
 
@@ -204,7 +254,10 @@ function SnapshotList() {
               key={j.id}
               jobId={j.id}
               label={j.label}
-              onDone={() => { void reload(); setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 8000); }}
+              onDone={() => {
+                void reload();
+                setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 8000);
+              }}
             />
           ))}
         </div>
@@ -222,7 +275,15 @@ function suggestedName(): string {
   return `manual-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}`;
 }
 
-function TakeSnapshot({ datasets, onClose, onSaved }: { datasets: Dataset[]; onClose: () => void; onSaved: () => void }) {
+function TakeSnapshot({
+  datasets,
+  onClose,
+  onSaved,
+}: {
+  datasets: Dataset[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
   const [dataset, setDataset] = useState(datasets[0]?.id ?? "");
   const [name, setName] = useState(suggestedName);
   const [recursive, setRecursive] = useState(false);
@@ -241,8 +302,14 @@ function TakeSnapshot({ datasets, onClose, onSaved }: { datasets: Dataset[]; onC
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="btn primary" disabled={busy || !dataset || !name.trim()} onClick={() => void submit(undefined as void)}>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className="btn primary"
+            disabled={busy || !dataset || !name.trim()}
+            onClick={() => void submit(undefined as void)}
+          >
             {busy ? "Taking…" : "Take snapshot"}
           </button>
         </>
@@ -251,7 +318,10 @@ function TakeSnapshot({ datasets, onClose, onSaved }: { datasets: Dataset[]; onC
       <Field label="Dataset" hint="The snapshot is stored inside this dataset and moves with it.">
         <Select value={dataset} onChange={(e) => setDataset(e.target.value)}>
           {datasets.map((d) => (
-            <option key={d.id} value={d.id}>{d.id}{d.type === "VOLUME" ? " (zvol)" : ""}</option>
+            <option key={d.id} value={d.id}>
+              {d.id}
+              {d.type === "VOLUME" ? " (zvol)" : ""}
+            </option>
           ))}
         </Select>
       </Field>
@@ -273,7 +343,11 @@ function TakeSnapshot({ datasets, onClose, onSaved }: { datasets: Dataset[]; onC
         somewhere else, use <strong>Copy to…</strong> on the snapshot once it exists.
       </p>
 
-      {error && <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>{error}</div>}
+      {error && (
+        <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>
+          {error}
+        </div>
+      )}
     </Modal>
   );
 }
@@ -295,8 +369,14 @@ function CloneSnapshot({ snap, onClose, onSaved }: { snap: Snapshot; onClose: ()
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="btn primary" disabled={busy || !target.trim()} onClick={() => void submit(undefined as void)}>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className="btn primary"
+            disabled={busy || !target.trim()}
+            onClick={() => void submit(undefined as void)}
+          >
             {busy ? "Cloning…" : "Clone"}
           </button>
         </>
@@ -312,14 +392,23 @@ function CloneSnapshot({ snap, onClose, onSaved }: { snap: Snapshot; onClose: ()
         This is the safe way to look inside a snapshot: browse the clone, take what you need, then delete it. The clone
         shares blocks with the snapshot, so it starts out costing nothing — and it pins that snapshot until it is gone.
       </p>
-      {error && <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>{error}</div>}
+      {error && (
+        <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>
+          {error}
+        </div>
+      )}
     </Modal>
   );
 }
 
 /* --------------------------------------------------------- copy to elsewhere */
 
-function CopySnapshots({ snap, datasets, onClose, onStarted }: {
+function CopySnapshots({
+  snap,
+  datasets,
+  onClose,
+  onStarted,
+}: {
   snap: Snapshot;
   datasets: Dataset[];
   onClose: () => void;
@@ -350,8 +439,14 @@ function CopySnapshots({ snap, datasets, onClose, onStarted }: {
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="btn primary" disabled={busy || !pool || !name.trim()} onClick={() => void submit(undefined as void)}>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className="btn primary"
+            disabled={busy || !pool || !name.trim()}
+            onClick={() => void submit(undefined as void)}
+          >
             {busy ? "Starting…" : "Copy"}
           </button>
         </>
@@ -364,7 +459,11 @@ function CopySnapshots({ snap, datasets, onClose, onStarted }: {
       <div className="row">
         <Field label="Destination pool">
           <Select value={pool} onChange={(e) => setPool(e.target.value)}>
-            {pools.map((p) => <option key={p} value={p}>{p}</option>)}
+            {pools.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
           </Select>
         </Field>
         <Field label="Dataset there" hint="Created if it does not exist.">
@@ -381,7 +480,11 @@ function CopySnapshots({ snap, datasets, onClose, onStarted }: {
           : " A second pool means the snapshots outlive the first one."}
       </p>
 
-      {error && <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>{error}</div>}
+      {error && (
+        <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>
+          {error}
+        </div>
+      )}
     </Modal>
   );
 }
@@ -434,8 +537,16 @@ const UNITS = ["HOUR", "DAY", "WEEK", "MONTH", "YEAR"] as const;
 const PRESETS: Array<{ id: string; label: string; schedule: Task["schedule"] }> = [
   { id: "hourly", label: "Every hour", schedule: { minute: "00", hour: "*", dom: "*", month: "*", dow: "*" } },
   { id: "daily", label: "Every day at 02:00", schedule: { minute: "00", hour: "2", dom: "*", month: "*", dow: "*" } },
-  { id: "weekly", label: "Every Sunday at 03:00", schedule: { minute: "00", hour: "3", dom: "*", month: "*", dow: "0" } },
-  { id: "monthly", label: "First of the month at 03:00", schedule: { minute: "00", hour: "3", dom: "1", month: "*", dow: "*" } },
+  {
+    id: "weekly",
+    label: "Every Sunday at 03:00",
+    schedule: { minute: "00", hour: "3", dom: "*", month: "*", dow: "0" },
+  },
+  {
+    id: "monthly",
+    label: "First of the month at 03:00",
+    schedule: { minute: "00", hour: "3", dom: "1", month: "*", dow: "*" },
+  },
 ];
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -480,7 +591,9 @@ function ScheduleList() {
         <div>
           <h1>Snapshot schedules</h1>
           <div className="page-sub">
-            {data ? `${data.length} schedule${data.length === 1 ? "" : "s"} · the NAS takes these and expires them on its own` : " "}
+            {data
+              ? `${data.length} schedule${data.length === 1 ? "" : "s"} · the NAS takes these and expires them on its own`
+              : " "}
           </div>
         </div>
         <button className="btn primary" style={{ flex: "none", padding: "8px 16px" }} onClick={() => setEditing("new")}>
@@ -490,7 +603,11 @@ function ScheduleList() {
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
       {failed && <ErrorBanner>{failed}</ErrorBanner>}
-      {note && <div className="job done" style={{ marginBottom: 14 }}><span className="job-label">{note}</span></div>}
+      {note && (
+        <div className="job done" style={{ marginBottom: 14 }}>
+          <span className="job-label">{note}</span>
+        </div>
+      )}
 
       <Card>
         {loading && !data ? (
@@ -513,11 +630,20 @@ function ScheduleList() {
                   <tr key={t.id}>
                     <td className="mono" style={{ fontSize: 12.5 }}>
                       {t.dataset}
-                      {t.recursive && <span className="pill mute" style={{ marginLeft: 8 }}>+ children</span>}
+                      {t.recursive && (
+                        <span className="pill mute" style={{ marginLeft: 8 }}>
+                          + children
+                        </span>
+                      )}
                     </td>
                     <td style={{ color: "var(--muted)" }}>{describe(t.schedule)}</td>
-                    <td>{t.lifetimeValue} {t.lifetimeUnit.toLowerCase()}{t.lifetimeValue === 1 ? "" : "s"}</td>
-                    <td className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>{t.namingSchema}</td>
+                    <td>
+                      {t.lifetimeValue} {t.lifetimeUnit.toLowerCase()}
+                      {t.lifetimeValue === 1 ? "" : "s"}
+                    </td>
+                    <td className="mono" style={{ fontSize: 12, color: "var(--muted)" }}>
+                      {t.namingSchema}
+                    </td>
                     <td>
                       <span className={`pill ${t.enabled ? "ok" : "mute"}`}>{t.enabled ? "enabled" : "paused"}</span>
                     </td>
@@ -526,8 +652,12 @@ function ScheduleList() {
                         <button className="btn" disabled={busy === t.id} onClick={() => void runNow(t)}>
                           {busy === t.id ? "…" : "Run now"}
                         </button>
-                        <button className="btn" onClick={() => setEditing(t)}>Edit</button>
-                        <button className="btn danger" onClick={() => setRemoving(t)}>Delete</button>
+                        <button className="btn" onClick={() => setEditing(t)}>
+                          Edit
+                        </button>
+                        <button className="btn danger" onClick={() => setRemoving(t)}>
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -536,9 +666,7 @@ function ScheduleList() {
             </table>
           </div>
         ) : (
-          <Empty>
-            No schedules. One hourly schedule with a week of retention is what most homelabs actually want.
-          </Empty>
+          <Empty>No schedules. One hourly schedule with a week of retention is what most homelabs actually want.</Empty>
         )}
       </Card>
 
@@ -547,7 +675,10 @@ function ScheduleList() {
           task={editing === "new" ? null : editing}
           datasets={datasets ?? []}
           onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); void reload(); }}
+          onSaved={() => {
+            setEditing(null);
+            void reload();
+          }}
         />
       )}
 
@@ -573,7 +704,12 @@ function ScheduleList() {
   );
 }
 
-function EditSchedule({ task, datasets, onClose, onSaved }: {
+function EditSchedule({
+  task,
+  datasets,
+  onClose,
+  onSaved,
+}: {
   task: Task | null;
   datasets: Dataset[];
   onClose: () => void;
@@ -590,14 +726,20 @@ function EditSchedule({ task, datasets, onClose, onSaved }: {
     const match = PRESETS.find((p) => JSON.stringify(p.schedule) === JSON.stringify(task.schedule));
     return match?.id ?? "custom";
   });
-  const [cron, setCron] = useState<Task["schedule"]>(
-    task?.schedule ?? PRESETS[1].schedule,
-  );
+  const [cron, setCron] = useState<Task["schedule"]>(task?.schedule ?? PRESETS[1].schedule);
 
   const schedule = preset === "custom" ? cron : PRESETS.find((p) => p.id === preset)!.schedule;
 
   const { busy, error, submit } = useSubmit(async () => {
-    const body = { dataset, recursive, enabled, namingSchema, lifetimeValue: Number(lifetimeValue), lifetimeUnit, schedule };
+    const body = {
+      dataset,
+      recursive,
+      enabled,
+      namingSchema,
+      lifetimeValue: Number(lifetimeValue),
+      lifetimeUnit,
+      schedule,
+    };
     if (task) await put(`/api/snapshot-tasks?id=${task.id}`, body);
     else await post("/api/snapshot-tasks", body);
     onSaved();
@@ -610,7 +752,9 @@ function EditSchedule({ task, datasets, onClose, onSaved }: {
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
           <button className="btn primary" disabled={busy || !dataset} onClick={() => void submit(undefined as void)}>
             {busy ? "Saving…" : task ? "Save" : "Create"}
           </button>
@@ -619,13 +763,21 @@ function EditSchedule({ task, datasets, onClose, onSaved }: {
     >
       <Field label="Dataset" hint="Snapshots are kept inside this dataset, on its own pool.">
         <Select value={dataset} onChange={(e) => setDataset(e.target.value)} disabled={!!task}>
-          {datasets.map((d) => <option key={d.id} value={d.id}>{d.id}</option>)}
+          {datasets.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.id}
+            </option>
+          ))}
         </Select>
       </Field>
 
       <Field label="How often">
         <Select value={preset} onChange={(e) => setPreset(e.target.value)}>
-          {PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+          {PRESETS.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
           <option value="custom">Custom…</option>
         </Select>
       </Field>
@@ -646,12 +798,19 @@ function EditSchedule({ task, datasets, onClose, onSaved }: {
         </Field>
         <Field label="&nbsp;">
           <Select value={lifetimeUnit} onChange={(e) => setLifetimeUnit(e.target.value)}>
-            {UNITS.map((u) => <option key={u} value={u}>{u.toLowerCase()}s</option>)}
+            {UNITS.map((u) => (
+              <option key={u} value={u}>
+                {u.toLowerCase()}s
+              </option>
+            ))}
           </Select>
         </Field>
       </div>
 
-      <Field label="Naming" hint="strftime, so every run gets its own name. Retention only touches names matching this.">
+      <Field
+        label="Naming"
+        hint="strftime, so every run gets its own name. Retention only touches names matching this."
+      >
         <Input value={namingSchema} onChange={(e) => setNamingSchema(e.target.value)} />
       </Field>
 
@@ -665,7 +824,11 @@ function EditSchedule({ task, datasets, onClose, onSaved }: {
         {Number(lifetimeValue) === 1 ? "" : "s"} of history.
       </p>
 
-      {error && <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>{error}</div>}
+      {error && (
+        <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>
+          {error}
+        </div>
+      )}
     </Modal>
   );
 }

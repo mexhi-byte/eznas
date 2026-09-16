@@ -29,14 +29,30 @@ jobs:
 
       - run: npm ci
 
+      # Style and behaviour lints first: they are the fastest to fail and the
+      # cheapest to fix, and a red run should say the simplest true thing.
+      - name: Formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck the browser build
         run: npx tsc -p tsconfig.json --noEmit
 
       - name: Typecheck the server build
         run: npx tsc -p tsconfig.server.json --noEmit
 
-      - name: Test
-        run: npm test
+      - name: Test, with coverage
+        run: npm run test:coverage
+
+      # The list of files nothing exercises, kept for a fortnight so a
+      # reviewer can open it from the run rather than reproducing it locally.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          retention-days: 14
 
       # Last, because a build that fails after everything else passed is a
       # bundling problem rather than a code one, and the distinction matters

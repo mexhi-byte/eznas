@@ -65,19 +65,32 @@ countdown, SMTP, and restart or shutdown with the hostname typed back.
 
 ## Install
 
-**On the NAS itself**, which is what most people want. This installs under
-`/mnt/<pool>/eznas` so it survives a TrueNAS update, generates a `SESSION_SECRET` once, and runs in
-a container:
+Three ways. The first needs no shell at all.
+
+**As a TrueNAS app**, from the NAS's own interface. Apps → Discover → Custom App → _Install via
+YAML_, paste [`deploy/truenas-custom-app.yaml`](deploy/truenas-custom-app.yaml), change the one
+line marked `CHANGE THIS` to a folder on one of your pools, save. TrueNAS pulls the image, starts
+it, restarts it with the machine, and lists it under Apps. Open `http://<nas>:8080`: the console has
+created an `admin` account and printed its password once in the app's log (Apps → EzNAS → Logs),
+and will ask you to replace it before anything else. Updates are Apps → EzNAS → Update.
+
+**From a shell on the NAS**, which does the same with Docker directly and keeps everything under
+`/mnt/<pool>/eznas` so it survives a TrueNAS update:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/mexhi-byte/eznas/main/install.sh | sudo bash -s -- --pool tank
 ```
 
 Replace `tank` with the pool to install into; leave `--pool` off and the script lists your pools and
-asks. It needs `bash` and root, because it talks to Docker and writes under `/mnt`. Re-running it
-updates an existing install in place, and `--help` lists the other options.
+asks. It pulls the published image — nothing is built on the NAS — and prints the first password.
+Re-running it updates to the newest release with your data kept. `--ref 0.6.0` installs a
+particular version, `--build` builds from source instead of pulling, and `--help` lists the rest.
 
-**From source**, for development or if you would rather not pipe a script into a shell:
+The image is `ghcr.io/mexhi-byte/eznas`, built for amd64 and arm64 on every release, tagged
+`0.6.0`, `0.6` and `latest`. It runs as `PUID`:`PGID` (1000:1000 unless set) and fixes the data
+folder's ownership itself on start, so there is nothing to `chown`.
+
+**From source**, for development or if you would rather not run a container:
 
 ```bash
 git clone https://github.com/mexhi-byte/eznas.git
@@ -158,8 +171,16 @@ that costs and how it is contained.
 
 ## Updating
 
-Settings → App updates checks this repository's releases, shows what changed, and can install one in
-place. It saves the current build as `dist.prev` first and never touches `data/`.
+Settings → App updates checks this repository's releases and shows what changed. What it can do
+about it depends on how the console was installed:
+
+- **As a TrueNAS app or through `install.sh`**: it runs from an image, which cannot replace itself
+  from the inside. Update from Apps → EzNAS → Update, or re-run the installer. Both pull the new
+  image; `data/` is a mounted folder and is untouched.
+- **From a git checkout**: it can update itself in place. The current build is saved as `dist.prev`
+  first, and `data/` is never touched.
+- **From a release tarball**: each release attaches `eznas-vX.Y.Z.tar.gz` with `dist/` and
+  `package.json`. Replace those and restart.
 
 ## Layout
 
@@ -176,8 +197,15 @@ server/     Node API. truenas.ts is the JSON-RPC client; index.ts is what is lef
 web/        React front end, no framework beyond it.
 test/       vitest. Pure logic directly, routes against a NAS that records
             what it was asked to do.
+deploy/     The compose file for TrueNAS's Custom App button.
+scripts/    release-notes.sh, which turns a changelog section into a release.
 data/       Runtime state. Not in git, and not touched by updates.
 ```
+
+Releases are made by pushing a `v*` tag that matches `package.json`. The release workflow builds
+once, publishes the image for both architectures, attaches the tarball, and writes the release notes
+from the changelog section. If the section is missing, the release fails rather than going out
+blank.
 
 A route module must never import from `server/index.ts`: it starts the server at module scope, so
 importing it from something it imports resolves to a half-initialised object. Shared helpers live in

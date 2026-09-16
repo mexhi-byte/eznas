@@ -22,13 +22,11 @@ export function AppearanceTab({ theme, onTheme }: { theme: string; onTheme: (t: 
     <Card title="Theme">
       <div className="theme-grid">
         {THEMES.map((t) => (
-          <button
-            key={t.id}
-            className={`theme-card ${theme === t.id ? "on" : ""}`}
-            onClick={() => onTheme(t.id)}
-          >
+          <button key={t.id} className={`theme-card ${theme === t.id ? "on" : ""}`} onClick={() => onTheme(t.id)}>
             <div className="theme-swatch">
-              {t.colors.map((c) => <i key={c} style={{ background: c }} />)}
+              {t.colors.map((c) => (
+                <i key={c} style={{ background: c }} />
+              ))}
             </div>
             <span className="theme-name">
               {t.name}
@@ -54,8 +52,9 @@ export function AppearanceTab({ theme, onTheme }: { theme: string; onTheme: (t: 
  * demanded a code from everybody, out of an authenticator only you hold.
  */
 export function SecurityTab({ me }: { me: { username: string; role: "admin" | "viewer" } }) {
-  const { data: everyone, reload: reloadAccounts } =
-    useResource<Array<{ username: string; mfa: boolean; recoveryRemaining: number }>>("/api/accounts", 0);
+  const { data: everyone, reload: reloadAccounts } = useResource<
+    Array<{ username: string; mfa: boolean; recoveryRemaining: number }>
+  >("/api/accounts", 0);
   const mine = everyone?.find((a) => a.username === me.username);
   const mfa = { enabled: mine?.mfa ?? false, recoveryRemaining: mine?.recoveryRemaining ?? 0 };
   const onChanged = () => void reloadAccounts();
@@ -103,9 +102,13 @@ export function SecurityTab({ me }: { me: { username: string; role: "admin" | "v
               : "Sign-in needs only the password. Adding a second factor means a leaked password is not enough on its own."}
           </span>
           {mfa.enabled ? (
-            <button className="btn danger" style={{ flex: "none" }} onClick={() => setDisabling(true)}>Turn off</button>
+            <button className="btn danger" style={{ flex: "none" }} onClick={() => setDisabling(true)}>
+              Turn off
+            </button>
           ) : (
-            <button className="btn primary" style={{ flex: "none" }} onClick={() => void begin()}>Set up</button>
+            <button className="btn primary" style={{ flex: "none" }} onClick={() => void begin()}>
+              Set up
+            </button>
           )}
         </div>
         {error && !enrolling && <ErrorBanner>{error}</ErrorBanner>}
@@ -115,10 +118,15 @@ export function SecurityTab({ me }: { me: { username: string; role: "admin" | "v
         <Modal
           title="Set up two-factor authentication"
           subtitle="Scan this with Google Authenticator, 1Password, Aegis or similar."
-          onClose={() => { setEnrolling(null); setError(null); }}
+          onClose={() => {
+            setEnrolling(null);
+            setError(null);
+          }}
           footer={
             <>
-              <button className="btn" onClick={() => setEnrolling(null)} disabled={busy}>Cancel</button>
+              <button className="btn" onClick={() => setEnrolling(null)} disabled={busy}>
+                Cancel
+              </button>
               <button className="btn primary" disabled={busy || code.length < 6} onClick={() => void confirm()}>
                 {busy ? "Checking…" : "Confirm"}
               </button>
@@ -149,10 +157,16 @@ export function SecurityTab({ me }: { me: { username: string; role: "admin" | "v
           title="Save your recovery codes"
           subtitle="Shown once. Each works a single time, for when the phone is not to hand."
           onClose={() => setRecovery(null)}
-          footer={<button className="btn primary" onClick={() => setRecovery(null)}>I have saved them</button>}
+          footer={
+            <button className="btn primary" onClick={() => setRecovery(null)}>
+              I have saved them
+            </button>
+          }
         >
           <div className="mono" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 13 }}>
-            {recovery.map((c) => <span key={c}>{c}</span>)}
+            {recovery.map((c) => (
+              <span key={c}>{c}</span>
+            ))}
           </div>
           <button
             className="btn"
@@ -170,7 +184,10 @@ export function SecurityTab({ me }: { me: { username: string; role: "admin" | "v
           name="off"
           verb="Turn"
           onCancel={() => setDisabling(false)}
-          onConfirm={async () => { await post("/api/mfa/disable", { code }); onChanged(); }}
+          onConfirm={async () => {
+            await post("/api/mfa/disable", { code });
+            onChanged();
+          }}
           extra={
             <Field label="Current code or a recovery code">
               <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="000000" />
@@ -205,7 +222,16 @@ function QrCode({ text }: { text: string }) {
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       if (!data[y * size + x]) continue;
-      rects.push(<rect key={`${x}-${y}`} x={(x + quiet) * scale} y={(y + quiet) * scale} width={scale} height={scale} fill="#000" />);
+      rects.push(
+        <rect
+          key={`${x}-${y}`}
+          x={(x + quiet) * scale}
+          y={(y + quiet) * scale}
+          width={scale}
+          height={scale}
+          fill="#000"
+        />,
+      );
     }
   }
 
@@ -220,10 +246,17 @@ function QrCode({ text }: { text: string }) {
 /* ---------------------------------------------------------- notifications */
 
 export interface WatchConfig {
-  poolHealth: boolean; capacity: boolean; capacityPercent: number;
-  temperature: boolean; temperatureC: number;
-  zfsErrors: boolean; apps: boolean; scrubs: boolean; updates: boolean;
-  consoleUpdates: boolean; reachability: boolean;
+  poolHealth: boolean;
+  capacity: boolean;
+  capacityPercent: number;
+  temperature: boolean;
+  temperatureC: number;
+  zfsErrors: boolean;
+  apps: boolean;
+  scrubs: boolean;
+  updates: boolean;
+  consoleUpdates: boolean;
+  reachability: boolean;
 }
 
 export type WebhookKind = "discord" | "telegram" | "ntfy" | "generic";
@@ -243,14 +276,25 @@ const KINDS: Array<{ id: WebhookKind; label: string; hint: string }> = [
   { id: "discord", label: "Discord", hint: "Server Settings → Integrations → Webhooks → Copy Webhook URL." },
   { id: "telegram", label: "Telegram", hint: "Make a bot with @BotFather, then message it once and use your chat id." },
   { id: "ntfy", label: "ntfy", hint: "Pick any topic name and subscribe to it in the ntfy app. No account needed." },
-  { id: "generic", label: "Anything else", hint: "A plain JSON POST — Slack, Home Assistant, Gotify, your own script." },
+  {
+    id: "generic",
+    label: "Anything else",
+    hint: "A plain JSON POST — Slack, Home Assistant, Gotify, your own script.",
+  },
 ];
 
-export function NotificationsTab({ notify, onSaved }: {
+export function NotificationsTab({
+  notify,
+  onSaved,
+}: {
   notify: {
-    watchDisks: boolean; email: boolean; recipients: string[];
-    watch: WatchConfig; emailLevel: "info" | "warn" | "bad";
-    webhooks: Webhook[]; greetName: string;
+    watchDisks: boolean;
+    email: boolean;
+    recipients: string[];
+    watch: WatchConfig;
+    emailLevel: "info" | "warn" | "bad";
+    webhooks: Webhook[];
+    greetName: string;
   };
   onSaved: () => void;
 }) {
@@ -286,7 +330,10 @@ export function NotificationsTab({ notify, onSaved }: {
         email,
         emailLevel,
         watch,
-        recipients: recipients.split(",").map((s) => s.trim()).filter(Boolean),
+        recipients: recipients
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
         webhooks: hooks,
         greetName,
       },
@@ -297,7 +344,12 @@ export function NotificationsTab({ notify, onSaved }: {
   async function sendTest() {
     setTesting("sending");
     try {
-      await post("/api/mail/test", { to: recipients.split(",").map((s) => s.trim()).filter(Boolean) });
+      await post("/api/mail/test", {
+        to: recipients
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+      });
       setTesting("Sent. If it does not arrive, check the SMTP settings under Email.");
     } catch (e) {
       setTesting(e instanceof Error ? e.message : String(e));
@@ -315,11 +367,27 @@ export function NotificationsTab({ notify, onSaved }: {
         <div className="grid" style={{ gap: 12, marginTop: 14 }}>
           <Toggle checked={watchDisks} onChange={setWatchDisks} label="Disks appearing or disappearing" />
           <Toggle checked={watch.poolHealth} onChange={(v) => set("poolHealth", v)} label="A pool becoming unhealthy" />
-          <Toggle checked={watch.zfsErrors} onChange={(v) => set("zfsErrors", v)} label="Read, write or checksum errors on a drive" />
+          <Toggle
+            checked={watch.zfsErrors}
+            onChange={(v) => set("zfsErrors", v)}
+            label="Read, write or checksum errors on a drive"
+          />
           <Toggle checked={watch.apps} onChange={(v) => set("apps", v)} label="An app stopping on its own" />
-          <Toggle checked={watch.scrubs} onChange={(v) => set("scrubs", v)} label="A scrub finishing, and what it found" />
-          <Toggle checked={watch.updates} onChange={(v) => set("updates", v)} label="TrueNAS having an update available" />
-          <Toggle checked={watch.consoleUpdates} onChange={(v) => set("consoleUpdates", v)} label="A new version of this console being released" />
+          <Toggle
+            checked={watch.scrubs}
+            onChange={(v) => set("scrubs", v)}
+            label="A scrub finishing, and what it found"
+          />
+          <Toggle
+            checked={watch.updates}
+            onChange={(v) => set("updates", v)}
+            label="TrueNAS having an update available"
+          />
+          <Toggle
+            checked={watch.consoleUpdates}
+            onChange={(v) => set("consoleUpdates", v)}
+            label="A new version of this console being released"
+          />
           <Toggle checked={watch.reachability} onChange={(v) => set("reachability", v)} label="The NAS not answering" />
 
           <div>
@@ -328,11 +396,15 @@ export function NotificationsTab({ notify, onSaved }: {
               <Field label="Tell me at" hint="ZFS slows down noticeably past about 90%.">
                 <div className="row">
                   <Input
-                    type="number" min={50} max={99}
+                    type="number"
+                    min={50}
+                    max={99}
                     value={String(watch.capacityPercent)}
                     onChange={(e) => set("capacityPercent", Number(e.target.value))}
                   />
-                  <span className="field-hint" style={{ alignSelf: "center" }}>% full</span>
+                  <span className="field-hint" style={{ alignSelf: "center" }}>
+                    % full
+                  </span>
                 </div>
               </Field>
             )}
@@ -344,11 +416,15 @@ export function NotificationsTab({ notify, onSaved }: {
               <Field label="Tell me at" hint="Spinning drives are happy under about 40°C and worrying past 50.">
                 <div className="row">
                   <Input
-                    type="number" min={30} max={80}
+                    type="number"
+                    min={30}
+                    max={80}
                     value={String(watch.temperatureC)}
                     onChange={(e) => set("temperatureC", Number(e.target.value))}
                   />
-                  <span className="field-hint" style={{ alignSelf: "center" }}>°C</span>
+                  <span className="field-hint" style={{ alignSelf: "center" }}>
+                    °C
+                  </span>
                 </div>
               </Field>
             )}
@@ -364,7 +440,12 @@ export function NotificationsTab({ notify, onSaved }: {
           </p>
 
           <Field label="Call me" hint="Optional. Puts your name in the message so it reads like a person wrote it.">
-            <Input value={greetName} onChange={(e) => setGreetName(e.target.value)} placeholder="Mexhit" style={{ maxWidth: 240 }} />
+            <Input
+              value={greetName}
+              onChange={(e) => setGreetName(e.target.value)}
+              placeholder="Mexhit"
+              style={{ maxWidth: 240 }}
+            />
           </Field>
 
           <div className="grid" style={{ gap: 12, marginTop: 6 }}>
@@ -374,7 +455,11 @@ export function NotificationsTab({ notify, onSaved }: {
                 <div key={h.id} className="hook-card">
                   <div className="hook-top">
                     <Select value={h.kind} onChange={(e) => patchHook(i, { kind: e.target.value as WebhookKind })}>
-                      {KINDS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+                      {KINDS.map((k) => (
+                        <option key={k.id} value={k.id}>
+                          {k.label}
+                        </option>
+                      ))}
                     </Select>
                     <Select value={h.level} onChange={(e) => patchHook(i, { level: e.target.value as "warn" })}>
                       <option value="bad">Only problems</option>
@@ -382,8 +467,12 @@ export function NotificationsTab({ notify, onSaved }: {
                       <option value="info">Everything</option>
                     </Select>
                     <Toggle checked={h.enabled} onChange={(v) => patchHook(i, { enabled: v })} label="On" />
-                    <button className="btn" onClick={() => void testHook(h)}>Test</button>
-                    <button className="btn danger" onClick={() => setHooks(hooks.filter((_, j) => j !== i))}>Remove</button>
+                    <button className="btn" onClick={() => void testHook(h)}>
+                      Test
+                    </button>
+                    <button className="btn danger" onClick={() => setHooks(hooks.filter((_, j) => j !== i))}>
+                      Remove
+                    </button>
                   </div>
 
                   {h.kind === "telegram" ? (
@@ -397,21 +486,37 @@ export function NotificationsTab({ notify, onSaved }: {
                         />
                       </Field>
                       <Field label="Chat id">
-                        <Input value={h.chatId ?? ""} onChange={(e) => patchHook(i, { chatId: e.target.value })} placeholder="123456789" />
+                        <Input
+                          value={h.chatId ?? ""}
+                          onChange={(e) => patchHook(i, { chatId: e.target.value })}
+                          placeholder="123456789"
+                        />
                       </Field>
                     </div>
                   ) : h.kind === "ntfy" ? (
                     <div className="row">
                       <Field label="Server">
-                        <Input value={h.url} onChange={(e) => patchHook(i, { url: e.target.value })} placeholder="https://ntfy.sh" />
+                        <Input
+                          value={h.url}
+                          onChange={(e) => patchHook(i, { url: e.target.value })}
+                          placeholder="https://ntfy.sh"
+                        />
                       </Field>
                       <Field label="Topic">
-                        <Input value={h.topic ?? ""} onChange={(e) => patchHook(i, { topic: e.target.value })} placeholder="my-nas-alerts" />
+                        <Input
+                          value={h.topic ?? ""}
+                          onChange={(e) => patchHook(i, { topic: e.target.value })}
+                          placeholder="my-nas-alerts"
+                        />
                       </Field>
                     </div>
                   ) : (
                     <Field label="Webhook URL">
-                      <Input value={h.url} onChange={(e) => patchHook(i, { url: e.target.value })} placeholder="https://…" />
+                      <Input
+                        value={h.url}
+                        onChange={(e) => patchHook(i, { url: e.target.value })}
+                        placeholder="https://…"
+                      />
                     </Field>
                   )}
 
@@ -428,13 +533,16 @@ export function NotificationsTab({ notify, onSaved }: {
                 className="btn"
                 style={{ flex: "none" }}
                 onClick={() =>
-                  setHooks([...hooks, {
-                    id: `new-${Date.now()}-${k.id}`,
-                    kind: k.id,
-                    url: k.id === "ntfy" ? "https://ntfy.sh" : "",
-                    enabled: true,
-                    level: "warn",
-                  }])
+                  setHooks([
+                    ...hooks,
+                    {
+                      id: `new-${Date.now()}-${k.id}`,
+                      kind: k.id,
+                      url: k.id === "ntfy" ? "https://ntfy.sh" : "",
+                      enabled: true,
+                      level: "warn",
+                    },
+                  ])
                 }
               >
                 + {k.label}
@@ -463,7 +571,10 @@ export function NotificationsTab({ notify, onSaved }: {
 
           {email && (
             <>
-              <Field label="Email me about" hint="Everything still shows in the bell — this only limits what is mailed.">
+              <Field
+                label="Email me about"
+                hint="Everything still shows in the bell — this only limits what is mailed."
+              >
                 <Select value={emailLevel} onChange={(e) => setEmailLevel(e.target.value as "info")}>
                   <option value="bad">Only problems</option>
                   <option value="warn">Problems and warnings</option>
@@ -472,19 +583,37 @@ export function NotificationsTab({ notify, onSaved }: {
               </Field>
 
               <Field label="Recipients" hint="Comma separated.">
-                <Input value={recipients} onChange={(e) => setRecipients(e.target.value)} placeholder="you@example.com" />
+                <Input
+                  value={recipients}
+                  onChange={(e) => setRecipients(e.target.value)}
+                  placeholder="you@example.com"
+                />
               </Field>
             </>
           )}
 
-          {testing && <div className={testing === "sending" ? "job" : "job done"}><span className="job-label">{testing === "sending" ? "Sending…" : testing}</span></div>}
+          {testing && (
+            <div className={testing === "sending" ? "job" : "job done"}>
+              <span className="job-label">{testing === "sending" ? "Sending…" : testing}</span>
+            </div>
+          )}
           {error && <ErrorBanner>{error}</ErrorBanner>}
 
           <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-            <button className="btn primary" style={{ flex: "none" }} disabled={busy} onClick={() => void submit(undefined as void)}>
+            <button
+              className="btn primary"
+              style={{ flex: "none" }}
+              disabled={busy}
+              onClick={() => void submit(undefined as void)}
+            >
               {busy ? "Saving…" : "Save"}
             </button>
-            <button className="btn" style={{ flex: "none" }} disabled={!recipients.trim()} onClick={() => void sendTest()}>
+            <button
+              className="btn"
+              style={{ flex: "none" }}
+              disabled={!recipients.trim()}
+              onClick={() => void sendTest()}
+            >
               Send a test
             </button>
           </div>
@@ -497,8 +626,14 @@ export function NotificationsTab({ notify, onSaved }: {
 /* ------------------------------------------------------------------ email */
 
 interface MailCfg {
-  fromemail: string; fromname: string; outgoingserver: string;
-  port: number; security: string; smtp: boolean; user: string | null; hasPassword: boolean;
+  fromemail: string;
+  fromname: string;
+  outgoingserver: string;
+  port: number;
+  security: string;
+  smtp: boolean;
+  user: string | null;
+  hasPassword: boolean;
 }
 
 export function EmailTab() {
@@ -506,7 +641,11 @@ export function EmailTab() {
   const [v, setV] = useState<Partial<MailCfg> & { pass?: string }>({});
   const merged = { ...(data ?? {}), ...v } as MailCfg & { pass?: string };
 
-  const { busy, error: saveErr, submit } = useSubmit(async () => {
+  const {
+    busy,
+    error: saveErr,
+    submit,
+  } = useSubmit(async () => {
     await put("/api/mail", merged);
     setV({});
     await reload();
@@ -522,13 +661,21 @@ export function EmailTab() {
       {error && <ErrorBanner>{error}</ErrorBanner>}
       <div className="grid" style={{ gap: 13 }}>
         <div className="row">
-          <Field label="From address"><Input value={merged.fromemail ?? ""} onChange={set("fromemail")} placeholder="truenas@example.com" /></Field>
-          <Field label="From name"><Input value={merged.fromname ?? ""} onChange={set("fromname")} placeholder="TrueNAS" /></Field>
+          <Field label="From address">
+            <Input value={merged.fromemail ?? ""} onChange={set("fromemail")} placeholder="truenas@example.com" />
+          </Field>
+          <Field label="From name">
+            <Input value={merged.fromname ?? ""} onChange={set("fromname")} placeholder="TrueNAS" />
+          </Field>
         </div>
 
         <div className="row">
-          <Field label="Server"><Input value={merged.outgoingserver ?? ""} onChange={set("outgoingserver")} placeholder="smtp.gmail.com" /></Field>
-          <Field label="Port"><Input type="number" value={merged.port ?? 587} onChange={set("port")} /></Field>
+          <Field label="Server">
+            <Input value={merged.outgoingserver ?? ""} onChange={set("outgoingserver")} placeholder="smtp.gmail.com" />
+          </Field>
+          <Field label="Port">
+            <Input type="number" value={merged.port ?? 587} onChange={set("port")} />
+          </Field>
         </div>
 
         <Field label="Security" hint="STARTTLS on 587 is the usual choice; SSL on 465 for older servers.">
@@ -539,22 +686,38 @@ export function EmailTab() {
           </Select>
         </Field>
 
-        <Toggle checked={merged.smtp ?? false} onChange={(b) => setV((p) => ({ ...p, smtp: b }))} label="The server requires a login" />
+        <Toggle
+          checked={merged.smtp ?? false}
+          onChange={(b) => setV((p) => ({ ...p, smtp: b }))}
+          label="The server requires a login"
+        />
 
         {merged.smtp && (
           <div className="row">
-            <Field label="Username"><Input value={merged.user ?? ""} onChange={set("user")} /></Field>
+            <Field label="Username">
+              <Input value={merged.user ?? ""} onChange={set("user")} />
+            </Field>
             <Field
               label={data?.hasPassword ? "Password (blank keeps the current one)" : "Password"}
               hint="For Gmail and similar this must be an app password, not the account password."
             >
-              <Input type="password" value={v.pass ?? ""} onChange={set("pass")} placeholder={data?.hasPassword ? "unchanged" : ""} />
+              <Input
+                type="password"
+                value={v.pass ?? ""}
+                onChange={set("pass")}
+                placeholder={data?.hasPassword ? "unchanged" : ""}
+              />
             </Field>
           </div>
         )}
 
         {saveErr && <ErrorBanner>{saveErr}</ErrorBanner>}
-        <button className="btn primary" style={{ flex: "none", alignSelf: "flex-start" }} disabled={busy} onClick={() => void submit(undefined as void)}>
+        <button
+          className="btn primary"
+          style={{ flex: "none", alignSelf: "flex-start" }}
+          disabled={busy}
+          onClick={() => void submit(undefined as void)}
+        >
           {busy ? "Saving…" : "Save"}
         </button>
       </div>
@@ -570,7 +733,12 @@ interface UpdateInfo {
   trains: Array<{ name: string; description: string }>;
   currentTrain: string;
   selectedTrain: string;
-  available: { status?: string; changes?: Array<{ new?: { version?: string } }>; release_notes_url?: string; error?: string } | null;
+  available: {
+    status?: string;
+    changes?: Array<{ new?: { version?: string } }>;
+    release_notes_url?: string;
+    error?: string;
+  } | null;
   bootEnvironments: Array<{ id: string; active: string; created: unknown }>;
 }
 
@@ -600,15 +768,22 @@ export function UpdatesTab() {
   return (
     <>
       {error && <ErrorBanner>{error}</ErrorBanner>}
-      {note && <div className="job done" style={{ marginBottom: 14 }}><span className="job-label">{note}</span></div>}
+      {note && (
+        <div className="job done" style={{ marginBottom: 14 }}>
+          <span className="job-label">{note}</span>
+        </div>
+      )}
 
       <div className="grid" style={{ gap: 14 }}>
         <Card title="Version">
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 220 }}>
-              <div className="stat-value" style={{ fontSize: 22 }}>{data?.currentVersion}</div>
+              <div className="stat-value" style={{ fontSize: 22 }}>
+                {data?.currentVersion}
+              </div>
               <div className="stat-foot">
-                {data?.productType === "COMMUNITY_EDITION" ? "Community Edition" : data?.productType} · train {data?.currentTrain}
+                {data?.productType === "COMMUNITY_EDITION" ? "Community Edition" : data?.productType} · train{" "}
+                {data?.currentTrain}
               </div>
             </div>
             {upToDate && <span className="pill ok">up to date</span>}
@@ -617,17 +792,27 @@ export function UpdatesTab() {
           </div>
 
           {data?.available?.error && (
-            <p className="modal-text" style={{ marginTop: 10 }}>{data.available.error}</p>
+            <p className="modal-text" style={{ marginTop: 10 }}>
+              {data.available.error}
+            </p>
           )}
 
           {newVersion && (
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-              <button className="btn" style={{ flex: "none" }} onClick={() => void download()}>Download only</button>
+              <button className="btn" style={{ flex: "none" }} onClick={() => void download()}>
+                Download only
+              </button>
               <button className="btn primary" style={{ flex: "none" }} onClick={() => setApplying(true)}>
                 Install {newVersion}
               </button>
               {data.available?.release_notes_url && (
-                <a className="btn" style={{ flex: "none", textAlign: "center" }} href={data.available.release_notes_url} target="_blank" rel="noreferrer">
+                <a
+                  className="btn"
+                  style={{ flex: "none", textAlign: "center" }}
+                  href={data.available.release_notes_url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   Release notes ↗
                 </a>
               )}
@@ -641,7 +826,11 @@ export function UpdatesTab() {
             hint="A train is a release series. Moving to a newer one is a major upgrade — read the release notes first, and expect a reboot."
           >
             <Select value={data?.selectedTrain ?? ""} onChange={(e) => void setTrain(e.target.value)}>
-              {data?.trains.map((t) => <option key={t.name} value={t.name}>{t.description}</option>)}
+              {data?.trains.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.description}
+                </option>
+              ))}
             </Select>
           </Field>
         </Card>
@@ -653,28 +842,47 @@ export function UpdatesTab() {
                 ? "Running Community Edition. An iXsystems licence key unlocks Enterprise features on supported hardware."
                 : `Licensed: ${data?.productType}.`}
             </span>
-            <button className="btn" style={{ flex: "none" }} onClick={() => setLicensing(true)}>Enter a licence key</button>
+            <button className="btn" style={{ flex: "none" }} onClick={() => setLicensing(true)}>
+              Enter a licence key
+            </button>
           </div>
         </Card>
 
         <Card title="Boot environments">
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Name</th><th>State</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>State</th>
+                </tr>
+              </thead>
               <tbody>
                 {data?.bootEnvironments.map((b) => (
                   <tr key={b.id}>
                     <td className="mono">{b.id}</td>
-                    <td>{String(b.active) === "true" || b.active === "NR" ? <span className="pill ok">active</span> : <span className="pill mute">standby</span>}</td>
+                    <td>
+                      {String(b.active) === "true" || b.active === "NR" ? (
+                        <span className="pill ok">active</span>
+                      ) : (
+                        <span className="pill mute">standby</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
-                {!data?.bootEnvironments.length && <tr><td colSpan={2}><Empty>None reported.</Empty></td></tr>}
+                {!data?.bootEnvironments.length && (
+                  <tr>
+                    <td colSpan={2}>
+                      <Empty>None reported.</Empty>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
           <p className="modal-text" style={{ marginTop: 10 }}>
-            An update creates a new boot environment, so a bad upgrade is undone by booting the previous one rather
-            than by reinstalling.
+            An update creates a new boot environment, so a bad upgrade is undone by booting the previous one rather than
+            by reinstalling.
           </p>
         </Card>
       </div>
@@ -686,25 +894,44 @@ export function UpdatesTab() {
           verb="Install"
           onCancel={() => setApplying(false)}
           onConfirm={async (confirm) => {
-            const { jobId } = await post<{ jobId: number }>("/api/update/apply", { confirm, version: newVersion, reboot: false });
+            const { jobId } = await post<{ jobId: number }>("/api/update/apply", {
+              confirm,
+              version: newVersion,
+              reboot: false,
+            });
             setJobs((j) => [...j, { id: jobId, label: `Installing ${newVersion}` }]);
           }}
           extra={
             <p className="modal-text" style={{ marginTop: 10 }}>
-              Every app and share on this NAS stops while it reboots. The update is staged into a new boot
-              environment, so the previous version stays bootable if something goes wrong.
+              Every app and share on this NAS stops while it reboots. The update is staged into a new boot environment,
+              so the previous version stays bootable if something goes wrong.
             </p>
           }
         />
       )}
 
-      {licensing && <LicenceForm onClose={() => setLicensing(false)} onSaved={() => { setLicensing(false); void reload(); }} />}
+      {licensing && (
+        <LicenceForm
+          onClose={() => setLicensing(false)}
+          onSaved={() => {
+            setLicensing(false);
+            void reload();
+          }}
+        />
+      )}
 
       {!!jobs.length && (
         <div className="job-tray">
           {jobs.map((j) => (
-            <JobProgress key={j.id} jobId={j.id} label={j.label}
-              onDone={() => { void reload(); setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 8000); }} />
+            <JobProgress
+              key={j.id}
+              jobId={j.id}
+              label={j.label}
+              onDone={() => {
+                void reload();
+                setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 8000);
+              }}
+            />
           ))}
         </div>
       )}
@@ -726,8 +953,14 @@ function LicenceForm({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="btn primary" disabled={busy || !license.trim()} onClick={() => void submit(undefined as void)}>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className="btn primary"
+            disabled={busy || !license.trim()}
+            onClick={() => void submit(undefined as void)}
+          >
             {busy ? "Applying…" : "Apply"}
           </button>
         </>
@@ -757,8 +990,12 @@ export type { Job };
 /* --------------------------------------------------------- updating itself */
 
 interface Release {
-  version: string; name: string; notes: string; url: string;
-  publishedAt: string | null; prerelease: boolean;
+  version: string;
+  name: string;
+  notes: string;
+  url: string;
+  publishedAt: string | null;
+  prerelease: boolean;
 }
 
 interface UpdateCheck {
@@ -821,15 +1058,24 @@ export function ConsoleUpdateTab() {
         {data && (
           <>
             <div className="kv">
-              <div><span>Running</span><b>v{data.current}</b></div>
-              <div><span>Newest published</span><b>{data.latest ? `v${data.latest.version}` : "none found"}</b></div>
+              <div>
+                <span>Running</span>
+                <b>v{data.current}</b>
+              </div>
+              <div>
+                <span>Newest published</span>
+                <b>{data.latest ? `v${data.latest.version}` : "none found"}</b>
+              </div>
             </div>
 
             {data.updateAvailable && data.latest ? (
               <>
                 <p className="modal-text" style={{ marginTop: 14 }}>
                   <strong>{data.latest.name}</strong> is available
-                  {data.latest.publishedAt ? `, published ${new Date(data.latest.publishedAt).toLocaleDateString()}` : ""}.
+                  {data.latest.publishedAt
+                    ? `, published ${new Date(data.latest.publishedAt).toLocaleDateString()}`
+                    : ""}
+                  .
                 </p>
                 {data.latest.notes && <pre className="release-notes">{data.latest.notes}</pre>}
                 <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
@@ -841,7 +1087,13 @@ export function ConsoleUpdateTab() {
                   >
                     {busy ? "Updating…" : `Update to v${data.latest.version}`}
                   </button>
-                  <a className="btn" style={{ flex: "none", textAlign: "center" }} href={data.latest.url} target="_blank" rel="noreferrer">
+                  <a
+                    className="btn"
+                    style={{ flex: "none", textAlign: "center" }}
+                    href={data.latest.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     Read the release ↗
                   </a>
                 </div>
@@ -853,7 +1105,9 @@ export function ConsoleUpdateTab() {
             )}
 
             {!data.canSelfUpdate && data.reason && (
-              <p className="modal-text" style={{ color: "var(--warn)" }}>{data.reason}</p>
+              <p className="modal-text" style={{ color: data.updateAvailable ? "var(--warn)" : "var(--muted)" }}>
+                {data.reason}
+              </p>
             )}
 
             <div style={{ marginTop: 12 }}>
@@ -864,7 +1118,11 @@ export function ConsoleUpdateTab() {
           </>
         )}
 
-        {log && <pre className="release-notes" style={{ marginTop: 14 }}>{log}</pre>}
+        {log && (
+          <pre className="release-notes" style={{ marginTop: 14 }}>
+            {log}
+          </pre>
+        )}
       </Card>
 
       {confirming && (
@@ -874,8 +1132,12 @@ export function ConsoleUpdateTab() {
           onClose={() => setConfirming(null)}
           footer={
             <>
-              <button className="btn" onClick={() => setConfirming(null)}>Cancel</button>
-              <button className="btn primary" onClick={() => void install(confirming.version)}>Update</button>
+              <button className="btn" onClick={() => setConfirming(null)}>
+                Cancel
+              </button>
+              <button className="btn primary" onClick={() => void install(confirming.version)}>
+                Update
+              </button>
             </>
           }
         >

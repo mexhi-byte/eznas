@@ -12,16 +12,37 @@ interface SmbShare {
   readOnly: boolean;
 }
 
-interface NfsShare { id: number; path: string; enabled: boolean; comment?: string; networks?: string[]; hosts?: string[] }
+interface NfsShare {
+  id: number;
+  path: string;
+  enabled: boolean;
+  comment?: string;
+  networks?: string[];
+  hosts?: string[];
+}
 
-interface Shares { smb: SmbShare[]; nfs: NfsShare[] }
+interface Shares {
+  smb: SmbShare[];
+  nfs: NfsShare[];
+}
 
-interface Dataset { id: string; mountpoint: string; type: string }
+interface Dataset {
+  id: string;
+  mountpoint: string;
+  type: string;
+}
 
-interface Who { users: Array<{ uid: number; username: string }>; groups: Array<{ gid: number; group: string }> }
+interface Who {
+  users: Array<{ uid: number; username: string }>;
+  groups: Array<{ gid: number; group: string }>;
+}
 
 type Level = "read" | "write" | "full";
-interface Grant { kind: "user" | "group"; id: number; level: Level }
+interface Grant {
+  kind: "user" | "group";
+  id: number;
+  level: Level;
+}
 
 export function SharesPage() {
   const { data, error, loading, reload } = useResource<Shares>("/api/shares", 60_000);
@@ -37,7 +58,9 @@ export function SharesPage() {
         <div>
           <h1>Shared folders</h1>
           <div className="page-sub">
-            {data ? `${data.smb.length} on the network · ${data.nfs.length} NFS export${data.nfs.length === 1 ? "" : "s"}` : " "}
+            {data
+              ? `${data.smb.length} on the network · ${data.nfs.length} NFS export${data.nfs.length === 1 ? "" : "s"}`
+              : " "}
           </div>
         </div>
         <button className="btn primary" style={{ flex: "none", padding: "8px 16px" }} onClick={() => setCreating(true)}>
@@ -53,23 +76,37 @@ export function SharesPage() {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Name</th><th>Folder</th><th>Access</th><th>State</th><th style={{ width: 210 }} /></tr>
+                <tr>
+                  <th>Name</th>
+                  <th>Folder</th>
+                  <th>Access</th>
+                  <th>State</th>
+                  <th style={{ width: 210 }} />
+                </tr>
               </thead>
               <tbody>
                 {data.smb.map((s) => (
                   <tr key={s.id}>
                     <td style={{ fontWeight: 600 }}>{s.name}</td>
-                    <td className="mono" style={{ fontSize: 12.5, color: "var(--muted)" }}>{s.path}</td>
+                    <td className="mono" style={{ fontSize: 12.5, color: "var(--muted)" }}>
+                      {s.path}
+                    </td>
                     <td>
                       <span className={`pill ${s.readOnly ? "info" : "mute"}`}>
                         {s.readOnly ? "read only" : "read and write"}
                       </span>
                     </td>
-                    <td><Pill state={s.enabled ? "ONLINE" : "STOPPED"}>{s.enabled ? "on" : "off"}</Pill></td>
+                    <td>
+                      <Pill state={s.enabled ? "ONLINE" : "STOPPED"}>{s.enabled ? "on" : "off"}</Pill>
+                    </td>
                     <td>
                       <div className="row-actions">
-                        <button className="btn" onClick={() => setEditing(s)}>Edit</button>
-                        <button className="btn danger" onClick={() => setRemoving(s)}>Remove</button>
+                        <button className="btn" onClick={() => setEditing(s)}>
+                          Edit
+                        </button>
+                        <button className="btn danger" onClick={() => setRemoving(s)}>
+                          Remove
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -87,20 +124,33 @@ export function SharesPage() {
           {data?.nfs.length ? (
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Path</th><th>Allowed</th><th>State</th><th style={{ width: 110 }} /></tr></thead>
+                <thead>
+                  <tr>
+                    <th>Path</th>
+                    <th>Allowed</th>
+                    <th>State</th>
+                    <th style={{ width: 110 }} />
+                  </tr>
+                </thead>
                 <tbody>
                   {data.nfs.map((s) => {
                     const allowed = [...(s.networks ?? []), ...(s.hosts ?? [])];
                     return (
                       <tr key={s.path}>
-                        <td className="mono" style={{ fontSize: 12.5 }}>{s.path}</td>
+                        <td className="mono" style={{ fontSize: 12.5 }}>
+                          {s.path}
+                        </td>
                         <td style={{ color: allowed.length ? "var(--muted)" : "var(--warn)" }}>
                           {allowed.length ? allowed.join(", ") : "everyone"}
                         </td>
-                        <td><Pill state={s.enabled ? "ONLINE" : "STOPPED"}>{s.enabled ? "on" : "off"}</Pill></td>
+                        <td>
+                          <Pill state={s.enabled ? "ONLINE" : "STOPPED"}>{s.enabled ? "on" : "off"}</Pill>
+                        </td>
                         <td>
                           <div className="row-actions">
-                            <button className="btn danger" onClick={() => setRemovingNfs(s)}>Remove</button>
+                            <button className="btn danger" onClick={() => setRemovingNfs(s)}>
+                              Remove
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -126,7 +176,16 @@ export function SharesPage() {
         />
       )}
 
-      {editing && <EditShare share={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void reload(); }} />}
+      {editing && (
+        <EditShare
+          share={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            void reload();
+          }}
+        />
+      )}
 
       {removing && (
         <DangerConfirm
@@ -140,8 +199,8 @@ export function SharesPage() {
           }}
           extra={
             <p className="modal-text" style={{ marginTop: 10 }}>
-              The folder stops appearing on the network. Nothing inside it is touched, and the permissions on it stay
-              as they are.
+              The folder stops appearing on the network. Nothing inside it is touched, and the permissions on it stay as
+              they are.
             </p>
           }
         />
@@ -159,8 +218,8 @@ export function SharesPage() {
           }}
           extra={
             <p className="modal-text" style={{ marginTop: 10 }}>
-              The folder stops being mountable. Nothing inside it is touched, and machines that have it mounted now
-              will see it stop responding rather than be told it has gone.
+              The folder stops being mountable. Nothing inside it is touched, and machines that have it mounted now will
+              see it stop responding rather than be told it has gone.
             </p>
           }
         />
@@ -169,8 +228,12 @@ export function SharesPage() {
       {!!jobs.length && (
         <div className="job-tray">
           {jobs.map((j) => (
-            <JobProgress key={j.id} jobId={j.id} label={j.label}
-              onDone={() => setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 6000)} />
+            <JobProgress
+              key={j.id}
+              jobId={j.id}
+              label={j.label}
+              onDone={() => setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 6000)}
+            />
           ))}
         </div>
       )}
@@ -185,16 +248,17 @@ export function SharesPage() {
  * then refuses everybody, because access is decided by the folder's
  * permissions rather than by the share. Both are set here, together.
  */
-export function ShareFolder({ fixedPath, onClose, onDone }: {
+export function ShareFolder({
+  fixedPath,
+  onClose,
+  onDone,
+}: {
   fixedPath?: string;
   onClose: () => void;
   onDone: (permissionsJobId: number | null) => void;
 }) {
   const { data: datasets } = useResource<Dataset[]>("/api/datasets", 0);
-  const { data: who } = useResource<Who>(
-    `/api/files/permissions?path=${encodeURIComponent(fixedPath ?? "/mnt")}`,
-    0,
-  );
+  const { data: who } = useResource<Who>(`/api/files/permissions?path=${encodeURIComponent(fixedPath ?? "/mnt")}`, 0);
 
   const usable = (datasets ?? []).filter((d) => d.type !== "VOLUME" && d.mountpoint);
   const [path, setPath] = useState(fixedPath ?? "");
@@ -238,11 +302,7 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
       access: grants,
       recursive,
     });
-    setDone(
-      r.startedService
-        ? "Shared, and Windows file sharing was switched on for you."
-        : "Shared.",
-    );
+    setDone(r.startedService ? "Shared, and Windows file sharing was switched on for you." : "Shared.");
     onDone(r.permissionsJobId);
   });
 
@@ -257,28 +317,42 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
 
   const nameOf = (g: Grant) =>
     g.kind === "group"
-      ? who?.groups.find((x) => x.gid === g.id)?.group ?? `group ${g.id}`
-      : who?.users.find((x) => x.uid === g.id)?.username ?? `user ${g.id}`;
+      ? (who?.groups.find((x) => x.gid === g.id)?.group ?? `group ${g.id}`)
+      : (who?.users.find((x) => x.uid === g.id)?.username ?? `user ${g.id}`);
 
   if (done) {
     return (
-      <Modal title={protocol === "nfs" ? "Exported" : "Shared"} subtitle={chosen} onClose={onClose} footer={<button className="btn primary" onClick={onClose}>Done</button>}>
+      <Modal
+        title={protocol === "nfs" ? "Exported" : "Shared"}
+        subtitle={chosen}
+        onClose={onClose}
+        footer={
+          <button className="btn primary" onClick={onClose}>
+            Done
+          </button>
+        }
+      >
         <p className="modal-text">{done}</p>
         {protocol === "nfs" ? (
           <p className="modal-text">
             On Linux:{" "}
-            <strong className="mono">sudo mount -t nfs {location.hostname}:{chosen} /mnt/somewhere</strong>
+            <strong className="mono">
+              sudo mount -t nfs {location.hostname}:{chosen} /mnt/somewhere
+            </strong>
           </p>
         ) : (
           <p className="modal-text">
-            On Windows it is <strong className="mono">\\{location.hostname}\{shareName}</strong>; on a Mac, Go → Connect
-            to Server. People sign in with their NAS account.
+            On Windows it is{" "}
+            <strong className="mono">
+              \\{location.hostname}\{shareName}
+            </strong>
+            ; on a Mac, Go → Connect to Server. People sign in with their NAS account.
           </p>
         )}
         {protocol === "smb" && !grants.length && (
           <p className="modal-text" style={{ color: "var(--warn)" }}>
-            Nobody was given access, so the folder's existing permissions decide who can open it — which may be
-            nobody. Use Access on the folder to grant someone.
+            Nobody was given access, so the folder's existing permissions decide who can open it — which may be nobody.
+            Use Access on the folder to grant someone.
           </p>
         )}
       </Modal>
@@ -288,14 +362,18 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
   return (
     <Modal
       title="Share a folder"
-      subtitle={protocol === "nfs"
-        ? "Exported to the machines you name, mounted by path."
-        : "Windows, macOS and Linux see it as a normal network folder."}
+      subtitle={
+        protocol === "nfs"
+          ? "Exported to the machines you name, mounted by path."
+          : "Windows, macOS and Linux see it as a normal network folder."
+      }
       onClose={onClose}
       wide
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
           {/* An NFS export with no machines is refused by the server; disabling
               the button says so before the round trip rather than after. */}
           <button
@@ -313,11 +391,19 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
           then trusts whatever user id they claim. */}
       <Field label="Who needs to reach it">
         <div className="proto-switch">
-          <button type="button" className={`proto ${protocol === "smb" ? "on" : ""}`} onClick={() => setProtocol("smb")}>
+          <button
+            type="button"
+            className={`proto ${protocol === "smb" ? "on" : ""}`}
+            onClick={() => setProtocol("smb")}
+          >
             <strong>Windows, Mac and phones</strong>
             <span>People sign in with their NAS account.</span>
           </button>
-          <button type="button" className={`proto ${protocol === "nfs" ? "on" : ""}`} onClick={() => setProtocol("nfs")}>
+          <button
+            type="button"
+            className={`proto ${protocol === "nfs" ? "on" : ""}`}
+            onClick={() => setProtocol("nfs")}
+          >
             <strong>Linux and Unix</strong>
             <span>Machines are allowed by address, not by account.</span>
           </button>
@@ -325,11 +411,17 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
       </Field>
 
       {fixedPath ? (
-        <Field label="Folder"><Input value={fixedPath} readOnly /></Field>
+        <Field label="Folder">
+          <Input value={fixedPath} readOnly />
+        </Field>
       ) : (
         <Field label="Folder" hint="Only datasets can be shared — each one is its own filesystem.">
           <Select value={chosen} onChange={(e) => setPath(e.target.value)}>
-            {usable.map((d) => <option key={d.id} value={d.mountpoint}>{d.id}</option>)}
+            {usable.map((d) => (
+              <option key={d.id} value={d.mountpoint}>
+                {d.id}
+              </option>
+            ))}
           </Select>
         </Field>
       )}
@@ -347,10 +439,7 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
 
       {protocol === "nfs" && (
         <>
-          <Field
-            label="Which machines"
-            hint="An address like 192.168.1.50, or a whole network like 192.168.1.0/24."
-          >
+          <Field label="Which machines" hint="An address like 192.168.1.50, or a whole network like 192.168.1.0/24.">
             {networks.map((n, i) => (
               <div key={i} className="net-row">
                 <Input
@@ -365,7 +454,9 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
                 )}
               </div>
             ))}
-            <button className="link-btn" onClick={() => setNetworks([...networks, ""])}>Add another</button>
+            <button className="link-btn" onClick={() => setNetworks([...networks, ""])}>
+              Add another
+            </button>
             {!networks.some((n) => n.trim()) && (
               <p className="modal-text" style={{ color: "var(--warn)" }}>
                 Leaving this empty would export the folder to every device on your network. The console refuses to
@@ -376,9 +467,16 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
 
           {!readOnly && (
             <Field label="Which group owns it" hint="Members of this group get write access to the folder itself.">
-              <Select value={String(group ?? "")} onChange={(e) => setGroup(e.target.value ? Number(e.target.value) : null)}>
+              <Select
+                value={String(group ?? "")}
+                onChange={(e) => setGroup(e.target.value ? Number(e.target.value) : null)}
+              >
                 <option value="">Leave the folder's permissions alone</option>
-                {(who?.groups ?? []).map((g) => <option key={g.gid} value={g.gid}>{g.group}</option>)}
+                {(who?.groups ?? []).map((g) => (
+                  <option key={g.gid} value={g.gid}>
+                    {g.group}
+                  </option>
+                ))}
               </Select>
               {group === null && (
                 <p className="modal-text" style={{ color: "var(--warn)" }}>
@@ -391,11 +489,7 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
 
           <details className="advanced">
             <summary>Advanced</summary>
-            <Toggle
-              checked={maproot}
-              onChange={setMaproot}
-              label="Let root on those machines write as root here"
-            />
+            <Toggle checked={maproot} onChange={setMaproot} label="Let root on those machines write as root here" />
             <p className="modal-text" style={{ color: "var(--warn)" }}>
               With this on, anyone with administrator access to any machine you allowed above can read, change and
               delete anything in this folder, whatever its permissions say. It is the usual advice in forum threads
@@ -411,16 +505,23 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
         <div className="perm-rows">
           {grants.map((g, i) => (
             <div key={`${g.kind}-${g.id}`} className="perm-row">
-              <span>{nameOf(g)}{g.kind === "group" ? " (group)" : ""}</span>
+              <span>
+                {nameOf(g)}
+                {g.kind === "group" ? " (group)" : ""}
+              </span>
               <Select
                 value={g.level}
-                onChange={(e) => setGrants(grants.map((x, j) => (j === i ? { ...x, level: e.target.value as Level } : x)))}
+                onChange={(e) =>
+                  setGrants(grants.map((x, j) => (j === i ? { ...x, level: e.target.value as Level } : x)))
+                }
               >
                 <option value="read">Read only</option>
                 <option value="write">Read and write</option>
                 <option value="full">Full control</option>
               </Select>
-              <button className="btn danger" onClick={() => setGrants(grants.filter((_, j) => j !== i))}>Remove</button>
+              <button className="btn danger" onClick={() => setGrants(grants.filter((_, j) => j !== i))}>
+                Remove
+              </button>
             </div>
           ))}
 
@@ -435,7 +536,11 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
                 }}
               >
                 <option value="">Add somebody…</option>
-                {unassigned.map((u) => <option key={`${u.kind}:${u.id}`} value={`${u.kind}:${u.id}`}>{u.label}</option>)}
+                {unassigned.map((u) => (
+                  <option key={`${u.kind}:${u.id}`} value={`${u.kind}:${u.id}`}>
+                    {u.label}
+                  </option>
+                ))}
               </Select>
               <span />
               <span />
@@ -452,8 +557,16 @@ export function ShareFolder({ fixedPath, onClose, onDone }: {
       </div>
 
       <div style={{ display: "grid", gap: 8 }}>
-        <Toggle checked={readOnly} onChange={setReadOnly} label="Read-only share — nobody can change anything through it" />
-        <Toggle checked={recursive} onChange={setRecursive} label="Apply this access to everything already in the folder" />
+        <Toggle
+          checked={readOnly}
+          onChange={setReadOnly}
+          label="Read-only share — nobody can change anything through it"
+        />
+        <Toggle
+          checked={recursive}
+          onChange={setRecursive}
+          label="Apply this access to everything already in the folder"
+        />
       </div>
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
@@ -479,7 +592,9 @@ function EditShare({ share, onClose, onSaved }: { share: SmbShare; onClose: () =
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
           <button className="btn primary" disabled={busy || !name} onClick={() => void submit(undefined as void)}>
             {busy ? "Saving…" : "Save"}
           </button>

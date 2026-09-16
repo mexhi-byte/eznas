@@ -1,26 +1,34 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { readFileSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import type { Realtime, TrueNas } from "./truenas.js";
 import * as store from "./store.js";
 import * as settings from "./settings.js";
 import * as watcher from "./monitors.js";
 import { handleUpgrade } from "./shell.js";
-import * as files from "./files.js";
-import * as exec from "./nas-exec.js";
 import * as selfUpdate from "./self-update.js";
 import * as webhooks from "./webhooks.js";
 import { generateSecret, provisioningUri, recoveryCodes, verify as verifyTotp } from "./totp.js";
-import { clearedCookie, cookieHeader, COOKIE, issue, read as readSessionCookie, readCookie, valid } from "./auth.js";
+import { clearedCookie, cookieHeader, COOKIE, issue, read as readSessionCookie, readCookie } from "./auth.js";
 import * as accounts from "./accounts.js";
 import { CHANNEL, VERSION } from "./version.js";
 import { appTitle, isCustomApp } from "./apps.js";
 
 export { VERSION };
-import { acceptableWriteType, bodyOf, clientAddress, confirmed, json, optStr, sameOrigin, SECURITY_HEADERS, statusForError, str, trustProxy, underMnt } from "./http.js";
-import { levelToPerms, type AclEntry } from "./acl.js";
+import {
+  acceptableWriteType,
+  bodyOf,
+  clientAddress,
+  confirmed,
+  json,
+  optStr,
+  sameOrigin,
+  SECURITY_HEADERS,
+  statusForError,
+  str,
+  trustProxy,
+} from "./http.js";
 import { handleFileRoutes } from "./routes/files.js";
 import { diskVerdict, failedTestCount, temperatureOf, testsForDisk } from "./disk-verdict.js";
 import { catalogIconIndex, hostOf, iconFor, portLinks } from "./app-links.js";
@@ -76,33 +84,81 @@ function nasFor(url: URL): TrueNas {
 /* ------------------------------------------------------------------- shapes */
 
 interface PoolRow {
-  name: string; status: string; healthy: boolean; size: number; allocated: number; free: number;
+  name: string;
+  status: string;
+  healthy: boolean;
+  size: number;
+  allocated: number;
+  free: number;
   fragmentation?: string;
   topology?: { data?: VdevRow[]; cache?: VdevRow[]; log?: VdevRow[]; spare?: VdevRow[] };
   scan?: { function?: string; state?: string; percentage?: number; end_time?: { $date: number } } | null;
 }
-interface VdevRow { type: string; status?: string; disk?: string | null; children?: Array<{ disk?: string | null; status?: string; type?: string }> }
+interface VdevRow {
+  type: string;
+  status?: string;
+  disk?: string | null;
+  children?: Array<{ disk?: string | null; status?: string; type?: string }>;
+}
 interface AppRow {
-  name: string; state: string; upgrade_available: boolean; human_version: string; version: string;
+  name: string;
+  state: string;
+  upgrade_available: boolean;
+  human_version: string;
+  version: string;
   portals?: Record<string, string>;
   active_workloads?: { containers?: number; used_ports?: Array<{ host_ports?: Array<{ host_port: number }> }> };
   metadata?: { icon?: string; title?: string; train?: string; app_version?: string; description?: string };
 }
-interface AlertRow { uuid: string; level: string; formatted: string; dismissed: boolean; datetime: { $date: number }; klass?: string }
-interface DiskRow { name: string; model: string; serial: string; size: number; type: string; rotationrate: number | null; pool: string | null; imported_zpool?: string | null; description?: string }
+interface AlertRow {
+  uuid: string;
+  level: string;
+  formatted: string;
+  dismissed: boolean;
+  datetime: { $date: number };
+  klass?: string;
+}
+interface DiskRow {
+  name: string;
+  model: string;
+  serial: string;
+  size: number;
+  type: string;
+  rotationrate: number | null;
+  pool: string | null;
+  imported_zpool?: string | null;
+  description?: string;
+}
 
 function summarisePool(p: PoolRow) {
   const disksOf = (v: VdevRow[] = []): string[] =>
     v.flatMap((d) => (d.children?.length ? d.children.map((c) => c.disk ?? "?") : [d.disk ?? "?"]));
   return {
-    name: p.name, status: p.status, healthy: p.healthy, size: p.size, allocated: p.allocated,
-    free: p.free, fragmentation: p.fragmentation,
+    name: p.name,
+    status: p.status,
+    healthy: p.healthy,
+    size: p.size,
+    allocated: p.allocated,
+    free: p.free,
+    fragmentation: p.fragmentation,
     vdevs: (p.topology?.data ?? []).map((v) => ({
-      type: v.type, status: v.status,
-      disks: v.children?.length ? v.children.map((c) => ({ disk: c.disk ?? "?", status: c.status })) : [{ disk: v.disk ?? "?", status: v.status }],
+      type: v.type,
+      status: v.status,
+      disks: v.children?.length
+        ? v.children.map((c) => ({ disk: c.disk ?? "?", status: c.status }))
+        : [{ disk: v.disk ?? "?", status: v.status }],
     })),
-    cache: disksOf(p.topology?.cache), log: disksOf(p.topology?.log), spare: disksOf(p.topology?.spare),
-    scan: p.scan ? { function: p.scan.function, state: p.scan.state, percentage: p.scan.percentage, endedAt: p.scan.end_time?.$date } : null,
+    cache: disksOf(p.topology?.cache),
+    log: disksOf(p.topology?.log),
+    spare: disksOf(p.topology?.spare),
+    scan: p.scan
+      ? {
+          function: p.scan.function,
+          state: p.scan.state,
+          percentage: p.scan.percentage,
+          endedAt: p.scan.end_time?.$date,
+        }
+      : null,
   };
 }
 
@@ -143,8 +199,13 @@ async function overview(nas: TrueNas) {
   ]);
   return {
     system: {
-      version: info.version, hostname: info.hostname, uptime: info.uptime_seconds ?? info.uptime,
-      cores: info.cores, model: info.model, memoryBytes: info.physmem, loadavg: info.loadavg,
+      version: info.version,
+      hostname: info.hostname,
+      uptime: info.uptime_seconds ?? info.uptime,
+      cores: info.cores,
+      model: info.model,
+      memoryBytes: info.physmem,
+      loadavg: info.loadavg,
     },
     pools: pools.map(summarisePool),
     apps: {
@@ -155,7 +216,8 @@ async function overview(nas: TrueNas) {
     },
     alerts: {
       total: alerts.filter((a) => !a.dismissed).length,
-      critical: alerts.filter((a) => !a.dismissed && ["CRITICAL", "ERROR", "ALERT", "EMERGENCY"].includes(a.level)).length,
+      critical: alerts.filter((a) => !a.dismissed && ["CRITICAL", "ERROR", "ALERT", "EMERGENCY"].includes(a.level))
+        .length,
       warning: alerts.filter((a) => !a.dismissed && a.level === "WARNING").length,
     },
     disks: disks.length,
@@ -247,8 +309,12 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
 
     attempts.delete(ip);
     accounts.touch(account.id);
-    json(res, 200, { ok: true, username: account.username, role: account.role },
-      { "set-cookie": cookieHeader(issue(account.id)) });
+    json(
+      res,
+      200,
+      { ok: true, username: account.username, role: account.role },
+      { "set-cookie": cookieHeader(issue(account.id)) },
+    );
     return true;
   }
 
@@ -307,11 +373,17 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     }
     if (method === "POST") {
       const b = await bodyOf(req);
-      json(res, 200, accounts.publicView(accounts.create({
-        username: str(b, "username"),
-        password: str(b, "password"),
-        role: b.role === "viewer" ? "viewer" : "admin",
-      })));
+      json(
+        res,
+        200,
+        accounts.publicView(
+          accounts.create({
+            username: str(b, "username"),
+            password: str(b, "password"),
+            role: b.role === "viewer" ? "viewer" : "admin",
+          }),
+        ),
+      );
       return true;
     }
   }
@@ -329,11 +401,17 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
           throw new Error("Enter your current password to change it.");
         }
       }
-      json(res, 200, accounts.publicView(accounts.update(id, {
-        username: optStr(b, "username"),
-        password: optStr(b, "password"),
-        role: b.role === "viewer" ? "viewer" : b.role === "admin" ? "admin" : undefined,
-      })));
+      json(
+        res,
+        200,
+        accounts.publicView(
+          accounts.update(id, {
+            username: optStr(b, "username"),
+            password: optStr(b, "password"),
+            role: b.role === "viewer" ? "viewer" : b.role === "admin" ? "admin" : undefined,
+          }),
+        ),
+      );
       return true;
     }
     if (method === "DELETE") {
@@ -366,7 +444,9 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
           watchDisks: n.watchDisks !== false,
           email: n.email === true,
           recipients: Array.isArray(n.recipients) ? (n.recipients as string[]).map(String).filter(Boolean) : [],
-          emailLevel: ["info", "warn", "bad"].includes(String(n.emailLevel)) ? (n.emailLevel as "info") : current.emailLevel,
+          emailLevel: ["info", "warn", "bad"].includes(String(n.emailLevel))
+            ? (n.emailLevel as "info")
+            : current.emailLevel,
           watch: {
             poolHealth: bool("poolHealth"),
             capacity: bool("capacity"),
@@ -387,11 +467,14 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
                 if (problem) throw new Error(problem);
                 return {
                   id: String(w.id ?? randomUUID()),
-                  kind: (["discord", "telegram", "ntfy", "generic"].includes(String(w.kind)) ? w.kind : "generic") as never,
+                  kind: (["discord", "telegram", "ntfy", "generic"].includes(String(w.kind))
+                    ? w.kind
+                    : "generic") as never,
                   url: String(w.url ?? ""),
                   // A masked token means "unchanged" — the browser was never
                   // given the real one to send back.
-                  botToken: w.botToken === "********" ? existing?.botToken : (w.botToken ? String(w.botToken) : undefined),
+                  botToken:
+                    w.botToken === "********" ? existing?.botToken : w.botToken ? String(w.botToken) : undefined,
                   chatId: w.chatId ? String(w.chatId) : undefined,
                   topic: w.topic ? String(w.topic) : undefined,
                   enabled: w.enabled !== false,
@@ -406,8 +489,12 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
         const pools: Record<string, { label?: string; icon?: string }> = { ...settings.get().names.pools };
         for (const [pool, v] of Object.entries((n.pools as Record<string, unknown>) ?? {})) {
           const entry = (v ?? {}) as Record<string, unknown>;
-          const label = String(entry.label ?? "").trim().slice(0, 40);
-          const icon = String(entry.icon ?? "").trim().slice(0, 8);
+          const label = String(entry.label ?? "")
+            .trim()
+            .slice(0, 40);
+          const icon = String(entry.icon ?? "")
+            .trim()
+            .slice(0, 8);
           // An empty label is how a nickname is removed, so it deletes the
           // entry rather than storing a blank one that would render as a gap.
           if (!label && !icon) delete pools[pool];
@@ -500,13 +587,17 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     const hook = saved ?? (b as unknown as webhooks.Webhook);
     const problem = webhooks.validate(hook);
     if (problem) throw new Error(problem);
-    await webhooks.deliver(hook, {
-      level: "info",
-      category: "test",
-      title: "Test from your NAS",
-      detail: "If you are reading this on your phone, notifications are working.",
-      server: store.get(url.searchParams.get("c"))?.name ?? "EzNAS",
-    }, cfg.greetName || undefined);
+    await webhooks.deliver(
+      hook,
+      {
+        level: "info",
+        category: "test",
+        title: "Test from your NAS",
+        detail: "If you are reading this on your phone, notifications are working.",
+        server: store.get(url.searchParams.get("c"))?.name ?? "EzNAS",
+      },
+      cfg.greetName || undefined,
+    );
     json(res, 200, { ok: true });
     return true;
   }
@@ -557,11 +648,15 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
 
   if (path === "/api/connections/test" && method === "POST") {
     const b = await bodyOf(req);
-    json(res, 200, await store.test({
-      url: normaliseUrl(str(b, "url")),
-      apiKey: str(b, "apiKey"),
-      fingerprint: optStr(b, "fingerprint") ?? null,
-    }));
+    json(
+      res,
+      200,
+      await store.test({
+        url: normaliseUrl(str(b, "url")),
+        apiKey: str(b, "apiKey"),
+        fingerprint: optStr(b, "fingerprint") ?? null,
+      }),
+    );
     return true;
   }
 
@@ -594,14 +689,19 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
 
   if (path === "/api/stream") {
     res.writeHead(200, {
-      "content-type": "text/event-stream", "cache-control": "no-store",
-      connection: "keep-alive", "x-accel-buffering": "no",
+      "content-type": "text/event-stream",
+      "cache-control": "no-store",
+      connection: "keep-alive",
+      "x-accel-buffering": "no",
     });
     const send = (r: Realtime) => res.write(`data: ${JSON.stringify(r)}\n\n`);
     if (nas.realtime) send(nas.realtime);
     const off = nas.onRealtime(send);
     const beat = setInterval(() => res.write(": ping\n\n"), 20_000);
-    req.on("close", () => { off(); clearInterval(beat); });
+    req.on("close", () => {
+      off();
+      clearInterval(beat);
+    });
     return true;
   }
 
@@ -689,12 +789,14 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
   if (path === "/api/apps" && method === "POST") {
     const b = await bodyOf(req);
     json(res, 200, {
-      jobId: await nas.startJob("app.create", [{
-        app_name: str(b, "appName"),
-        catalog_app: str(b, "catalogApp"),
-        train: optStr(b, "train") ?? "stable",
-        values: (b.values as Record<string, unknown>) ?? {},
-      }]),
+      jobId: await nas.startJob("app.create", [
+        {
+          app_name: str(b, "appName"),
+          catalog_app: str(b, "catalogApp"),
+          train: optStr(b, "train") ?? "stable",
+          values: (b.values as Record<string, unknown>) ?? {},
+        },
+      ]),
     });
     return true;
   }
@@ -703,7 +805,8 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     const q = url.searchParams.get("q")?.toLowerCase() ?? "";
     const category = url.searchParams.get("category") ?? "";
     const rows = await nas.call<Array<Record<string, unknown>>>("app.available", [
-      [], { select: ["name", "title", "categories", "latest_version", "train", "description", "icon_url", "installed"] },
+      [],
+      { select: ["name", "title", "categories", "latest_version", "train", "description", "icon_url", "installed"] },
     ]);
     const filtered = rows.filter((a) => {
       const hay = `${a.name} ${a.title} ${a.description ?? ""}`.toLowerCase();
@@ -743,14 +846,26 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     if (method === "GET") {
       const showBuiltin = url.searchParams.get("builtin") === "1";
       const users = await nas.call<Array<Record<string, unknown>>>("user.query", [[["local", "=", true]]]);
-      json(res, 200, users
-        .filter((u) => showBuiltin || !u.builtin)
-        .map((u) => ({
-          id: u.id, uid: u.uid, username: u.username, fullName: u.full_name,
-          email: u.email, shell: u.shell, home: u.home, locked: u.locked,
-          builtin: u.builtin, smb: u.smb, sudo: (u.sudo_commands as string[])?.length > 0,
-          groups: u.groups,
-        })));
+      json(
+        res,
+        200,
+        users
+          .filter((u) => showBuiltin || !u.builtin)
+          .map((u) => ({
+            id: u.id,
+            uid: u.uid,
+            username: u.username,
+            fullName: u.full_name,
+            email: u.email,
+            shell: u.shell,
+            home: u.home,
+            locked: u.locked,
+            builtin: u.builtin,
+            smb: u.smb,
+            sudo: (u.sudo_commands as string[])?.length > 0,
+            groups: u.groups,
+          })),
+      );
       return true;
     }
     if (method === "POST") {
@@ -802,7 +917,17 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
 
   if (path === "/api/groups") {
     const groups = await nas.call<Array<Record<string, unknown>>>("group.query", [[["local", "=", true]]]);
-    json(res, 200, groups.map((g) => ({ id: g.id, gid: g.gid, name: g.group, builtin: g.builtin, users: (g.users as unknown[])?.length ?? 0 })));
+    json(
+      res,
+      200,
+      groups.map((g) => ({
+        id: g.id,
+        gid: g.gid,
+        name: g.group,
+        builtin: g.builtin,
+        users: (g.users as unknown[])?.length ?? 0,
+      })),
+    );
     return true;
   }
 
@@ -823,14 +948,16 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       if (!disks.length) throw new Error("Select at least one disk.");
       const layout = String(b.layout ?? "STRIPE").toUpperCase();
       json(res, 200, {
-        jobId: await nas.startJob("pool.create", [{
-          name: str(b, "name"),
-          // One vdev of the requested type. Mixed-width topologies are a real
-          // need but not one a form can express safely, so they stay in the
-          // TrueNAS UI rather than being half-supported here.
-          topology: { data: [{ type: layout, disks }] },
-          allow_duplicate_serials: false,
-        }]),
+        jobId: await nas.startJob("pool.create", [
+          {
+            name: str(b, "name"),
+            // One vdev of the requested type. Mixed-width topologies are a real
+            // need but not one a form can express safely, so they stay in the
+            // TrueNAS UI rather than being half-supported here.
+            topology: { data: [{ type: layout, disks }] },
+            allow_duplicate_serials: false,
+          },
+        ]),
       });
       return true;
     }
@@ -848,13 +975,16 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     const b = await bodyOf(req);
     confirmed(b, name);
     json(res, 200, {
-      jobId: await nas.startJob("pool.export", [await poolIdOf(nas, name), {
-        // destroy=false keeps the data and merely detaches the pool, which is
-        // recoverable by importing it again. Wiping is opt-in and separate.
-        destroy: b.destroy === true,
-        cascade: true,
-        restart_services: true,
-      }]),
+      jobId: await nas.startJob("pool.export", [
+        await poolIdOf(nas, name),
+        {
+          // destroy=false keeps the data and merely detaches the pool, which is
+          // recoverable by importing it again. Wiping is opt-in and separate.
+          destroy: b.destroy === true,
+          cascade: true,
+          restart_services: true,
+        },
+      ]),
     });
     return true;
   }
@@ -889,14 +1019,28 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     let identifier = spec.identifier;
     if (metric === "network") {
       const nics = await nas.call<Array<Record<string, unknown>>>("interface.query");
-      identifier = String(nics.find((n) => n.state && (n.state as { link_state?: string }).link_state === "LINK_STATE_UP")?.name ?? nics[0]?.name ?? "");
+      identifier = String(
+        nics.find((n) => n.state && (n.state as { link_state?: string }).link_state === "LINK_STATE_UP")?.name ??
+          nics[0]?.name ??
+          "",
+      );
       if (!identifier) throw new Error("No network interface to report on.");
     }
 
-    const [graph] = await nas.call<Array<{
-      name: string; legend: string[]; data: number[][]; start: number; end: number;
-      aggregations?: { min?: Record<string, number>; mean?: Record<string, number>; max?: Record<string, number> };
-    }>>("reporting.netdata_get_data", [[{ name: spec.name, ...(identifier ? { identifier } : {}) }], { unit, page: 1 }], 30_000);
+    const [graph] = await nas.call<
+      Array<{
+        name: string;
+        legend: string[];
+        data: number[][];
+        start: number;
+        end: number;
+        aggregations?: { min?: Record<string, number>; mean?: Record<string, number>; max?: Record<string, number> };
+      }>
+    >(
+      "reporting.netdata_get_data",
+      [[{ name: spec.name, ...(identifier ? { identifier } : {}) }], { unit, page: 1 }],
+      30_000,
+    );
 
     if (!graph?.data?.length) {
       json(res, 200, { metric, unit, points: [], series: [], summary: null });
@@ -904,13 +1048,12 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     }
 
     // memory reports what is *available*; everybody thinks in what is used.
-    const total = metric === "memory"
-      ? Number((await nas.call<Record<string, unknown>>("system.info")).physmem ?? 0)
-      : 0;
+    const total =
+      metric === "memory" ? Number((await nas.call<Record<string, unknown>>("system.info")).physmem ?? 0) : 0;
 
     const cols = graph.legend.slice(1);
     const keep = metric === "cpu" ? [0] : metric === "memory" ? [0] : [0, 1];
-    const series = keep.map((i) => (metric === "memory" ? "used" : cols[i] ?? `series ${i}`));
+    const series = keep.map((i) => (metric === "memory" ? "used" : (cols[i] ?? `series ${i}`)));
 
     const BUCKETS = 160;
     const step = Math.max(1, Math.ceil(graph.data.length / BUCKETS));
@@ -986,8 +1129,15 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
         failedTests: failedTestCount(testsForDisk(testResults, d.name)),
       });
       return {
-        name: d.name, model: d.model, serial: d.serial, size: d.size, type: d.type,
-        rpm: d.rotationrate, pool: d.imported_zpool ?? d.pool ?? null, inUse, tempC,
+        name: d.name,
+        model: d.model,
+        serial: d.serial,
+        size: d.size,
+        type: d.type,
+        rpm: d.rotationrate,
+        pool: d.imported_zpool ?? d.pool ?? null,
+        inUse,
+        tempC,
         // Why there is no reading, so the tile can say it instead of going
         // blank. A blank space reads as a bug in the console; "this device
         // does not report one" reads as a fact about the drive.
@@ -1008,7 +1158,9 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     // hot-plugged after boot becomes visible without a reboot.
     await nas.call("disk.retaste", [[]]).catch(() => nas.call("disk.retaste"));
     const details = await nas.call<{ unused: DiskRow[] }>("disk.details");
-    json(res, 200, { unused: (details.unused ?? []).map((d) => ({ name: d.name, model: d.model, size: d.size, serial: d.serial })) });
+    json(res, 200, {
+      unused: (details.unused ?? []).map((d) => ({ name: d.name, model: d.model, size: d.size, serial: d.serial })),
+    });
     return true;
   }
 
@@ -1083,7 +1235,11 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
         status: pool.status,
         faulted,
         spare: (details.unused ?? []).map((d) => ({
-          name: d.name, model: d.model, serial: d.serial, size: d.size, type: d.type,
+          name: d.name,
+          model: d.model,
+          serial: d.serial,
+          size: d.size,
+          type: d.type,
         })),
       });
       return true;
@@ -1104,7 +1260,11 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       const details = await nas.call<{ unused?: Array<Record<string, unknown>> }>("disk.details");
       json(res, 200, {
         spare: (details.unused ?? []).map((d) => ({
-          name: d.name, model: d.model, serial: d.serial, size: d.size, type: d.type,
+          name: d.name,
+          model: d.model,
+          serial: d.serial,
+          size: d.size,
+          type: d.type,
         })),
       });
       return true;
@@ -1115,12 +1275,15 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       const disk = str(b, "disk");
       confirmed(b, disk);
       json(res, 200, {
-        jobId: await nas.startJob("pool.replace", [poolId, {
-          label,
-          disk,
-          force: b.force === true,
-          preserve_settings: true,
-        }]),
+        jobId: await nas.startJob("pool.replace", [
+          poolId,
+          {
+            label,
+            disk,
+            force: b.force === true,
+            preserve_settings: true,
+          },
+        ]),
       });
       return true;
     }
@@ -1156,13 +1319,31 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     if (method === "GET") {
       const rows = await nas.call<Array<Record<string, unknown>>>("pool.dataset.query", [
         [["pool", "!=", "boot-pool"]],
-        { extra: { flat: true, properties: ["used", "available", "referenced", "quota", "compressratio", "mountpoint", "encryption"], retrieve_children: true } },
+        {
+          extra: {
+            flat: true,
+            properties: ["used", "available", "referenced", "quota", "compressratio", "mountpoint", "encryption"],
+            retrieve_children: true,
+          },
+        },
       ]);
-      json(res, 200, rows.map((d) => ({
-        id: d.id, name: d.name, pool: d.pool, type: d.type, encrypted: d.encrypted,
-        used: num(d.used), available: num(d.available), referenced: num(d.referenced),
-        quota: num(d.quota), compression: sval(d.compressratio), mountpoint: d.mountpoint,
-      })));
+      json(
+        res,
+        200,
+        rows.map((d) => ({
+          id: d.id,
+          name: d.name,
+          pool: d.pool,
+          type: d.type,
+          encrypted: d.encrypted,
+          used: num(d.used),
+          available: num(d.available),
+          referenced: num(d.referenced),
+          quota: num(d.quota),
+          compression: sval(d.compressratio),
+          mountpoint: d.mountpoint,
+        })),
+      );
       return true;
     }
     if (method === "POST") {
@@ -1183,7 +1364,11 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       if (!id) throw new Error("Which dataset?");
       const b = await bodyOf(req);
       confirmed(b, id);
-      json(res, 200, await nas.call("pool.dataset.delete", [id, { recursive: b.recursive === true, force: b.force === true }]));
+      json(
+        res,
+        200,
+        await nas.call("pool.dataset.delete", [id, { recursive: b.recursive === true, force: b.force === true }]),
+      );
       return true;
     }
     if (method === "PUT") {
@@ -1215,20 +1400,25 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       const snaps = await nas.call<Array<Record<string, unknown>>>("zfs.snapshot.query", [
         // holds only appear when asked for; without extra the field is absent
         // and every snapshot looks deletable, including ones ZFS will refuse.
-        filters, { extra: { holds: true }, limit: 500, order_by: ["-name"] },
+        filters,
+        { extra: { holds: true }, limit: 500, order_by: ["-name"] },
       ]);
-      json(res, 200, snaps.map((s) => {
-        const props = (s.properties ?? {}) as Record<string, { value?: string; parsed?: unknown }>;
-        return {
-          name: s.name,
-          dataset: s.dataset ?? String(s.name).split("@")[0],
-          snapshot: s.snapshot_name ?? String(s.name).split("@")[1],
-          used: num(props.used),
-          referenced: num(props.referenced),
-          createdAt: epochMs(props.creation?.parsed),
-          held: Object.keys((s.holds ?? {}) as Record<string, unknown>).length > 0,
-        };
-      }));
+      json(
+        res,
+        200,
+        snaps.map((s) => {
+          const props = (s.properties ?? {}) as Record<string, { value?: string; parsed?: unknown }>;
+          return {
+            name: s.name,
+            dataset: s.dataset ?? String(s.name).split("@")[0],
+            snapshot: s.snapshot_name ?? String(s.name).split("@")[1],
+            used: num(props.used),
+            referenced: num(props.referenced),
+            createdAt: epochMs(props.creation?.parsed),
+            held: Object.keys((s.holds ?? {}) as Record<string, unknown>).length > 0,
+          };
+        }),
+      );
       return true;
     }
     if (method === "POST") {
@@ -1246,7 +1436,11 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       if (!id) throw new Error("Which snapshot?");
       const b = await bodyOf(req);
       confirmed(b, id);
-      json(res, 200, await nas.call("zfs.snapshot.delete", [id, { recursive: b.recursive === true, defer: b.defer === true }]));
+      json(
+        res,
+        200,
+        await nas.call("zfs.snapshot.delete", [id, { recursive: b.recursive === true, defer: b.defer === true }]),
+      );
       return true;
     }
   }
@@ -1258,11 +1452,18 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     // force unmounts whatever is using the dataset; recursive_clones also
     // destroys clones that depend on newer snapshots. Both are opt-in because
     // either one silently throws away more than the operator asked for.
-    json(res, 200, await nas.call("zfs.snapshot.rollback", [id, {
-      force: b.force === true,
-      recursive: b.newer === true,
-      recursive_clones: b.clones === true,
-    }]));
+    json(
+      res,
+      200,
+      await nas.call("zfs.snapshot.rollback", [
+        id,
+        {
+          force: b.force === true,
+          recursive: b.newer === true,
+          recursive_clones: b.clones === true,
+        },
+      ]),
+    );
     return true;
   }
 
@@ -1271,10 +1472,16 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     // A clone is the safe way back into a snapshot: the new dataset is writable
     // and the original is untouched, so it can be compared before anything is
     // rolled back.
-    json(res, 200, await nas.call("zfs.snapshot.clone", [{
-      snapshot: str(b, "id"),
-      dataset_dst: str(b, "target"),
-    }]));
+    json(
+      res,
+      200,
+      await nas.call("zfs.snapshot.clone", [
+        {
+          snapshot: str(b, "id"),
+          dataset_dst: str(b, "target"),
+        },
+      ]),
+    );
     return true;
   }
 
@@ -1301,16 +1508,18 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     // snapshots with it. LOCAL transport is a send/recv on this same machine,
     // which needs no SSH credential.
     json(res, 200, {
-      jobId: await nas.startJob("replication.run_onetime", [{
-        direction: "PUSH",
-        transport: "LOCAL",
-        source_datasets: [source],
-        target_dataset: target,
-        recursive: b.recursive === true,
-        retention_policy: "NONE",
-        name_regex: ".*",
-        readonly: "IGNORE",
-      }]),
+      jobId: await nas.startJob("replication.run_onetime", [
+        {
+          direction: "PUSH",
+          transport: "LOCAL",
+          source_datasets: [source],
+          target_dataset: target,
+          recursive: b.recursive === true,
+          retention_policy: "NONE",
+          name_regex: ".*",
+          readonly: "IGNORE",
+        },
+      ]),
     });
     return true;
   }
@@ -1319,11 +1528,22 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
   if (path === "/api/snapshot-tasks") {
     if (method === "GET") {
       const tasks = await nas.call<Array<Record<string, unknown>>>("pool.snapshottask.query");
-      json(res, 200, tasks.map((t) => ({
-        id: t.id, dataset: t.dataset, recursive: t.recursive, enabled: t.enabled,
-        namingSchema: t.naming_schema, lifetimeValue: t.lifetime_value, lifetimeUnit: t.lifetime_unit,
-        schedule: t.schedule, allowEmpty: t.allow_empty, state: (t.state as { state?: string })?.state ?? null,
-      })));
+      json(
+        res,
+        200,
+        tasks.map((t) => ({
+          id: t.id,
+          dataset: t.dataset,
+          recursive: t.recursive,
+          enabled: t.enabled,
+          namingSchema: t.naming_schema,
+          lifetimeValue: t.lifetime_value,
+          lifetimeUnit: t.lifetime_unit,
+          schedule: t.schedule,
+          allowEmpty: t.allow_empty,
+          state: (t.state as { state?: string })?.state ?? null,
+        })),
+      );
       return true;
     }
     if (method === "POST" || method === "PUT") {
@@ -1378,17 +1598,31 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     json(res, 200, {
       pendingChanges: pending,
       global: {
-        hostname: global.hostname, domain: global.domain,
-        ipv4gateway: global.ipv4gateway, ipv6gateway: global.ipv6gateway,
-        nameserver1: global.nameserver1, nameserver2: global.nameserver2, nameserver3: global.nameserver3,
+        hostname: global.hostname,
+        domain: global.domain,
+        ipv4gateway: global.ipv4gateway,
+        ipv6gateway: global.ipv6gateway,
+        nameserver1: global.nameserver1,
+        nameserver2: global.nameserver2,
+        nameserver3: global.nameserver3,
       },
       interfaces: ifaces.map((i) => {
         const state = (i.state ?? {}) as Record<string, unknown>;
         return {
-          id: i.id, name: i.name, type: i.type, description: i.description,
-          dhcp: i.ipv4_dhcp, autoconf: i.ipv6_auto, mtu: i.mtu,
-          aliases: ((i.aliases ?? []) as Array<Record<string, unknown>>).map((a) => ({ address: a.address, netmask: a.netmask, type: a.type })),
-          linkState: state.link_state, activeMediaSubtype: state.active_media_subtype,
+          id: i.id,
+          name: i.name,
+          type: i.type,
+          description: i.description,
+          dhcp: i.ipv4_dhcp,
+          autoconf: i.ipv6_auto,
+          mtu: i.mtu,
+          aliases: ((i.aliases ?? []) as Array<Record<string, unknown>>).map((a) => ({
+            address: a.address,
+            netmask: a.netmask,
+            type: a.type,
+          })),
+          linkState: state.link_state,
+          activeMediaSubtype: state.active_media_subtype,
           mac: state.link_address,
         };
       }),
@@ -1452,7 +1686,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     if (method === "GET") {
       const cfg = await nas.call<Record<string, unknown>>("mail.config");
       // pass is returned by the NAS; it has no business reaching the browser.
-      const { pass, oauth, ...rest } = cfg;
+      const { pass, oauth: _oauth, ...rest } = cfg;
       json(res, 200, { ...rest, hasPassword: !!pass });
       return true;
     }
@@ -1478,11 +1712,17 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     const b = await bodyOf(req);
     const to = Array.isArray(b.to) ? (b.to as string[]) : [];
     if (!to.length) throw new Error("Who should the test go to?");
-    await nas.call("mail.send", [{
-      subject: "Test message from the storage console",
-      text: "If you are reading this, the NAS can send mail and notifications will reach you.",
-      to,
-    }], 30_000);
+    await nas.call(
+      "mail.send",
+      [
+        {
+          subject: "Test message from the storage console",
+          text: "If you are reading this, the NAS can send mail and notifications will reach you.",
+          to,
+        },
+      ],
+      30_000,
+    );
     json(res, 200, { ok: true });
     return true;
   }
@@ -1491,7 +1731,9 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
 
   if (path === "/api/update") {
     const [trains, product, info] = await Promise.all([
-      nas.call<{ trains: Record<string, { description: string }>; current: string; selected: string }>("update.get_trains"),
+      nas.call<{ trains: Record<string, { description: string }>; current: string; selected: string }>(
+        "update.get_trains",
+      ),
       nas.call<string>("system.product_type"),
       nas.call<Record<string, unknown>>("system.info"),
     ]);
@@ -1508,7 +1750,8 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       currentTrain: trains.current,
       selectedTrain: trains.selected,
       available,
-      bootEnvironments: await nas.call<Array<Record<string, unknown>>>("boot.environment.query")
+      bootEnvironments: await nas
+        .call<Array<Record<string, unknown>>>("boot.environment.query")
         .then((r) => r.map((b) => ({ id: b.id, active: b.active, created: b.created })))
         .catch(() => []),
     });
@@ -1560,29 +1803,34 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
        * are recoverable: the ports it listens on, and the catalog entry that
        * shares its name.
        */
-      const [apps, icons] = await Promise.all([
-        nas.call<AppRow[]>("app.query"),
-        catalogIcons(nas),
-      ]);
+      const [apps, icons] = await Promise.all([nas.call<AppRow[]>("app.query"), catalogIcons(nas)]);
       const host = hostOf(store.get(url.searchParams.get("c"))?.url ?? "");
-      json(res, 200, apps.map((a) => {
-        const links = portLinks(host, a.active_workloads?.used_ports);
-        return {
-          name: a.name, state: a.state, version: a.human_version || a.version,
-          updatable: a.upgrade_available, title: appTitle(a.name, a.metadata?.title), train: a.metadata?.train,
-          // Kept so the tile can say "custom app" quietly under the real name,
-          // rather than losing that it is one.
-          custom: isCustomApp(a.metadata?.title),
-          icon: iconFor(a.name, a.metadata?.icon, icons),
-          containers: a.active_workloads?.containers ?? 0,
-          ports: links.map((l) => l.port),
-          // Every published port, addressed. Not one "open this app" link:
-          // several of these are databases, and a link labelled Open that
-          // leads to Redis is a worse answer than a bare port number.
-          links,
-          portals: a.portals ?? {},
-        };
-      }));
+      json(
+        res,
+        200,
+        apps.map((a) => {
+          const links = portLinks(host, a.active_workloads?.used_ports);
+          return {
+            name: a.name,
+            state: a.state,
+            version: a.human_version || a.version,
+            updatable: a.upgrade_available,
+            title: appTitle(a.name, a.metadata?.title),
+            train: a.metadata?.train,
+            // Kept so the tile can say "custom app" quietly under the real name,
+            // rather than losing that it is one.
+            custom: isCustomApp(a.metadata?.title),
+            icon: iconFor(a.name, a.metadata?.icon, icons),
+            containers: a.active_workloads?.containers ?? 0,
+            ports: links.map((l) => l.port),
+            // Every published port, addressed. Not one "open this app" link:
+            // several of these are databases, and a link labelled Open that
+            // leads to Redis is a worse answer than a bare port number.
+            links,
+            portals: a.portals ?? {},
+          };
+        }),
+      );
       return true;
     }
 
@@ -1592,24 +1840,48 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
         nas.call<Array<Record<string, unknown>>>("sharing.nfs.query"),
       ]);
       json(res, 200, {
-        smb: smb.map((s) => ({ id: s.id, name: s.name, path: s.path, enabled: s.enabled, comment: s.comment, purpose: s.purpose, readOnly: s.ro === true })),
+        smb: smb.map((s) => ({
+          id: s.id,
+          name: s.name,
+          path: s.path,
+          enabled: s.enabled,
+          comment: s.comment,
+          purpose: s.purpose,
+          readOnly: s.ro === true,
+        })),
         // id, because without it an export can be listed but not removed —
         // and sharing.nfs.delete takes an id, not a path.
-        nfs: nfs.map((s) => ({ id: s.id, path: s.path, enabled: s.enabled, comment: s.comment, networks: s.networks, hosts: s.hosts })),
+        nfs: nfs.map((s) => ({
+          id: s.id,
+          path: s.path,
+          enabled: s.enabled,
+          comment: s.comment,
+          networks: s.networks,
+          hosts: s.hosts,
+        })),
       });
       return true;
     }
 
     case "/api/alerts": {
       const alerts = await nas.call<AlertRow[]>("alert.list");
-      json(res, 200, alerts.filter((a) => !a.dismissed)
-        .map((a) => ({ uuid: a.uuid, level: a.level, text: a.formatted, at: a.datetime?.$date, klass: a.klass })));
+      json(
+        res,
+        200,
+        alerts
+          .filter((a) => !a.dismissed)
+          .map((a) => ({ uuid: a.uuid, level: a.level, text: a.formatted, at: a.datetime?.$date, klass: a.klass })),
+      );
       return true;
     }
 
     case "/api/services": {
       const svc = await nas.call<Array<Record<string, unknown>>>("service.query");
-      json(res, 200, svc.map((s) => ({ service: s.service, state: s.state, enable: s.enable })));
+      json(
+        res,
+        200,
+        svc.map((s) => ({ service: s.service, state: s.state, enable: s.enable })),
+      );
       return true;
     }
 
@@ -1645,9 +1917,12 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
         if (!/dropped|not connected|not reachable/i.test(message)) throw e;
       }
       settings.addEvent({
-        level: "info", category: "power", key: `power:${action}:${Date.now()}`,
+        level: "info",
+        category: "power",
+        key: `power:${action}:${Date.now()}`,
         title: action === "reboot" ? `${hostname} is restarting` : `${hostname} is shutting down`,
-        detail: `${reason}.`, server: store.get(url.searchParams.get("c"))?.name ?? hostname,
+        detail: `${reason}.`,
+        server: store.get(url.searchParams.get("c"))?.name ?? hostname,
       });
       json(res, 200, { ok: true, action, hostname });
       return true;
@@ -1720,7 +1995,6 @@ function cronOf(v: unknown): Record<string, string> {
   };
 }
 
-
 /**
  * What smartctl said, in a sentence.
  *
@@ -1729,7 +2003,12 @@ function cronOf(v: unknown): Record<string, string> {
  * buries the one line that matters under four that never do.
  */
 function readableSmartError(raw: string, disk: string): string {
-  const last = raw.split("\n").map((l) => l.trim()).filter(Boolean).pop() ?? raw;
+  const last =
+    raw
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .pop() ?? raw;
   if (/unsupported scsi opcode|not supported|unsupported/i.test(last)) {
     return `${disk} does not support self-tests. Virtual disks and some USB enclosures pass the drive through without SMART, so there is nothing to run — the health above is based on what ZFS has seen instead.`;
   }
@@ -1745,17 +2024,31 @@ async function identifierOf(nas: TrueNas, name: string): Promise<string> {
 }
 
 interface VdevLeaf {
-  type?: string; status?: string; disk?: string | null; device?: string | null; path?: string;
+  type?: string;
+  status?: string;
+  disk?: string | null;
+  device?: string | null;
+  path?: string;
   children?: VdevLeaf[];
   stats?: {
-    read_errors?: number; write_errors?: number; checksum_errors?: number; self_healed?: number;
-    size?: number; allocated?: number; fragmentation?: number;
-    ops?: number[]; bytes?: number[];
+    read_errors?: number;
+    write_errors?: number;
+    checksum_errors?: number;
+    self_healed?: number;
+    size?: number;
+    allocated?: number;
+    fragmentation?: number;
+    ops?: number[];
+    bytes?: number[];
   };
 }
 
 interface VdevMember {
-  pool: string; role: string; vdev: string; status?: string; stats?: VdevLeaf["stats"];
+  pool: string;
+  role: string;
+  vdev: string;
+  status?: string;
+  stats?: VdevLeaf["stats"];
 }
 
 /**
@@ -1852,11 +2145,21 @@ async function diskHealthOf(nas: TrueNas, name: string) {
   return {
     name,
     identity: {
-      identifier: disk.identifier, model: disk.model, serial: disk.serial, size: disk.size,
-      type: disk.type, rpm: disk.rotationrate, bus: disk.bus, subsystem: disk.subsystem,
-      description: disk.description || detail.descr || null, lunid: disk.lunid,
-      sectorSize: detail.sectorsize ?? null, transferMode: disk.transfermode,
-      standby: disk.hddstandby, powerManagement: disk.advpowermgmt, smartEnabled: disk.togglesmart === true,
+      identifier: disk.identifier,
+      model: disk.model,
+      serial: disk.serial,
+      size: disk.size,
+      type: disk.type,
+      rpm: disk.rotationrate,
+      bus: disk.bus,
+      subsystem: disk.subsystem,
+      description: disk.description || detail.descr || null,
+      lunid: disk.lunid,
+      sectorSize: detail.sectorsize ?? null,
+      transferMode: disk.transfermode,
+      standby: disk.hddstandby,
+      powerManagement: disk.advpowermgmt,
+      smartEnabled: disk.togglesmart === true,
       duplicateSerial: (detail.duplicate_serial as string[] | undefined) ?? [],
     },
     tempC,
@@ -1865,22 +2168,36 @@ async function diskHealthOf(nas: TrueNas, name: string) {
     pool: (detail.imported_zpool as string | null) ?? member?.pool ?? null,
     exportedPool: (detail.exported_zpool as string | null) ?? null,
     partitions: ((detail.partitions as Array<Record<string, unknown>>) ?? []).map((p) => ({
-      name: p.name ?? p.partition_name, size: p.size, type: p.partition_type ?? p.type,
+      name: p.name ?? p.partition_name,
+      size: p.size,
+      type: p.partition_type ?? p.type,
     })),
     zfs: member
       ? {
-          pool: member.pool, role: member.role, vdev: member.vdev, status: member.status ?? null,
-          readErrors: stats.read_errors ?? 0, writeErrors: stats.write_errors ?? 0,
-          checksumErrors: stats.checksum_errors ?? 0, selfHealed: stats.self_healed ?? 0,
-          size: stats.size ?? null, allocated: stats.allocated ?? null, fragmentation: stats.fragmentation ?? null,
+          pool: member.pool,
+          role: member.role,
+          vdev: member.vdev,
+          status: member.status ?? null,
+          readErrors: stats.read_errors ?? 0,
+          writeErrors: stats.write_errors ?? 0,
+          checksumErrors: stats.checksum_errors ?? 0,
+          selfHealed: stats.self_healed ?? 0,
+          size: stats.size ?? null,
+          allocated: stats.allocated ?? null,
+          fragmentation: stats.fragmentation ?? null,
           // ops/bytes are [null, read, write, ...] counters since import.
-          readBytes: stats.bytes?.[1] ?? null, writeBytes: stats.bytes?.[2] ?? null,
+          readBytes: stats.bytes?.[1] ?? null,
+          writeBytes: stats.bytes?.[2] ?? null,
         }
       : null,
     smart: { supported: smart.supported, reason: smart.reason, attributes: smart.attributes },
     tests: tests.map((t) => ({
-      num: t.num, type: t.type, status: t.status_verbose ?? t.status,
-      remaining: t.remaining, lifetime: t.lifetime, description: t.description,
+      num: t.num,
+      type: t.type,
+      status: t.status_verbose ?? t.status,
+      remaining: t.remaining,
+      lifetime: t.lifetime,
+      description: t.description,
     })),
     runningTest: results?.current_test ?? null,
     health: { level, reasons },
@@ -1908,7 +2225,8 @@ async function catalogIcons(nas: TrueNas): Promise<Map<string, string> | null> {
   if (iconIndex && Date.now() - iconIndex.at < ttl) return iconIndex.index;
   try {
     const rows = await nas.call<Array<Record<string, unknown>>>("app.available", [
-      [], { select: ["name", "icon_url"] },
+      [],
+      { select: ["name", "icon_url"] },
     ]);
     iconIndex = { at: Date.now(), index: catalogIconIndex(rows) };
   } catch (e) {
@@ -1942,14 +2260,6 @@ async function readTemperatures(nas: TrueNas): Promise<{
     return { values: {}, note: `The NAS could not report temperatures: ${message}` };
   }
 }
-
-
-const bytesish = (n: number | undefined): string => {
-  if (!n) return "0 B";
-  const u = ["B", "KiB", "MiB", "GiB", "TiB"];
-  const i = Math.min(Math.floor(Math.log(n) / Math.log(1024)), u.length - 1);
-  return `${(n / 1024 ** i).toFixed(i ? 1 : 0)} ${u[i]}`;
-};
 
 /**
  * The passwords an app was installed with, dug out of its own settings.
@@ -2020,9 +2330,13 @@ function normaliseUrl(input: string): string {
 /* ------------------------------------------------------------------- static */
 
 const TYPES: Record<string, string> = {
-  ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml",
-  ".woff2": "font/woff2", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json",
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".woff2": "font/woff2",
+  ".ico": "image/x-icon",
+  ".webmanifest": "application/manifest+json",
 };
 
 async function serveStatic(url: URL, res: ServerResponse): Promise<void> {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fingerprintMatches, httpBase } from "../server/pinned.js";
 import type { Connection } from "../server/store.js";
 
-const conn = (url: string) => ({ url } as Connection);
+const conn = (url: string) => ({ url }) as Connection;
 
 describe("fingerprintMatches", () => {
   const want = "AB:CD:EF:01";

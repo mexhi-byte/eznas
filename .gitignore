@@ -15,6 +15,9 @@ data/
 .env
 *.env
 
+# Coverage output
+coverage/
+
 # Local scratch
 *.log
 probe*.mjs

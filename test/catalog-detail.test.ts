@@ -2,14 +2,18 @@ import { describe, expect, it } from "vitest";
 import { appDetail } from "../server/catalog-detail.js";
 
 const full = {
-  name: "nextcloud", title: "Nextcloud", train: "stable",
-  description: "A personal cloud.", icon_url: "https://media/nc.png",
+  name: "nextcloud",
+  title: "Nextcloud",
+  train: "stable",
+  description: "A personal cloud.",
+  icon_url: "https://media/nc.png",
   categories: ["cloud", "productivity"],
   home: "https://nextcloud.com",
   sources: ["https://github.com/nextcloud"],
   screenshots: ["https://media/1.png", "https://media/2.png"],
   maintainers: [{ name: "truenas", email: "dev@truenas.com", url: "https://truenas.com" }],
-  latest_version: "1.6.13", latest_human_version: "30.0.2_1.6.13",
+  latest_version: "1.6.13",
+  latest_human_version: "30.0.2_1.6.13",
   last_update: "2026-08-01 10:00:00",
   installed: true,
   versions: { "1.6.13": {}, "1.6.12": {} },
@@ -31,8 +35,7 @@ describe("appDetail", () => {
   it("falls back to the catalog version when there is no human one", () =>
     expect(appDetail({ ...full, latest_human_version: undefined }).version).toBe("1.6.13"));
 
-  it("counts the versions available to roll back to", () =>
-    expect(appDetail(full).versionCount).toBe(2));
+  it("counts the versions available to roll back to", () => expect(appDetail(full).versionCount).toBe(2));
 
   /*
    * The reason this is a mapper and not a passthrough: these rows come from a
@@ -53,15 +56,13 @@ describe("appDetail", () => {
     expect(appDetail({ ...full, versions: ["1.6.13", "1.6.12", "1.6.11"] }).versionCount).toBe(3));
 
   it("keeps a maintainer given as a bare string", () =>
-    expect(appDetail({ ...full, maintainers: ["someone"] }).maintainers)
-      .toEqual([{ name: "someone", url: null }]));
+    expect(appDetail({ ...full, maintainers: ["someone"] }).maintainers).toEqual([{ name: "someone", url: null }]));
 
   it("drops a maintainer with no name rather than rendering a blank row", () =>
     expect(appDetail({ ...full, maintainers: [{ email: "x@y.z" }] }).maintainers).toEqual([]));
 
   it("ignores non-string entries in lists that should hold strings", () =>
-    expect(appDetail({ ...full, screenshots: ["https://a.png", 42, null] }).screenshots)
-      .toEqual(["https://a.png"]));
+    expect(appDetail({ ...full, screenshots: ["https://a.png", 42, null] }).screenshots).toEqual(["https://a.png"]));
 
   it("treats an absent title as the name, never as blank", () =>
     expect(appDetail({ ...full, title: "" }).title).toBe("nextcloud"));
@@ -86,8 +87,7 @@ describe("URLs from the catalog", () => {
   it("drops a data: URI", () =>
     expect(appDetail({ ...full, home: "data:text/html,<script>alert(1)</script>" }).home).toBeNull());
 
-  it("drops a vbscript: URI", () =>
-    expect(appDetail({ ...full, home: "vbscript:msgbox(1)" }).home).toBeNull());
+  it("drops a vbscript: URI", () => expect(appDetail({ ...full, home: "vbscript:msgbox(1)" }).home).toBeNull());
 
   it("keeps an ordinary https link", () =>
     expect(appDetail({ ...full, home: "https://nextcloud.com" }).home).toBe("https://nextcloud.com"));
@@ -96,12 +96,14 @@ describe("URLs from the catalog", () => {
     expect(appDetail({ ...full, home: "http://example.local" }).home).toBe("http://example.local"));
 
   it("filters sources rather than passing the bad one through", () =>
-    expect(appDetail({ ...full, sources: ["https://ok.example", "javascript:alert(1)"] }).sources)
-      .toEqual(["https://ok.example"]));
+    expect(appDetail({ ...full, sources: ["https://ok.example", "javascript:alert(1)"] }).sources).toEqual([
+      "https://ok.example",
+    ]));
 
   it("filters screenshots the same way", () =>
-    expect(appDetail({ ...full, screenshots: ["javascript:alert(1)", "https://ok.example/1.png"] }).screenshots)
-      .toEqual(["https://ok.example/1.png"]));
+    expect(
+      appDetail({ ...full, screenshots: ["javascript:alert(1)", "https://ok.example/1.png"] }).screenshots,
+    ).toEqual(["https://ok.example/1.png"]));
 
   it("keeps a maintainer whose url is unsafe, but without the link", () => {
     // The name is still worth showing; only the href is dangerous.
