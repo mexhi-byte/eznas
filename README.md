@@ -118,6 +118,10 @@ The image is `ghcr.io/mexhi-byte/eznas`, built for amd64 and arm64 on every rele
 `0.6.0`, `0.6` and `latest`. It runs as `PUID`:`PGID` (1000:1000 unless set) and fixes the data
 folder's ownership itself on start, so there is nothing to `chown`.
 
+**Just to look**, without a NAS at all: `npm run demo` builds the console and runs it against a
+TrueNAS that is not there, already connected. Sign in as `demo` with `demo-demo-demo`. Host that on
+anything with Node and you have a public demo; nothing in it is real.
+
 **From source**, for development or if you would rather not run a container:
 
 ```bash
@@ -251,6 +255,11 @@ blank.
 A route module must never import from `server/index.ts`: it starts the server at module scope, so
 importing it from something it imports resolves to a half-initialised object. Shared helpers live in
 `server/http.ts` for that reason.
+
+## Where it is going
+
+[ROADMAP.md](ROADMAP.md) says what 1.0 means and what comes after; [ARCHITECTURE.md](ARCHITECTURE.md)
+is the one picture and the three rules.
 
 ## Contributing
 
