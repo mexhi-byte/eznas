@@ -60,6 +60,13 @@ function secret() {
   return resolved;
 }
 
+/**
+ * The secret sessions are signed with — the same one the encryption key is
+ * derived from, so an install without SESSION_SECRET keeps its sessions across
+ * a restart instead of signing everyone out each time the container comes up.
+ */
+export const sessionSecret = (): string => secret().secret;
+
 function secretKey(): Buffer {
   // Derived from the same secret that signs sessions: one thing to protect, and
   // rotating it invalidates stored keys and sessions together, which is the

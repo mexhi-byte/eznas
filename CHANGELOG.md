@@ -18,6 +18,13 @@ Anything that does is called out under **Changed** or **Upgrading**.
   Cloudflare or a reverse proxy. Set it there, or the limit keys on the
   proxy's address and locks everyone out together.
 
+### Fixed
+
+- **Sessions survive a restart when `SESSION_SECRET` is unset.** The store
+  generated a secret once and kept it at `<data file>.key`; the session
+  signer did not know that and made up its own on every start, so each
+  restart signed everyone out. Both now use the kept one.
+
 ### Added
 
 - **A first run with no `UI_PASSWORD` now works.** It used to log "nobody can

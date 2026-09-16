@@ -1,4 +1,5 @@
-import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { sessionSecret } from "./store.js";
 
 /**
  * Signed session cookies naming the account that holds them.
@@ -13,7 +14,13 @@ import { createHmac, timingSafeEqual, randomBytes } from "node:crypto";
  * and cannot edit the role or the expiry out of the one it was given.
  */
 
-const SECRET = process.env.SESSION_SECRET ?? randomBytes(32).toString("hex");
+/*
+ * Resolved on first use rather than at import, and through the store rather
+ * than from the environment directly. The store already knows the answer when
+ * SESSION_SECRET is unset — it generated one and kept it beside the data file
+ * — and a signer that made up its own instead invalidated every session on
+ * every restart while the README promised one secret protected both.
+ */
 const MAX_AGE_SECONDS = 12 * 60 * 60;
 export const COOKIE = "tnui_session";
 
@@ -23,7 +30,7 @@ export interface Session {
 }
 
 function sign(value: string): string {
-  return createHmac("sha256", SECRET).update(value).digest("base64url");
+  return createHmac("sha256", sessionSecret()).update(value).digest("base64url");
 }
 
 export function issue(accountId: string): string {
