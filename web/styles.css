@@ -736,6 +736,29 @@ th.num {
   margin-right: auto;
 }
 
+/* ---------------------------------------------------------------- setup */
+
+.setup .wizard-steps li.done {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+}
+.setup-hint {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--accent-dim);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  font-size: 13.5px;
+  line-height: 1.55;
+  display: grid;
+  gap: 8px;
+}
+.setup-ok {
+  color: var(--ok) !important;
+}
+.setup .kv {
+  margin: 0;
+}
+
 /* ---------------------------------------------------------- certificate */
 
 .cert-block {
