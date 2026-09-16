@@ -1,6 +1,7 @@
 import { bodyOf, confirmed, json, optStr, str } from "../http.js";
 import { num, poolIdOf, summarisePool, sval, type PoolRow } from "../nas-shapes.js";
 import type { NasRouteContext } from "./context.js";
+import { recommendLayouts } from "../layout.js";
 
 /** Pools and datasets: what there is, making more of it, and taking it away. */
 
@@ -32,6 +33,15 @@ export async function handleStorageRoutes(ctx: NasRouteContext): Promise<boolean
       });
       return true;
     }
+  }
+
+  // What to build from the drives not in any pool, in words a first-time
+  // owner can weigh: space, and how many drives may die.
+  if (path === "/api/pools/layouts" && method === "GET") {
+    const details = await nas.call<{ unused?: Array<{ name: string; size: number; type?: string }> }>("disk.details");
+    const free = (details.unused ?? []).map((d) => ({ name: d.name, size: d.size, type: d.type }));
+    json(res, 200, { drives: free, options: recommendLayouts(free) });
+    return true;
   }
 
   const poolScrub = /^\/api\/pools\/([^/]+)\/scrub$/.exec(path);
