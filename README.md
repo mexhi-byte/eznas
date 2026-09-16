@@ -55,7 +55,7 @@ scrub results, updates, and the NAS not answering. A standing condition is repor
 minute, and clears when it resolves.
 
 **Also** — seven themes, per-account 2FA, a web terminal, network configuration with a rollback
-countdown, and SMTP.
+countdown, SMTP, and restart or shutdown with the hostname typed back.
 
 ## Requirements
 

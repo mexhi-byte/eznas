@@ -70,6 +70,8 @@ function ServersTab() {
         )}
       </div>
 
+      {!!data?.length && <PowerCard />}
+
       {editing && (
         <ConnectionForm
           conn={editing === "new" ? null : editing}
@@ -93,6 +95,73 @@ function ServersTab() {
         />
       )}
     </>
+  );
+}
+
+/**
+ * Restart or shut down the NAS this console is pointed at.
+ *
+ * Here rather than on Home because it is not something anyone does often, and
+ * because the confirmation needs the machine's own hostname, which this tab is
+ * already about. The server refuses the request without that name typed back.
+ */
+function PowerCard() {
+  const [action, setAction] = useState<"reboot" | "shutdown" | null>(null);
+  const [hostname, setHostname] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function ask(next: "reboot" | "shutdown") {
+    setError(null);
+    setDone(null);
+    try {
+      const { hostname: h } = await get<{ hostname: string }>("/api/system/power");
+      setHostname(h);
+      setAction(next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  const verb = action === "reboot" ? "Restart" : "Shut down";
+
+  return (
+    <Card title="Power" className="power-card">
+      <p className="modal-text" style={{ marginTop: 0 }}>
+        Every app and every shared folder goes offline while the NAS is down. A restart comes back on its own in a
+        few minutes; after a shutdown, somebody has to press the button on the machine.
+      </p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button className="btn" onClick={() => void ask("reboot")}>Restart the NAS…</button>
+        <button className="btn danger" onClick={() => void ask("shutdown")}>Shut down the NAS…</button>
+      </div>
+      {done && <div className="job done" style={{ marginTop: 12, marginBottom: 0 }}>{done}</div>}
+      {error && <ErrorBanner>{error}</ErrorBanner>}
+
+      {action && hostname !== null && (
+        <DangerConfirm
+          what="the NAS"
+          name={hostname}
+          verb={verb}
+          onCancel={() => setAction(null)}
+          onConfirm={async (confirm) => {
+            const r = await post<{ hostname: string }>("/api/system/power", { action, confirm });
+            setDone(
+              action === "reboot"
+                ? `${r.hostname} is restarting. This console will show it as unreachable until it is back.`
+                : `${r.hostname} is shutting down.`,
+            );
+          }}
+          extra={
+            <p className="modal-text" style={{ marginTop: 10 }}>
+              {action === "reboot"
+                ? "Apps stop, shares disappear, and the console loses contact until the NAS is back — usually two to five minutes."
+                : "Nothing on the network will reach this machine until somebody turns it on again at the machine itself."}
+            </p>
+          }
+        />
+      )}
+    </Card>
   );
 }
 

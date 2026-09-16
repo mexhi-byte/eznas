@@ -67,6 +67,14 @@ describe("every shipped feature is reachable from the interface", () => {
     expect(page?.text).toContain('kind === "bin"');
   });
 
+  it("restart and shutdown have buttons, and go through the typed confirmation", () => {
+    const pages = componentSources().filter((s) => s.text.includes("/api/system/power"));
+    expect(pages).not.toEqual([]);
+    // The route insists on the hostname being typed back; a button that
+    // skipped the dialog would be refused, so the dialog is the way in.
+    expect(pages.some((s) => s.text.includes("DangerConfirm"))).toBe(true);
+  });
+
   it("NFS exports have a dialog, not just a route", () => {
     // A path fragment rather than an identifier: the dialog posts to the
     // endpoint directly, so there is no imported function name to look for.

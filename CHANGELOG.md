@@ -50,6 +50,9 @@ Anything that does is called out under **Changed** or **Upgrading**.
 
 ### Added
 
+- **Restart or shut down the NAS** from Settings → Servers. Like every other
+  destructive action, it asks for the machine's hostname typed back, and the
+  server refuses the request without it.
 - **A first run with no `UI_PASSWORD` now works.** It used to log "nobody can
   sign in" and start anyway, leaving a console that ran and could not be
   used. There is still no default password — a fixed one would be published

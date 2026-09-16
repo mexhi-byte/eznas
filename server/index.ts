@@ -1618,6 +1618,42 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       return true;
   }
 
+  /* --- power --- */
+
+  if (path === "/api/system/power") {
+    const info = await nas.call<{ hostname?: string }>("system.info");
+    const hostname = String(info.hostname ?? "");
+    if (method === "GET") {
+      json(res, 200, { hostname });
+      return true;
+    }
+    if (method === "POST") {
+      const b = await bodyOf(req);
+      const action = b.action === "reboot" || b.action === "shutdown" ? b.action : null;
+      if (!action) throw new Error('"action" must be "reboot" or "shutdown".');
+      // The hostname, not the console's nickname for the server: it is what
+      // the machine calls itself, and the thing about to go dark.
+      confirmed(b, hostname);
+      const reason = `${action === "reboot" ? "Restart" : "Shutdown"} requested from EzNAS by ${me.username}`;
+      try {
+        await nas.call(`system.${action}`, [reason, { delay: 0 }]);
+      } catch (e) {
+        // The NAS may close the socket before its answer arrives. That is the
+        // request taking effect, not failing, and saying "failed" to somebody
+        // watching the lights go off would be the wrong sentence.
+        const message = e instanceof Error ? e.message : String(e);
+        if (!/dropped|not connected|not reachable/i.test(message)) throw e;
+      }
+      settings.addEvent({
+        level: "info", category: "power", key: `power:${action}:${Date.now()}`,
+        title: action === "reboot" ? `${hostname} is restarting` : `${hostname} is shutting down`,
+        detail: `${reason}.`, server: store.get(url.searchParams.get("c"))?.name ?? hostname,
+      });
+      json(res, 200, { ok: true, action, hostname });
+      return true;
+    }
+  }
+
   const alertDismiss = /^\/api\/alerts\/([^/]+)\/dismiss$/.exec(path);
   if (alertDismiss && method === "POST") {
     await nas.call("alert.dismiss", [alertDismiss[1]]);
