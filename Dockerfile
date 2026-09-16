@@ -7,7 +7,7 @@
 # runtime dependencies have no native code, so the output is the same for
 # every architecture. Running the build under emulation for arm64 instead
 # took several minutes and produced identical files.
-FROM --platform=$BUILDPLATFORM node:22-alpine AS build
+FROM --platform=$BUILDPLATFORM node:26-alpine AS build
 WORKDIR /app
 
 # Dependencies first, so an edit to the source does not reinstall them.
@@ -23,7 +23,7 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 # ---------------------------------------------------------------- runtime
-FROM node:22-alpine
+FROM node:26-alpine
 WORKDIR /app
 
 # tzdata, so notification timestamps are in the household's own time.
