@@ -6,6 +6,20 @@ Versions follow [semantic versioning](https://semver.org/), loosely: the
 console is pre-1.0, so a minor bump may still change behaviour you relied on.
 Anything that does is called out under **Changed** or **Upgrading**.
 
+## 1.0.0 — 2026-09-16
+
+The console does what it set out to do. A person who owns a TrueNAS box and
+is not a storage administrator can install it from TrueNAS itself, be walked
+from sign-in to a working Home page, set up a fresh box in one sitting, see
+whether the data is safe and fix what is missing, do the everyday things, and
+trust it: certificate pinned by default, its own backup a button, a browser
+test on every change.
+
+Same code as 0.7.1. The version says what the console is; the roadmap's own
+gate — one run of the backup, encryption and setup flows against a real
+25.04 box — was waived by the maintainer, so a wrong argument shape in one of
+those shows up as a sentence in a dialog. Report it and it is a patch release.
+
 ## 0.7.1 — 2026-09-16
 
 Housekeeping. No behaviour change.

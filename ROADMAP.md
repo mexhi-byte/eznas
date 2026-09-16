@@ -22,9 +22,10 @@ opening TrueNAS's own interface:
    backup a button, a stated TrueNAS support window, and a browser test that
    runs the whole first-run flow on every change.
 
-Everything in that list is built. 1.0 is tagged when the two phases marked
-"needs hardware" below have each been run once against a real TrueNAS 25.04
-box and the argument shapes confirmed.
+Everything in that list is built and 1.0 is tagged. The two phases marked
+"needs hardware" below were released on the maintainer's decision before a run
+against a real TrueNAS 25.04 box; a wrong argument shape there is a sentence in
+a dialog, and a patch release when reported.
 
 ## Done
 
@@ -34,8 +35,8 @@ box and the argument shapes confirmed.
 | 2     | 0.6        | Release workflow, GHCR image, Custom App install, installer pulls, lint, coverage                      |
 | 3     | 0.6        | Setup wizard, certificate pinning by default, schema-driven app install                                |
 | 4     | 0.6        | Route split, groups, app logs and shell, mock NAS, browser test                                        |
-| 5     | main       | Backups & checks, Home safety card, encrypted folders, Time Machine, console backup — _needs hardware_ |
-| 6     | main       | Layout recommendation, fresh-NAS setup, demo, this document — _needs hardware_                         |
+| 5     | 0.7, 1.0   | Backups & checks, Home safety card, encrypted folders, Time Machine, console backup — _needs hardware_ |
+| 6     | 0.7, 1.0   | Layout recommendation, fresh-NAS setup, demo, this document — _needs hardware_                         |
 
 ## After 1.0
 

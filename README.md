@@ -6,7 +6,7 @@ TrueNAS ships an interface built for storage administrators. This is one built f
 owns the box: pools you can read at a glance, apps as icons rather than a count, a file browser that
 can actually move and delete things, and notifications for the situations TrueNAS stays quiet about.
 
-**v0.5 — early.** Used daily against real hardware, and still young enough that you should read
+**1.0.** Used daily against real hardware. It holds a key that is root on your NAS, so read
 [Security](#security) before putting it anywhere the internet can reach.
 
 [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Reporting a vulnerability](SECURITY.md)
