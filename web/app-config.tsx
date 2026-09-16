@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { put, useResource } from "./api";
 import { ErrorBanner, Loading } from "./components";
 import { Field, Input, Modal, Select, Toggle } from "./ui";
+import type { Question } from "./app-schema";
 
 /* -------------------------------------------------------------------- types */
 
@@ -10,28 +11,6 @@ interface Credential {
   key: string;
   value: string;
   secret: boolean;
-}
-
-/** One question from a catalog app's schema. The shape is recursive. */
-interface Question {
-  variable: string;
-  label?: string;
-  description?: string;
-  group?: string;
-  schema: QSchema;
-}
-interface QSchema {
-  type: string;
-  default?: unknown;
-  required?: boolean;
-  private?: boolean;
-  enum?: Array<{ value: string; description?: string }>;
-  attrs?: Question[];
-  items?: Question[];
-  min?: number;
-  max?: number;
-  hidden?: boolean;
-  editable?: boolean;
 }
 
 interface AppConfig {
@@ -181,7 +160,7 @@ export function AppConfigModal({
  * walks it rather than hard-coding any app, so an app the console has never
  * seen still gets a real form instead of a JSON blob.
  */
-function QuestionList({
+export function QuestionList({
   questions,
   values,
   onChange,

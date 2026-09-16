@@ -2,6 +2,8 @@ import { useState } from "react";
 import { del, get, getConnection, post, put, setConnection, useResource } from "./api";
 import { Card, Empty, ErrorBanner, Loading, Pill, TAGLINE } from "./components";
 import { AppDetailsModal } from "./app-details";
+import { QuestionList } from "./app-config";
+import { defaultsFor, hasVisibleQuestions, type Question } from "./app-schema";
 import { DangerConfirm, Field, Input, JobProgress, Modal, Select, Toggle, useSubmit } from "./ui";
 import {
   AppearanceTab,
@@ -911,11 +913,27 @@ function InstallForm({
   onStarted: (jobId: number, label: string) => void;
 }) {
   const [name, setName] = useState(app.name);
+  /*
+   * The app's own questions, answered before it is installed. The console
+   * used to install with defaults and send people to TrueNAS to set storage
+   * paths and ports afterwards — to the interface this one exists to replace.
+   * The same form the config dialog renders after install is rendered here
+   * first, starting from the schema's defaults.
+   */
+  const { data: schema, error: schemaError } = useResource<{ version: string; questions: Question[] | null }>(
+    `/api/catalog/app/schema?name=${encodeURIComponent(app.name)}&train=${encodeURIComponent(app.train)}`,
+    0,
+  );
+  const [draft, setDraft] = useState<Record<string, unknown> | null>(null);
+  const values = draft ?? (schema ? defaultsFor(schema.questions) : {});
+  const asksSomething = hasVisibleQuestions(schema?.questions);
+
   const { busy, error, submit } = useSubmit(async () => {
     const { jobId } = await post<{ jobId: number }>("/api/apps", {
       appName: name,
       catalogApp: app.name,
       train: app.train,
+      values,
     });
     onStarted(jobId, `Installing ${name}`);
   });
@@ -923,8 +941,9 @@ function InstallForm({
   return (
     <Modal
       title={`Install ${app.title}`}
-      subtitle={`${app.latest_version} from the ${app.train} train`}
+      subtitle={`${schema?.version ?? app.latest_version} from the ${app.train} train`}
       onClose={onClose}
+      wide={asksSomething}
       footer={
         <>
           <button className="btn" onClick={onClose} disabled={busy}>
@@ -946,10 +965,25 @@ function InstallForm({
           autoFocus
         />
       </Field>
-      <p className="modal-text">
-        The app is installed with its default configuration. Anything it needs beyond that — storage paths, ports,
-        credentials — is edited in the TrueNAS app settings afterwards.
-      </p>
+      {schema === null && !schemaError && <Loading rows={3} />}
+      {schemaError && (
+        <p className="modal-text" style={{ color: "var(--warn)" }}>
+          The app's settings could not be read ({schemaError}), so it will be installed with its defaults. They can be
+          changed afterwards from the app's Configure button.
+        </p>
+      )}
+      {schema && asksSomething && (
+        <>
+          <QuestionList questions={schema.questions!} values={values} onChange={setDraft} />
+          <p className="modal-text">
+            Everything above starts at the app's own defaults. Storage paths and ports are the ones worth a look;
+            anything can be changed later from the app's Configure button.
+          </p>
+        </>
+      )}
+      {schema && !asksSomething && (
+        <p className="modal-text">This app has no settings to choose at install. It can be configured afterwards.</p>
+      )}
       {error && <ErrorBanner>{error}</ErrorBanner>}
     </Modal>
   );

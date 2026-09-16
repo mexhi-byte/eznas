@@ -860,6 +860,22 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
    * instead of the handful the list needs. Which fields those are varies by
    * version, which is why what comes back is mapped rather than forwarded.
    */
+  /*
+   * The questions a catalog app asks at install, with the version they belong
+   * to. The same schema the config form renders after install, fetched before
+   * it, so installing can be a real form rather than "defaults, then go and
+   * fix it in TrueNAS".
+   */
+  if (path === "/api/catalog/app/schema") {
+    const name = str({ name: url.searchParams.get("name") }, "name");
+    const train = url.searchParams.get("train") ?? "stable";
+    const d = await nas.call<Record<string, unknown>>("catalog.get_app_details", [name, { train }]);
+    const versions = (d.versions ?? {}) as Record<string, { schema?: { questions?: unknown } }>;
+    const version = String(d.latest_version ?? "");
+    json(res, 200, { name, train, version, questions: versions[version]?.schema?.questions ?? null });
+    return true;
+  }
+
   if (path === "/api/catalog/app") {
     const name = str({ name: url.searchParams.get("name") }, "name");
     const train = url.searchParams.get("train");
