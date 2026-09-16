@@ -853,7 +853,9 @@ export function ConsoleUpdateTab() {
             )}
 
             {!data.canSelfUpdate && data.reason && (
-              <p className="modal-text" style={{ color: "var(--warn)" }}>{data.reason}</p>
+              <p className="modal-text" style={{ color: data.updateAvailable ? "var(--warn)" : "var(--muted)" }}>
+                {data.reason}
+              </p>
             )}
 
             <div style={{ marginTop: 12 }}>

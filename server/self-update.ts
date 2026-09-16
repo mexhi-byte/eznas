@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { CHANNEL } from "./version.js";
 
 const run = promisify(execFile);
 
@@ -24,6 +25,35 @@ const run = promisify(execFile);
 
 const REPO = process.env.UPDATE_REPO ?? "mexhi-byte/eznas";
 const ROOT = process.cwd();
+
+/**
+ * How this copy can be updated, and if it cannot update itself, what to do.
+ *
+ * Three ways to run the console, three answers. A git checkout can fetch a
+ * tag and rebuild in place. A container has no source to rebuild from and
+ * cannot replace its own image from the inside — the update is a pull done
+ * by whatever started it, so the honest answer is to say so and say where.
+ * Anything else — a tarball, a copied dist/ — is told how to fetch the next
+ * one by hand.
+ */
+export function selfUpdateAbility(channel: string, hasGit: boolean): { canSelfUpdate: boolean; reason: string | null } {
+  if (channel === "container") {
+    return {
+      canSelfUpdate: false,
+      reason:
+        "This console runs from a container image, which cannot replace itself from the inside. " +
+        "Update it where it was installed: in TrueNAS under Apps → EzNAS → Update, or by running " +
+        "the installer again on the NAS (sudo ./install.sh). Both pull the new image; your data is kept.",
+    };
+  }
+  if (hasGit) return { canSelfUpdate: true, reason: null };
+  return {
+    canSelfUpdate: false,
+    reason:
+      "This copy was not installed from git, so it cannot update itself in place. " +
+      "Each release includes a tarball of the build: download it, replace dist/ and package.json, and restart.",
+  };
+}
 
 export interface Release {
   version: string;
@@ -84,17 +114,16 @@ export interface UpdateCheck {
   reason: string | null;
 }
 
-export async function check(current: string): Promise<UpdateCheck> {
+export async function check(current: string, channel: string = CHANNEL): Promise<UpdateCheck> {
   const all = await releases();
   const stable = all.filter((r) => !r.prerelease && r.version);
   const latest = stable[0] ?? null;
-  const git = existsSync(join(ROOT, ".git"));
+  const ability = selfUpdateAbility(channel, existsSync(join(ROOT, ".git")));
   return {
     current,
     latest,
     updateAvailable: !!latest && isNewer(latest.version, current),
-    canSelfUpdate: git,
-    reason: git ? null : "This copy was not installed from git, so it cannot update itself in place.",
+    ...ability,
   };
 }
 
@@ -107,7 +136,8 @@ export async function check(current: string): Promise<UpdateCheck> {
  */
 export async function apply(tag: string, onLine: (line: string) => void): Promise<void> {
   if (!/^[\w.\-/]{1,64}$/.test(tag)) throw new Error("That does not look like a release tag.");
-  if (!existsSync(join(ROOT, ".git"))) throw new Error("This copy was not installed from git.");
+  const ability = selfUpdateAbility(CHANNEL, existsSync(join(ROOT, ".git")));
+  if (!ability.canSelfUpdate) throw new Error(ability.reason ?? "This copy cannot update itself.");
 
   const step = async (label: string, cmd: string, args: string[]) => {
     onLine(`$ ${cmd} ${args.join(" ")}`);
