@@ -1,4 +1,6 @@
 import { bodyOf, confirmed, json, optStr, str } from "../http.js";
+import { orphanWarning, referencedBy, type AclLike } from "../orphans.js";
+import type { TrueNas } from "../truenas.js";
 import type { NasRouteContext } from "./context.js";
 
 /**
@@ -84,19 +86,68 @@ export async function handleNasUserRoutes(ctx: NasRouteContext): Promise<boolean
   }
 
   if (path === "/api/groups") {
-    const groups = await nas.call<Array<Record<string, unknown>>>("group.query", [[["local", "=", true]]]);
-    json(
-      res,
-      200,
-      groups.map((g) => ({
-        id: g.id,
-        gid: g.gid,
-        name: g.group,
-        builtin: g.builtin,
-        users: (g.users as unknown[])?.length ?? 0,
-      })),
-    );
+    if (method === "GET") {
+      const groups = await nas.call<Array<Record<string, unknown>>>("group.query", [[["local", "=", true]]]);
+      json(
+        res,
+        200,
+        groups.map((g) => ({
+          id: g.id,
+          gid: g.gid,
+          name: g.group,
+          builtin: g.builtin,
+          smb: g.smb,
+          users: (g.users as unknown[])?.length ?? 0,
+          // The member ids themselves, so the editor can show who is in it
+          // rather than only how many.
+          members: Array.isArray(g.users) ? (g.users as number[]) : [],
+        })),
+      );
+      return true;
+    }
+    if (method === "POST") {
+      const b = await bodyOf(req);
+      const payload: Record<string, unknown> = {
+        name: groupName(str(b, "name")),
+        smb: b.smb !== false,
+        users: memberIds(b.members),
+      };
+      json(res, 200, { id: await nas.call<number>("group.create", [payload]) });
+      return true;
+    }
+  }
+
+  const groupOrphans = /^\/api\/groups\/(\d+)\/orphans$/.exec(path);
+  if (groupOrphans && method === "GET") {
+    json(res, 200, await orphansOf(nas, Number(groupOrphans[1])));
     return true;
+  }
+
+  const groupMatch = /^\/api\/groups\/(\d+)$/.exec(path);
+  if (groupMatch) {
+    const id = Number(groupMatch[1]);
+    if (method === "PUT") {
+      const b = await bodyOf(req);
+      const patch: Record<string, unknown> = {};
+      if (optStr(b, "name")) patch.name = groupName(str(b, "name"));
+      if (b.members !== undefined) patch.users = memberIds(b.members);
+      if (typeof b.smb === "boolean") patch.smb = b.smb;
+      json(res, 200, { id: await nas.call<number>("group.update", [id, patch]) });
+      return true;
+    }
+    if (method === "DELETE") {
+      const b = await bodyOf(req);
+      const [group] = await nas.call<Array<Record<string, unknown>>>("group.query", [[["id", "=", id]]]);
+      if (!group) throw new Error("There is no such group.");
+      if (group.builtin === true) throw new Error(`${String(group.group)} is built in and cannot be deleted.`);
+      // The name typed back, like every other deletion. The warning about
+      // orphaned folders was shown before this point; the route's job is only
+      // to make sure the name was meant.
+      confirmed(b, String(group.group));
+      await nas.call("group.delete", [id, { delete_users: false }]);
+      json(res, 200, { ok: true });
+      return true;
+    }
   }
 
   if (path === "/api/shells") {
@@ -120,4 +171,49 @@ function safeUser(u: unknown): unknown {
   if (!u || typeof u !== "object") return u;
   const { unixhash, smbhash, password, password_history, sid, api_keys, ...rest } = u as Record<string, unknown>;
   return rest;
+}
+
+/** A group name TrueNAS will accept, checked here so the error is a sentence rather than a schema dump. */
+function groupName(raw: string): string {
+  const name = raw.trim();
+  if (!/^[a-z_][a-z0-9_-]{0,31}$/i.test(name)) {
+    throw new Error("A group name is letters, numbers, dashes and underscores, starting with a letter, up to 32 long.");
+  }
+  return name;
+}
+
+/** Member ids as the NAS wants them: numbers, no duplicates, nothing that is not a number. */
+function memberIds(raw: unknown): number[] {
+  if (!Array.isArray(raw)) return [];
+  const ids = raw.map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  return [...new Set(ids)];
+}
+
+/**
+ * Which shared folders grant this group access — what deleting it orphans.
+ *
+ * Every SMB and NFS share's folder has its ACL read. One that cannot be read
+ * is skipped rather than reported, because "we could not check" is not the
+ * same warning as "this will break" and should not wear its clothes.
+ */
+async function orphansOf(nas: TrueNas, id: number) {
+  const [group] = await nas.call<Array<{ gid: number; group: string }>>("group.query", [[["id", "=", id]]]);
+  if (!group) throw new Error("There is no such group.");
+  const [smb, nfs] = await Promise.all([
+    nas.call<Array<{ name?: string; path: string }>>("sharing.smb.query").catch(() => []),
+    nas.call<Array<{ comment?: string; path: string }>>("sharing.nfs.query").catch(() => []),
+  ]);
+  const shares = [
+    ...smb.map((s) => ({ name: s.name ?? s.path, path: s.path })),
+    ...nfs.map((s) => ({ name: s.comment || s.path, path: s.path })),
+  ];
+  const acls = new Map<string, AclLike>();
+  await Promise.all(
+    [...new Set(shares.map((s) => s.path))].map(async (p) => {
+      const acl = await nas.call<AclLike>("filesystem.getacl", [p, false]).catch(() => null);
+      if (acl) acls.set(p, acl);
+    }),
+  );
+  const affected = referencedBy(group.gid, acls, shares);
+  return { group: group.group, gid: group.gid, affected, warning: orphanWarning(group.group, affected) };
 }

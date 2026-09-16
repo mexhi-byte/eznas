@@ -2,6 +2,7 @@ import { useState } from "react";
 import { del, post, put, useResource } from "./api";
 import { Card, Empty, ErrorBanner, Loading } from "./components";
 import { DangerConfirm, Field, Input, Modal, Select, Toggle, useSubmit } from "./ui";
+import { GroupsPage } from "./groups";
 
 /* ------------------------------------------------------------------ users */
 
@@ -19,7 +20,27 @@ interface User {
   sudo: boolean;
 }
 
+/** People and their groups, one switch between the two. */
 export function UsersPage() {
+  const [view, setView] = useState<"people" | "groups">(() =>
+    window.location.hash.endsWith("/groups") ? "groups" : "people",
+  );
+  return (
+    <>
+      <div className="seg" style={{ marginBottom: 16 }}>
+        <button className={view === "people" ? "on" : ""} onClick={() => setView("people")}>
+          People
+        </button>
+        <button className={view === "groups" ? "on" : ""} onClick={() => setView("groups")}>
+          Groups
+        </button>
+      </div>
+      {view === "people" ? <PeoplePage /> : <GroupsPage />}
+    </>
+  );
+}
+
+function PeoplePage() {
   const [showBuiltin, setShowBuiltin] = useState(false);
   const { data, error, loading, reload } = useResource<User[]>(`/api/users?builtin=${showBuiltin ? 1 : 0}`, 30_000);
   const { data: groups } = useResource<Array<{ id: number; gid: number; name: string; builtin: boolean }>>(

@@ -80,6 +80,13 @@ describe("every shipped feature is reachable from the interface", () => {
     expect(page?.text).toContain("QuestionList");
   });
 
+  it("groups can be created, edited and deleted from a page, with the orphan warning", () => {
+    const page = componentSources().find((s) => s.file === "groups.tsx");
+    expect(page?.text).toContain("/api/groups");
+    expect(page?.text).toContain("/orphans");
+    expect(mentions("GroupsPage")).toContain("users.tsx");
+  });
+
   it("restart and shutdown have buttons, and go through the typed confirmation", () => {
     const pages = componentSources().filter((s) => s.text.includes("/api/system/power"));
     expect(pages).not.toEqual([]);
