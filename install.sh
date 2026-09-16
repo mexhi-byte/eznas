@@ -5,7 +5,7 @@
 # Run it once to install. Run it again to update: it pulls the latest release,
 # rebuilds, and restarts, keeping everything under the data directory.
 #
-#   curl -fsSL https://raw.githubusercontent.com/mexhi-byte/eznas/main/install.sh | bash -s -- --pool tank
+#   curl -fsSL https://raw.githubusercontent.com/mexhi-byte/eznas/main/install.sh | sudo bash -s -- --pool tank
 #
 # or, from a clone:
 #
@@ -43,6 +43,42 @@ say()  { printf '%s\n' "${BOLD}==>${OFF} $*"; }
 note() { printf '%s\n' "    ${DIM}$*${OFF}"; }
 warn() { printf '%s\n' "${YELLOW}    ! $*${OFF}"; }
 die()  { printf '%s\n' "${RED}==> $*${OFF}" >&2; exit 1; }
+
+# Which pool to install into, asked of the person rather than assumed.
+#
+# Piped through curl, stdin is the script itself, so the question has to go to
+# the terminal directly. With no terminal — a cron job, a CI runner, --yes — it
+# prints the pools it can see and leaves the caller to pass --pool.
+ask_pool() {
+  local pools choice
+  pools="$(ls -1 /mnt 2>/dev/null | grep -v '^\.' || true)"
+  if [ -z "$pools" ]; then
+    warn "No pools are mounted under /mnt. Create one in TrueNAS first." >&2
+    return 0
+  fi
+  {
+    echo "Pools on this machine:"
+    printf '%s\n' "$pools" | sed 's/^/  /'
+  } >&2
+  if [ "$ASSUME_YES" = "yes" ] || [ ! -e /dev/tty ]; then
+    return 0
+  fi
+  if [ "$(printf '%s\n' "$pools" | wc -l)" -eq 1 ]; then
+    printf '%s' "Install into ${BOLD}${pools}${OFF}? [Y/n] " >&2
+    read -r choice < /dev/tty || true
+    case "$choice" in
+      ""|y|Y|yes|YES) printf '%s' "$pools" ;;
+    esac
+    return 0
+  fi
+  printf '%s' "Which pool? " >&2
+  read -r choice < /dev/tty || true
+  if [ -n "$choice" ] && printf '%s\n' "$pools" | grep -qx -- "$choice"; then
+    printf '%s' "$choice"
+  elif [ -n "$choice" ]; then
+    warn "There is no pool called ${choice} under /mnt." >&2
+  fi
+}
 
 usage() {
   cat <<'USAGE'
@@ -105,9 +141,9 @@ if [ -z "$BASE" ]; then
       BASE="$(dirname "$EXISTING")"
       note "Updating the install already at $BASE"
     else
-      echo "Pools on this machine:"
-      ls -1 /mnt 2>/dev/null | grep -v '^\.' | sed 's/^/  /' || true
-      die "Say which pool to install into: --pool NAME"
+      POOL="$(ask_pool)"
+      [ -n "$POOL" ] || die "Say which pool to install into: --pool NAME"
+      BASE="/mnt/${POOL}/eznas"
     fi
   else
     BASE="/mnt/${POOL}/eznas"

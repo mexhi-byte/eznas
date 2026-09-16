@@ -70,10 +70,12 @@ countdown, and SMTP.
 a container:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mexhi-byte/eznas/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/mexhi-byte/eznas/main/install.sh | sudo bash -s -- --pool tank
 ```
 
-Re-running it updates an existing install in place.
+Replace `tank` with the pool to install into; leave `--pool` off and the script lists your pools and
+asks. It needs `bash` and root, because it talks to Docker and writes under `/mnt`. Re-running it
+updates an existing install in place, and `--help` lists the other options.
 
 **From source**, for development or if you would rather not pipe a script into a shell:
 
