@@ -6,7 +6,13 @@ Versions follow [semantic versioning](https://semver.org/), loosely: the
 console is pre-1.0, so a minor bump may still change behaviour you relied on.
 Anything that does is called out under **Changed** or **Upgrading**.
 
-## Unreleased
+## 0.7.0 — 2026-09-16
+
+Safety, and a fresh box set up in one sitting. One page for what keeps the
+data safe and a card on Home that says whether it is; a wizard from empty
+drives to shared folders. The TrueNAS calls behind the new copies, locks and
+schedules have been tested against the mock and not yet against a real box —
+a mismatch shows up as a sentence in the dialog, and is a bug to report.
 
 ### Added
 
