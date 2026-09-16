@@ -208,7 +208,7 @@ server/     Node API. truenas.ts is the JSON-RPC client; index.ts is what is lef
   monitors.ts    the checks that generate notifications
   nas-exec.ts    shell commands, for what the API cannot do
   self-update.ts release checking and in-place update
-web/        React front end, no framework beyond it.
+web/        React front end, no framework beyond it. One file per page, named for it.
 test/       vitest. Pure logic directly, routes against a NAS that records
             what it was asked to do.
 deploy/     The compose file for TrueNAS's Custom App button.

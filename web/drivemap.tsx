@@ -4,7 +4,7 @@ import { Empty, ErrorBanner, Loading } from "./components";
 import { DiskHealthModal } from "./disk-health";
 import { ReplaceDiskWizard } from "./replace-disk";
 import { JobProgress } from "./ui";
-import type { PoolSummary } from "./pages";
+import type { PoolSummary } from "./storage";
 
 interface Disk {
   name: string;
