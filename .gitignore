@@ -18,6 +18,11 @@ data/
 # Coverage output
 coverage/
 
+# Browser test state
+.e2e-data/
+playwright-report/
+test-results/
+
 # Local scratch
 *.log
 probe*.mjs

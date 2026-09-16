@@ -12,5 +12,5 @@
     "verbatimModuleSyntax": false,
     "types": ["node", "vite/client"]
   },
-  "include": ["web", "server", "test", "vite.config.ts", "vitest.config.ts", "mock"]
+  "include": ["web", "server", "test", "vite.config.ts", "vitest.config.ts", "mock", "e2e", "playwright.config.ts"]
 }

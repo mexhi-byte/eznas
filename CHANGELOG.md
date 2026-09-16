@@ -10,6 +10,18 @@ Anything that does is called out under **Changed** or **Upgrading**.
 
 ### Added
 
+- **Groups can be created, edited and deleted**, with members ticked by name.
+  Deleting one first says which shared folders grant it access, because
+  TrueNAS deletes the group and leaves those folders pointing at a number
+  nobody owns.
+- **Logs and a shell for every running app**, on the app's card. The browser
+  sends an app name and a container id; the server builds the command.
+- **A mock TrueNAS** (`npm run mock`) that answers every method the console
+  calls, for trying the console without a NAS and for testing it.
+- **A browser test** that signs in, walks the setup wizard and visits every
+  page against the mock, on every pull request. Screenshots in the README are
+  taken from the same run.
+
 - **A first-run setup.** A console with no server asks five things in order —
   where the NAS is (guessed when the console runs on it), whether to trust
   its certificate, an API key with a link to the right page and a live test,
@@ -38,6 +50,9 @@ Anything that does is called out under **Changed** or **Upgrading**.
 
 ### Changed
 
+- **The server is in modules.** `server/index.ts` went from 2,453 lines to
+  353; the routes live under `server/routes/` by subject, and the page files
+  are named for their pages. No route changed.
 - **`install.sh` pulls the published image** instead of cloning and building
   on the NAS. Install and update are each one pull. `--build` keeps the old
   behaviour and is the only mode that needs git. The host time zone is passed

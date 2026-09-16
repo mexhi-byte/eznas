@@ -11,6 +11,24 @@ can actually move and delete things, and notifications for the situations TrueNA
 
 [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Reporting a vulnerability](SECURITY.md)
 
+<p align="center">
+  <img src="docs/screenshots/home.png" alt="Home: one screen answering whether the NAS is fine and what to do next" width="820">
+</p>
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/drives.png" alt="Drive array map, one tile per drive with a verdict in words"></td>
+    <td><img src="docs/screenshots/apps.png" alt="Apps, with Logs and Shell on every running app"></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/files.png" alt="The file browser, inside a shared folder"></td>
+    <td><img src="docs/screenshots/groups.png" alt="Groups, with members picked by name"></td>
+  </tr>
+</table>
+
+_Screenshots are of the console running against its own demo NAS (`npm run mock`), so nobody's real
+serial numbers are in them. `npm run screenshots` regenerates them._
+
 ---
 
 ## What it does
@@ -210,7 +228,11 @@ server/     Node API. truenas.ts is the JSON-RPC client; index.ts is what is lef
   self-update.ts release checking and in-place update
 web/        React front end, no framework beyond it. One file per page, named for it.
 test/       vitest. Pure logic directly, routes against a NAS that records
-            what it was asked to do.
+            what it was asked to do, and against the mock over the real protocol.
+mock/       A TrueNAS that is not there: every method the console calls,
+            answered from fixtures. `npm run mock`, then add ws://127.0.0.1:18443
+            with API key 1-mock. Also what the browser test runs against.
+e2e/        Playwright. Sign in, set up, see every page — the test 0.5.0 lacked.
 deploy/     The compose file for TrueNAS's Custom App button.
 scripts/    release-notes.sh, which turns a changelog section into a release.
 data/       Runtime state. Not in git, and not touched by updates.

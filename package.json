@@ -1,7 +1,7 @@
 {
   "name": "eznas",
   "version": "0.5.2",
-  "description": "EzNAS — a beautifully simplified, open-source web UI for TrueNAS. Built for homelabs, powered by WebSockets.",
+  "description": "EzNAS \u2014 a beautifully simplified, open-source web UI for TrueNAS. Built for homelabs, powered by WebSockets.",
   "main": "index.js",
   "scripts": {
     "dev:web": "vite",
@@ -15,7 +15,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:coverage": "vitest run --coverage",
-    "mock": "node --experimental-strip-types mock/truenas-mock.ts"
+    "mock": "node --experimental-strip-types mock/truenas-mock.ts",
+    "e2e": "playwright test",
+    "screenshots": "SCREENSHOTS=1 playwright test"
   },
   "keywords": [],
   "author": "",
