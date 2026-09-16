@@ -6,7 +6,10 @@ Versions follow [semantic versioning](https://semver.org/), loosely: the
 console is pre-1.0, so a minor bump may still change behaviour you relied on.
 Anything that does is called out under **Changed** or **Upgrading**.
 
-## Unreleased
+## 0.5.2 — 2026-09-16
+
+A security release. Nothing new to look at; one thing to read under
+**Upgrading**.
 
 ### Security
 
