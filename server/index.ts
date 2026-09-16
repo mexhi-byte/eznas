@@ -32,6 +32,7 @@ import { handleDiskRoutes } from "./routes/disks.js";
 import { handleSnapshotRoutes } from "./routes/snapshots.js";
 import { handleNetworkRoutes } from "./routes/network.js";
 import { handleSystemRoutes } from "./routes/system.js";
+import { handleSafetyRoutes } from "./routes/safety.js";
 
 // 8080, not 80: the same number the Dockerfile, the Vite proxy and the docs
 // use, and one that does not need root to bind on a laptop.
@@ -264,6 +265,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     handleDiskRoutes,
     handleSnapshotRoutes,
     handleNetworkRoutes,
+    handleSafetyRoutes,
     handleSystemRoutes,
   ]) {
     if (await handle(ctx)) return true;

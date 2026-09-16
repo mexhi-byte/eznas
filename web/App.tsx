@@ -13,6 +13,7 @@ import { FirstRunSetup } from "./first-run";
 import { DriveMapPage } from "./drivemap";
 import { SettingsPage, type Conn } from "./settings";
 import { UsersPage } from "./users";
+import { SafetyPage } from "./safety";
 import { CatalogPage } from "./catalog";
 import { FilesPage } from "./files-page";
 import { NetworkPage } from "./network";
@@ -26,7 +27,7 @@ import { TerminalPage } from "./terminal";
  * entry is now the thing you would say out loud. The screens behind them are
  * unchanged — only the way in is different.
  */
-type PageId = "home" | "drives" | "files" | "apps" | "sharing" | "people" | "advanced" | "settings";
+type PageId = "home" | "drives" | "files" | "apps" | "sharing" | "safety" | "people" | "advanced" | "settings";
 
 const PAGES: Array<{ id: PageId; label: string; icon: ReactElement }> = [
   { id: "home", label: "Home", icon: Icons.overview },
@@ -34,6 +35,7 @@ const PAGES: Array<{ id: PageId; label: string; icon: ReactElement }> = [
   { id: "files", label: "My files", icon: Icons.files },
   { id: "apps", label: "Apps", icon: Icons.apps },
   { id: "sharing", label: "Shared folders", icon: Icons.shares },
+  { id: "safety", label: "Backups & checks", icon: Icons.services },
   { id: "people", label: "Household accounts", icon: Icons.users },
   { id: "advanced", label: "Advanced", icon: Icons.services },
   { id: "settings", label: "Settings", icon: Icons.settings },
@@ -536,6 +538,8 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
             {subOf("sharing") === "services" && <ServicesPage />}
           </>
         )}
+
+        {page === "safety" && <SafetyPage />}
 
         {page === "advanced" && (
           <>

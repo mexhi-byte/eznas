@@ -264,6 +264,7 @@ export function ShareFolder({
   const [path, setPath] = useState(fixedPath ?? "");
   const [name, setName] = useState(fixedPath ? (fixedPath.split("/").pop() ?? "") : "");
   const [readOnly, setReadOnly] = useState(false);
+  const [timeMachine, setTimeMachine] = useState(false);
   const [grants, setGrants] = useState<Grant[]>([]);
   const [recursive, setRecursive] = useState(false);
   const [done, setDone] = useState<string | null>(null);
@@ -299,6 +300,7 @@ export function ShareFolder({
       name: shareName,
       path: chosen,
       readOnly,
+      timeMachine,
       access: grants,
       recursive,
     });
@@ -561,6 +563,11 @@ export function ShareFolder({
           checked={readOnly}
           onChange={setReadOnly}
           label="Read-only share — nobody can change anything through it"
+        />
+        <Toggle
+          checked={timeMachine}
+          onChange={setTimeMachine}
+          label="Time Machine backups — Macs on the network will offer this folder as a backup disk"
         />
         <Toggle
           checked={recursive}

@@ -502,6 +502,8 @@ function AboutTab() {
         )}
       </Card>
 
+      <ConsoleBackupCard />
+
       <Card title="Built for homelabs">
         <p className="modal-text" style={{ marginTop: 0 }}>
           The screens here are the ones a homelab actually opens: pools and their disks, datasets, snapshots and the
@@ -518,3 +520,68 @@ function AboutTab() {
 }
 
 /* ------------------------------------------------------------------ users */
+
+/**
+ * The key-file warning, as a button.
+ *
+ * Everything this console knows — servers with their encrypted keys, the key
+ * that decrypts them, accounts, settings — as one file to keep with the
+ * household's other backups, and the way back from it.
+ */
+function ConsoleBackupCard() {
+  const [restoring, setRestoring] = useState<Record<string, unknown> | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  async function pick(file: File | undefined) {
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text()) as Record<string, unknown>;
+      if (parsed.format !== "eznas-backup") throw new Error("That is not an EzNAS backup file.");
+      setRestoring(parsed);
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  return (
+    <Card title="Back up this console">
+      <p className="modal-text" style={{ marginTop: 0 }}>
+        One file with the servers, their encrypted API keys, the key that decrypts them, the console's accounts and
+        settings. Keep it with your other backups and treat it like a password: with it, someone has your NAS.
+      </p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <a className="btn" href="/api/console/export" download>
+          Download a backup
+        </a>
+        <label className="btn" style={{ cursor: "pointer" }}>
+          Restore from a backup…
+          <input
+            type="file"
+            accept="application/json,.json"
+            style={{ display: "none" }}
+            onChange={(e) => void pick(e.target.files?.[0])}
+          />
+        </label>
+      </div>
+      {message && <ErrorBanner>{message}</ErrorBanner>}
+      {restoring && (
+        <DangerConfirm
+          what="this console's data"
+          name="replace"
+          verb="Restore"
+          onCancel={() => setRestoring(null)}
+          onConfirm={async (confirm) => {
+            await post("/api/console/import", { ...restoring, confirm });
+            setMessage("Restored. The console is restarting; sign in again in a few seconds.");
+          }}
+          extra={
+            <p className="modal-text" style={{ marginTop: 10 }}>
+              Everything this console currently knows is replaced by the file, and the console restarts. Exported{" "}
+              {String(restoring.exportedAt ?? "at an unknown time")}.
+            </p>
+          }
+        />
+      )}
+    </Card>
+  );
+}

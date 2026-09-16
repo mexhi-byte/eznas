@@ -1,4 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+import { dataFile } from "../paths.js";
+import { confirmed } from "../http.js";
 import * as store from "../store.js";
 import * as settings from "../settings.js";
 import * as watcher from "../monitors.js";
@@ -237,6 +241,50 @@ export async function handleConsoleRoutes(ctx: ConsoleRouteContext): Promise<boo
     }
   }
 
+  /*
+   * Everything this console knows, as one file — and back again.
+   *
+   * The generated key file was the thing people were told to back up by
+   * hand, beside a warning. This is the button instead: accounts, servers,
+   * settings, events and the key, base64 inside one JSON document. It holds
+   * encrypted credentials AND the key that decrypts them, so it is treated
+   * like the API key itself: admin only, and the browser is told so.
+   */
+  if (path === "/api/console/export" && method === "GET") {
+    const files: Record<string, string> = {};
+    for (const [name, file] of Object.entries(exportable())) {
+      if (existsSync(file)) files[name] = readFileSync(file).toString("base64");
+    }
+    json(
+      res,
+      200,
+      { format: "eznas-backup", version: 1, exportedAt: new Date().toISOString(), files },
+      { "content-disposition": `attachment; filename="eznas-backup-${new Date().toISOString().slice(0, 10)}.json"` },
+    );
+    return true;
+  }
+  if (path === "/api/console/import" && method === "POST") {
+    const b = await bodyOf(req);
+    if (b.format !== "eznas-backup" || typeof b.files !== "object" || !b.files) {
+      throw new Error("That is not an EzNAS backup file.");
+    }
+    confirmed(b, "replace");
+    const allowed = exportable();
+    let written = 0;
+    for (const [name, encoded] of Object.entries(b.files as Record<string, unknown>)) {
+      const file = allowed[name];
+      if (!file || typeof encoded !== "string") continue;
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, Buffer.from(encoded, "base64"), { mode: 0o600 });
+      written++;
+    }
+    json(res, 200, { ok: true, written, restarting: true });
+    // The files on disk now disagree with what is in memory. A restart is
+    // the only honest way back; the container comes back on its own.
+    setTimeout(() => process.exit(0), 500);
+    return true;
+  }
+
   /* --- disk events --- */
 
   if (path === "/api/notify/test" && method === "POST") {
@@ -383,4 +431,16 @@ function normaliseUrl(input: string): string {
   u = u.replace(/^http:/i, "ws:").replace(/^https:/i, "wss:");
   if (!/\/api\/current$/.test(u)) u = `${u.replace(/\/+$/, "")}/api/current`;
   return u;
+}
+
+/** The files that make up an installation's state, by the names the backup uses. */
+function exportable(): Record<string, string> {
+  const connections = dataFile("DATA_FILE", "connections.json");
+  return {
+    "connections.json": connections,
+    "connections.json.key": `${connections}.key`,
+    "accounts.json": dataFile("ACCOUNTS_FILE", "accounts.json"),
+    "settings.json": dataFile("SETTINGS_FILE", "settings.json"),
+    "events.json": dataFile("EVENTS_FILE", "events.json"),
+  };
 }

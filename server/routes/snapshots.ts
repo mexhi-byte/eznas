@@ -217,7 +217,7 @@ function defaultSnapshotName(): string {
 }
 
 /** The five cron fields the NAS wants, defaulted so a partial schedule is still valid. */
-function cronOf(v: unknown): Record<string, string> {
+export function cronOf(v: unknown): Record<string, string> {
   const s = (v ?? {}) as Record<string, unknown>;
   const field = (k: string, fallback: string): string => {
     const raw = s[k];

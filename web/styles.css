@@ -771,6 +771,21 @@ th.num {
   margin: 0;
 }
 
+/* --------------------------------------------------------------- safety */
+
+.kv-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+}
+.kv-row:first-of-type {
+  border-top: 0;
+}
+
 /* ---------------------------------------------------------- app console */
 
 .app-console {

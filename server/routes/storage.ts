@@ -68,7 +68,16 @@ export async function handleStorageRoutes(ctx: NasRouteContext): Promise<boolean
         {
           extra: {
             flat: true,
-            properties: ["used", "available", "referenced", "quota", "compressratio", "mountpoint", "encryption"],
+            properties: [
+              "used",
+              "available",
+              "referenced",
+              "quota",
+              "compressratio",
+              "mountpoint",
+              "encryption",
+              "keyformat",
+            ],
             retrieve_children: true,
           },
         },
@@ -82,6 +91,8 @@ export async function handleStorageRoutes(ctx: NasRouteContext): Promise<boolean
           pool: d.pool,
           type: d.type,
           encrypted: d.encrypted,
+          locked: d.locked === true,
+          keyFormat: sval(d.key_format) ?? sval(d.keyformat),
           used: num(d.used),
           available: num(d.available),
           referenced: num(d.referenced),
@@ -101,6 +112,16 @@ export async function handleStorageRoutes(ctx: NasRouteContext): Promise<boolean
       if (payload.type === "VOLUME") {
         payload.volsize = Number(b.volsize ?? 0);
         payload.sparse = b.sparse === true;
+      }
+      // A folder that can be locked. Passphrase rather than a key file,
+      // because a passphrase is something a household can keep and a hex
+      // key on the same disks as the data protects nothing.
+      if (b.encrypt === true) {
+        const passphrase = str(b, "passphrase");
+        if (passphrase.length < 8) throw new Error("A passphrase needs at least 8 characters.");
+        payload.encryption = true;
+        payload.inherit_encryption = false;
+        payload.encryption_options = { generate_key: false, passphrase, algorithm: "AES-256-GCM" };
       }
       json(res, 200, await nas.call("pool.dataset.create", [payload]));
       return true;

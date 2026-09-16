@@ -77,7 +77,12 @@ export async function handleShareRoutes(ctx: ShareRouteContext): Promise<boolean
       {
         name: str(b, "name"),
         path: target,
-        purpose: optStr(b, "purpose") ?? (readOnly ? "NO_PRESET" : "DEFAULT_SHARE"),
+        // Time Machine is a preset the NAS knows: it turns on the Apple
+        // extensions and advertises the share to Macs as a backup target.
+        purpose:
+          b.timeMachine === true
+            ? "TIMEMACHINE_SHARE"
+            : (optStr(b, "purpose") ?? (readOnly ? "NO_PRESET" : "DEFAULT_SHARE")),
         comment: optStr(b, "comment") ?? "",
         ro: readOnly,
         browsable: true,

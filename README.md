@@ -22,7 +22,7 @@ can actually move and delete things, and notifications for the situations TrueNA
   </tr>
   <tr>
     <td><img src="docs/screenshots/files.png" alt="The file browser, inside a shared folder"></td>
-    <td><img src="docs/screenshots/groups.png" alt="Groups, with members picked by name"></td>
+    <td><img src="docs/screenshots/safety.png" alt="Backups and checks: scrubs, self-tests, copies elsewhere, locked folders"></td>
   </tr>
 </table>
 
@@ -67,6 +67,11 @@ publisher and source. Apps deployed through TrueNAS's own "Custom App" button ca
 metadata, so the console finds their logo by name and works out where to reach them from the ports
 they publish. Plus a **Passwords** panel that digs out the credentials an app generated at install
 and never showed you again.
+
+**Backups & checks** — one page for what keeps the data safe: monthly scrubs, weekly drive self-tests,
+nightly copies to Backblaze or S3, copies to a second pool, folders that lock with a passphrase, and
+the UPS. Home carries an "Is your data safe?" card that says what is in place and what is missing,
+with dates rather than ticks.
 
 **Notifications** — the console runs its own checks every minute: pool health, capacity against a
 threshold you set, drive temperature, ZFS read/write/checksum errors, apps stopping on their own,
