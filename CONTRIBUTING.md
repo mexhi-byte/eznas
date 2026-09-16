@@ -94,6 +94,10 @@ Match what is around you. Some specifics that are not obvious:
   noise; one explaining why the obvious approach was wrong is the reason the
   next person does not undo your work.
 
+## Conduct
+
+Be kind. The full version is in [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
 ## Reporting bugs
 
 Include the TrueNAS version, whether it is bare metal or virtualised, and how

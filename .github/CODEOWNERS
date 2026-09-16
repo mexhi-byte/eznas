@@ -1,0 +1,8 @@
+# Every pull request asks the maintainer for review. Widen this as people
+# take ownership of areas: a line per path, most specific last.
+*                       @mexhi-byte
+/server/                @mexhi-byte
+/web/                   @mexhi-byte
+/install.sh             @mexhi-byte
+/Dockerfile             @mexhi-byte
+/SECURITY.md            @mexhi-byte
