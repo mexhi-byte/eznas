@@ -42,8 +42,9 @@ refuses everybody. Windows and Mac get **SMB**, which authenticates people; Linu
 **NFS**, which authenticates machines — so the dialog asks a different question depending on which,
 and refuses to create an export that would be open to every device on your network.
 
-**Apps** — start, stop, update, open, and edit configuration: a real form built from a catalog app's
-own schema, or the compose file for a custom app. Open any app for its screenshots, description,
+**Apps** — install from the catalog through the app's own questions, then start, stop, update, open,
+and edit configuration: a real form built from a catalog app's own schema, or the compose file for a
+custom app. Open any app for its screenshots, description,
 publisher and source. Apps deployed through TrueNAS's own "Custom App" button carry no catalog
 metadata, so the console finds their logo by name and works out where to reach them from the ports
 they publish. Plus a **Passwords** panel that digs out the credentials an app generated at install
@@ -59,9 +60,13 @@ countdown, SMTP, and restart or shutdown with the hostname typed back.
 
 ## Requirements
 
-- TrueNAS SCALE 25.04 or newer (it speaks JSON-RPC at `/api/current`, not the deprecated REST API)
-- Node.js 22+
-- An API key from TrueNAS → Credentials → Local Users → API keys
+- **TrueNAS SCALE 25.04 (Fangtooth) or newer.** The console speaks JSON-RPC at `/api/current`, the
+  interface TrueNAS's own UI uses, and never the REST API that 25.10 (Goldeye) removes. Each release
+  says in its notes which TrueNAS versions it was run against; method schemas do change between
+  TrueNAS releases, and a mismatch shows up as a sentence in the console rather than a crash.
+- An API key for the console, made on the NAS under Credentials → Users. The first-run setup links
+  to the page and tests the key as you paste it.
+- To run from source rather than the image: Node.js 22 or newer.
 
 ## Install
 
@@ -103,8 +108,16 @@ npm start
 
 Then open `http://<host>:8080` and sign in. If `.env` sets `UI_USERNAME` and `UI_PASSWORD`, those are the
 first account. If it does not, the console creates an `admin` account with a generated password,
-prints it once in its own log, and refuses to do anything else until you have replaced it. Then add
-your NAS under Settings → Servers.
+prints it once in its own log, and refuses to do anything else until you have replaced it.
+
+### The first run
+
+However it was installed, a console with no server yet asks five things in order instead of showing
+an empty dashboard: where the NAS is (guessed, when the console runs on the NAS itself), whether to
+trust the certificate it found there (shown in words and pinned by default), an API key (with a link
+to the page on the NAS and a test as you paste), whether to add the account password that moving and
+deleting files needs, and a summary. Nothing is saved until the last screen. Skipping it brings it
+back next time, because a console with no server cannot do anything.
 
 Run it under systemd for anything permanent:
 
@@ -150,9 +163,10 @@ Read this part.
   repository. Such data is re-encrypted automatically on first start. If a copy of your data file
   may already have left your machine, **rotate the TrueNAS API key and the account password** —
   re-encrypting does not un-leak what was taken.
-- **Certificate pinning** is available per server and is the only way this connection is
-  authenticated, since TrueNAS uses a self-signed certificate. Without it the API key travels over a
-  link nothing has verified.
+- **The NAS certificate is pinned by default.** TrueNAS uses a self-signed certificate, so pinning is
+  the only way this connection can be authenticated. The console looks at the certificate when a
+  server is added, shows it in words with the fingerprint underneath, and remembers it unless you
+  turn that off. A different certificate later is refused and reported, not silently accepted.
 - **Behind a reverse proxy or tunnel, set `TRUST_PROXY=1`** so the sign-in rate limit sees the real
   client address from `cf-connecting-ip` or `x-forwarded-for`. Without it those headers are ignored,
   because anything can send them — and a lockout keyed on a header the client chooses is not one.
