@@ -34,6 +34,8 @@ import { diskVerdict, failedTestCount, temperatureOf, testsForDisk } from "./dis
 import { catalogIconIndex, hostOf, iconFor, portLinks } from "./app-links.js";
 import { appDetail } from "./catalog-detail.js";
 import { handleShareRoutes } from "./routes/shares.js";
+import { probeCertificate } from "./tls-probe.js";
+import { candidateHosts } from "./discover.js";
 
 // 8080, not 80: the same number the Dockerfile, the Vite proxy and the docs
 // use, and one that does not need root to bind on a laptop.
@@ -648,15 +650,43 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
 
   if (path === "/api/connections/test" && method === "POST") {
     const b = await bodyOf(req);
-    json(
-      res,
-      200,
-      await store.test({
-        url: normaliseUrl(str(b, "url")),
-        apiKey: str(b, "apiKey"),
-        fingerprint: optStr(b, "fingerprint") ?? null,
-      }),
+    const target = normaliseUrl(str(b, "url"));
+    const [result, certificate] = await Promise.all([
+      store.test({ url: target, apiKey: str(b, "apiKey"), fingerprint: optStr(b, "fingerprint") ?? null }),
+      // Alongside the result, so the form can offer to pin what it just
+      // reached without a second round trip. A probe failure is not a test
+      // failure: the test itself already said whether the NAS answered.
+      probeCertificate(target).catch(() => null),
+    ]);
+    json(res, 200, { ...result, certificate });
+    return true;
+  }
+
+  /*
+   * What certificate is at an address — before there is an API key, so the
+   * first-run wizard can show it and offer to pin it. Trust-on-first-use is
+   * only trust if the operator sees what they are trusting.
+   */
+  if (path === "/api/connections/certificate" && method === "POST") {
+    const b = await bodyOf(req);
+    json(res, 200, await probeCertificate(normaliseUrl(str(b, "url"))));
+    return true;
+  }
+
+  /*
+   * A guess at where the NAS is, for a console that runs on it. Each
+   * candidate is probed so the wizard can say "a TrueNAS certificate for
+   * truenas.local answered at 192.168.1.10" rather than offering a bare
+   * gateway address. Probes run in parallel and failures are dropped.
+   */
+  if (path === "/api/setup/discover" && method === "GET") {
+    const found = await Promise.all(
+      candidateHosts().map(async (host) => ({
+        host,
+        certificate: await probeCertificate(`wss://${host}/api/current`, 2_500).catch(() => null),
+      })),
     );
+    json(res, 200, { candidates: found });
     return true;
   }
 
@@ -830,6 +860,22 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
    * instead of the handful the list needs. Which fields those are varies by
    * version, which is why what comes back is mapped rather than forwarded.
    */
+  /*
+   * The questions a catalog app asks at install, with the version they belong
+   * to. The same schema the config form renders after install, fetched before
+   * it, so installing can be a real form rather than "defaults, then go and
+   * fix it in TrueNAS".
+   */
+  if (path === "/api/catalog/app/schema") {
+    const name = str({ name: url.searchParams.get("name") }, "name");
+    const train = url.searchParams.get("train") ?? "stable";
+    const d = await nas.call<Record<string, unknown>>("catalog.get_app_details", [name, { train }]);
+    const versions = (d.versions ?? {}) as Record<string, { schema?: { questions?: unknown } }>;
+    const version = String(d.latest_version ?? "");
+    json(res, 200, { name, train, version, questions: versions[version]?.schema?.questions ?? null });
+    return true;
+  }
+
   if (path === "/api/catalog/app") {
     const name = str({ name: url.searchParams.get("name") }, "name");
     const train = url.searchParams.get("train");

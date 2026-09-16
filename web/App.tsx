@@ -7,6 +7,7 @@ import { AlertsPage, DisksPage, ServicesPage } from "./pages2";
 import { SharesPage } from "./shares";
 import { SnapshotsPage } from "./snapshots";
 import { HomePage } from "./home";
+import { FirstRunSetup } from "./first-run";
 import { DriveMapPage } from "./drivemap";
 import { CatalogPage, SettingsPage, UsersPage, type Conn } from "./pages3";
 import { FilesPage } from "./files-page";
@@ -314,7 +315,10 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
   const [menu, setMenu] = useState(false);
   const { data: alerts } = useResource<Array<unknown>>("/api/alerts", 60_000);
   const { data: events, reload: reloadEvents } = useResource<Notice[]>("/api/events", 20_000);
-  const { data: conns } = useResource<Conn[]>("/api/connections", 60_000);
+  const { data: conns, reload: reloadConns } = useResource<Conn[]>("/api/connections", 60_000);
+  // Skipping is for this tab only: a console with no server is a console
+  // that cannot do anything, so the question comes back next time.
+  const [skipSetup, setSkipSetup] = useState(() => sessionStorage.getItem("eznas:skip-setup") === "1");
   const { data: health } = useResource<{ connected: boolean; error: string | null }>("/api/health", 15_000);
   const [showNotifs, setShowNotifs] = useState(false);
 
@@ -339,6 +343,28 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
     const list = tabsFor(group);
     return list.some((t) => t.id === sub) ? sub : list[0].id;
   };
+
+  /*
+   * No server yet: set one up rather than show a dashboard with nothing in
+   * it. Admins only, because adding a server is a write and a viewer would be
+   * refused at the last step; a viewer sees the empty console and its
+   * sentence about asking an administrator.
+   */
+  if (conns && conns.length === 0 && me.role === "admin" && !skipSetup) {
+    return (
+      <FirstRunSetup
+        onDone={() => {
+          void reloadConns();
+          window.location.hash = "#/home";
+          window.location.reload();
+        }}
+        onSkip={() => {
+          sessionStorage.setItem("eznas:skip-setup", "1");
+          setSkipSetup(true);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="app">

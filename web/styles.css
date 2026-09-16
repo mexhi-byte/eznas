@@ -667,6 +667,137 @@ th.num {
   font-size: 12.5px;
 }
 
+/*
+ * The full-page forms that are not the sign-in box: the forced password
+ * change, the first-run setup. Same surface as .login, wider, with labelled
+ * fields stacked inside.
+ */
+.login-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 30px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.login-card.wide {
+  max-width: 640px;
+}
+.login-card h1 {
+  font-size: 20px;
+}
+.login-card h2 {
+  font-size: 16px;
+}
+.login-sub,
+.login-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.login-card label {
+  display: grid;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.login-card label.toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+  font-size: 13.5px;
+}
+.login-card input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+.login-card input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+.login-error {
+  color: #ffadad;
+  font-size: 12.5px;
+}
+.login-card .actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.login-card .actions .btn {
+  flex: none;
+}
+.login-card .actions .aside {
+  margin-right: auto;
+  border-color: transparent;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------- setup */
+
+.setup .wizard-steps li.done {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+}
+.setup-hint {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--accent-dim);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  font-size: 13.5px;
+  line-height: 1.55;
+  display: grid;
+  gap: 8px;
+}
+.setup-ok {
+  color: var(--ok) !important;
+}
+.setup .kv {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------- certificate */
+
+.cert-block {
+  margin: 4px 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--hover);
+}
+.cert-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cert-fp {
+  font-size: 11.5px;
+  color: var(--muted);
+  word-break: break-all;
+  margin: 4px 0 10px;
+  line-height: 1.6;
+}
+.btn.small {
+  padding: 5px 11px;
+  font-size: 12.5px;
+}
+
 /* --------------------------------------------------------------- narrower */
 
 .menu-btn {

@@ -69,6 +69,17 @@ describe("every shipped feature is reachable from the interface", () => {
     expect(page?.text).toContain('kind === "bin"');
   });
 
+  it("the first-run setup is shown by the shell, and asks the server where the NAS is", () => {
+    expect(mentions("FirstRunSetup")).toContain("App.tsx");
+    expect(componentSources().some((s) => s.text.includes("/api/setup/discover"))).toBe(true);
+  });
+
+  it("installing an app renders the app's own questions, not only a name field", () => {
+    const page = componentSources().find((s) => s.file === "pages3.tsx");
+    expect(page?.text).toContain("/api/catalog/app/schema");
+    expect(page?.text).toContain("QuestionList");
+  });
+
   it("restart and shutdown have buttons, and go through the typed confirmation", () => {
     const pages = componentSources().filter((s) => s.text.includes("/api/system/power"));
     expect(pages).not.toEqual([]);

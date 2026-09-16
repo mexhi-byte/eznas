@@ -10,6 +10,22 @@ Anything that does is called out under **Changed** or **Upgrading**.
 
 ### Added
 
+- **A first-run setup.** A console with no server asks five things in order —
+  where the NAS is (guessed when the console runs on it), whether to trust
+  its certificate, an API key with a link to the right page and a live test,
+  the optional account password for file operations, and a summary — instead
+  of an empty dashboard and a sentence about Settings.
+- **The NAS certificate is shown and pinned by default.** The connection form
+  looks at the certificate an address presents and describes it — who it is
+  for, self-signed, valid until when — with the fingerprint underneath, and
+  a switch that is on for a new server. A pinned server whose certificate
+  changes is told so, and the new one is pinned only on purpose. The manual
+  hex field is gone.
+- **Installing an app asks the app's own questions.** The same schema-driven
+  form the Configure dialog renders is shown before install, starting from
+  the app's defaults, so storage paths and ports are chosen here rather than
+  "afterwards, in TrueNAS".
+
 - **Install as a TrueNAS Custom App.** Apps → Discover → Custom App, paste
   `deploy/truenas-custom-app.yaml`, change one line. No shell, no build.
 - **A published image**, `ghcr.io/mexhi-byte/eznas`, for amd64 and arm64,
