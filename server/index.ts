@@ -19,7 +19,7 @@ import { CHANNEL, VERSION } from "./version.js";
 import { appTitle, isCustomApp } from "./apps.js";
 
 export { VERSION };
-import { bodyOf, confirmed, json, optStr, statusForError, str, underMnt } from "./http.js";
+import { bodyOf, clientAddress, confirmed, json, optStr, statusForError, str, trustProxy, underMnt } from "./http.js";
 import { levelToPerms, type AclEntry } from "./acl.js";
 import { handleFileRoutes } from "./routes/files.js";
 import { diskVerdict, failedTestCount, temperatureOf, testsForDisk } from "./disk-verdict.js";
@@ -61,8 +61,8 @@ let pendingMfa: { secret: string; at: number; accountId: string } | null = null;
 /** The session a request carries, if any. */
 const readSession = (req: IncomingMessage) => readSessionCookie(readCookie(req.headers.cookie, COOKIE));
 
-const clientIp = (req: IncomingMessage): string =>
-  (req.headers["cf-connecting-ip"] as string) ?? req.socket.remoteAddress ?? "unknown";
+const TRUST_PROXY = trustProxy(process.env.TRUST_PROXY);
+const clientIp = (req: IncomingMessage): string => clientAddress(req.headers, req.socket.remoteAddress, TRUST_PROXY);
 
 /** The NAS this request is about, chosen by ?c= and falling back to the default. */
 function nasFor(url: URL): TrueNas {

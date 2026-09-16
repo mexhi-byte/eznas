@@ -112,3 +112,31 @@ export function statusForError(e: unknown): number {
     ? 502
     : 400;
 }
+
+/**
+ * Where a request came from, for the login rate limit.
+ *
+ * A forwarded-address header is believed only when the operator has said a
+ * proxy is setting it. Believed unconditionally, the header is chosen by the
+ * client — and a lockout keyed on a value the client chooses is a lockout
+ * anyone can step around by changing one string per attempt. cf-connecting-ip
+ * is preferred because Cloudflare sets exactly one; x-forwarded-for is a list
+ * and only its first entry is the original client.
+ */
+export function clientAddress(
+  headers: Record<string, string | string[] | undefined>,
+  remoteAddress: string | undefined,
+  trustProxy: boolean,
+): string {
+  if (trustProxy) {
+    const cf = headers["cf-connecting-ip"];
+    if (typeof cf === "string" && cf.trim()) return cf.trim();
+    const xff = headers["x-forwarded-for"];
+    const first = (Array.isArray(xff) ? xff[0] : xff)?.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  return remoteAddress ?? "unknown";
+}
+
+/** Whether TRUST_PROXY is set to something that means yes. */
+export const trustProxy = (value: string | undefined): boolean => /^(1|true|yes|on)$/i.test((value ?? "").trim());

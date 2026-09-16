@@ -8,6 +8,16 @@ Anything that does is called out under **Changed** or **Upgrading**.
 
 ## Unreleased
 
+### Security
+
+- **The sign-in rate limit can no longer be stepped around with a header.** It
+  keyed on `cf-connecting-ip` whenever the header was present, which is to
+  say whenever the client chose to send one — so eight failed attempts locked
+  out one made-up address and the ninth used another. Forwarded addresses are
+  now believed only with `TRUST_PROXY=1`, for installs that really are behind
+  Cloudflare or a reverse proxy. Set it there, or the limit keys on the
+  proxy's address and locks everyone out together.
+
 ### Added
 
 - **A first run with no `UI_PASSWORD` now works.** It used to log "nobody can

@@ -140,6 +140,9 @@ Read this part.
 - **Certificate pinning** is available per server and is the only way this connection is
   authenticated, since TrueNAS uses a self-signed certificate. Without it the API key travels over a
   link nothing has verified.
+- **Behind a reverse proxy or tunnel, set `TRUST_PROXY=1`** so the sign-in rate limit sees the real
+  client address from `cf-connecting-ip` or `x-forwarded-for`. Without it those headers are ignored,
+  because anything can send them — and a lockout keyed on a header the client chooses is not one.
 - **Destructive actions require typing the name** of what is about to be lost, and the API enforces
   that too — a mis-aimed script fails instead of succeeding on the wrong pool.
 
