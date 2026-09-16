@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { TrueNas } from "./truenas.js";

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { bytes, del, post, put, useResource } from "./api";
+import { bytes, del, put, useResource } from "./api";
 import { Empty, ErrorBanner, Loading } from "./components";
 import { Field, Input, Modal, Select } from "./ui";
 

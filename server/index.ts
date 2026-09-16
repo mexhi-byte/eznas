@@ -1,26 +1,22 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { readFileSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 import type { Realtime, TrueNas } from "./truenas.js";
 import * as store from "./store.js";
 import * as settings from "./settings.js";
 import * as watcher from "./monitors.js";
 import { handleUpgrade } from "./shell.js";
-import * as files from "./files.js";
-import * as exec from "./nas-exec.js";
 import * as selfUpdate from "./self-update.js";
 import * as webhooks from "./webhooks.js";
 import { generateSecret, provisioningUri, recoveryCodes, verify as verifyTotp } from "./totp.js";
-import { clearedCookie, cookieHeader, COOKIE, issue, read as readSessionCookie, readCookie, valid } from "./auth.js";
+import { clearedCookie, cookieHeader, COOKIE, issue, read as readSessionCookie, readCookie } from "./auth.js";
 import * as accounts from "./accounts.js";
 import { CHANNEL, VERSION } from "./version.js";
 import { appTitle, isCustomApp } from "./apps.js";
 
 export { VERSION };
-import { acceptableWriteType, bodyOf, clientAddress, confirmed, json, optStr, sameOrigin, SECURITY_HEADERS, statusForError, str, trustProxy, underMnt } from "./http.js";
-import { levelToPerms, type AclEntry } from "./acl.js";
+import { acceptableWriteType, bodyOf, clientAddress, confirmed, json, optStr, sameOrigin, SECURITY_HEADERS, statusForError, str, trustProxy } from "./http.js";
 import { handleFileRoutes } from "./routes/files.js";
 import { diskVerdict, failedTestCount, temperatureOf, testsForDisk } from "./disk-verdict.js";
 import { catalogIconIndex, hostOf, iconFor, portLinks } from "./app-links.js";
@@ -1452,7 +1448,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     if (method === "GET") {
       const cfg = await nas.call<Record<string, unknown>>("mail.config");
       // pass is returned by the NAS; it has no business reaching the browser.
-      const { pass, oauth, ...rest } = cfg;
+      const { pass, oauth: _oauth, ...rest } = cfg;
       json(res, 200, { ...rest, hasPassword: !!pass });
       return true;
     }
@@ -1944,12 +1940,6 @@ async function readTemperatures(nas: TrueNas): Promise<{
 }
 
 
-const bytesish = (n: number | undefined): string => {
-  if (!n) return "0 B";
-  const u = ["B", "KiB", "MiB", "GiB", "TiB"];
-  const i = Math.min(Math.floor(Math.log(n) / Math.log(1024)), u.length - 1);
-  return `${(n / 1024 ** i).toFixed(i ? 1 : 0)} ${u[i]}`;
-};
 
 /**
  * The passwords an app was installed with, dug out of its own settings.

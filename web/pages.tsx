@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { bytes, del, level, post, useResource, when } from "./api";
 import { Bar, Card, Empty, ErrorBanner, Icons, Loading, Pill } from "./components";
 import { AppDetailsModal } from "./app-details";
-import { DangerConfirm, Field, Input, JobProgress, Modal, Select, Toggle, useSubmit } from "./ui";
+import { DangerConfirm, Field, Input, JobProgress, Modal, Select, useSubmit } from "./ui";
 import { AppConfigModal } from "./app-config";
 
 /* ------------------------------------------------------------------- pools */

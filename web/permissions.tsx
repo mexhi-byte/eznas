@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { post, put, useResource } from "./api";
+import { put, useResource } from "./api";
 import { ErrorBanner, Loading } from "./components";
-import { Field, JobProgress, Modal, Select, Toggle } from "./ui";
+import { Field, Modal, Select, Toggle } from "./ui";
 
 type Level = "none" | "read" | "write" | "full";
 

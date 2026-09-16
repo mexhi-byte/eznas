@@ -37,7 +37,7 @@ export function ReplaceDiskWizard({ pool, onClose, onJob }: {
   onClose: () => void;
   onJob: (jobId: number, label: string) => void;
 }) {
-  const { data, error, loading, reload } = useResource<Identify>(
+  const { data, error, loading } = useResource<Identify>(
     `/api/pools/${encodeURIComponent(pool)}/replace/identify`,
     0,
   );
