@@ -1,7 +1,14 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { watchJob, type Job } from "./api";
 
-export function Modal({ title, subtitle, onClose, children, footer, wide }: {
+export function Modal({
+  title,
+  subtitle,
+  onClose,
+  children,
+  footer,
+  wide,
+}: {
   title: string;
   subtitle?: string;
   onClose: () => void;
@@ -29,7 +36,9 @@ export function Modal({ title, subtitle, onClose, children, footer, wide }: {
             <h2>{title}</h2>
             {subtitle && <p className="modal-sub">{subtitle}</p>}
           </div>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}
@@ -53,10 +62,22 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 export function Select({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className="input" {...props}>{children}</select>;
+  return (
+    <select className="input" {...props}>
+      {children}
+    </select>
+  );
 }
 
-export function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+export function Toggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
   return (
     <label className="toggle">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
@@ -72,7 +93,14 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
  * time and stops being a decision; typing "tank14" is not something anyone does
  * while thinking about something else.
  */
-export function DangerConfirm({ what, name, verb, onCancel, onConfirm, extra }: {
+export function DangerConfirm({
+  what,
+  name,
+  verb,
+  onCancel,
+  onConfirm,
+  extra,
+}: {
   what: string;
   name: string;
   verb: string;
@@ -103,7 +131,9 @@ export function DangerConfirm({ what, name, verb, onCancel, onConfirm, extra }: 
       onClose={onCancel}
       footer={
         <>
-          <button className="btn" onClick={onCancel} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
           <button className="btn danger-solid" disabled={typed !== name || busy} onClick={() => void go()}>
             {busy ? "Working…" : verb}
           </button>
@@ -115,7 +145,11 @@ export function DangerConfirm({ what, name, verb, onCancel, onConfirm, extra }: 
       </p>
       <Input value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={name} autoFocus />
       {extra}
-      {error && <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>{error}</div>}
+      {error && (
+        <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>
+          {error}
+        </div>
+      )}
     </Modal>
   );
 }
@@ -134,7 +168,13 @@ export function JobProgress({ jobId, label, onDone }: { jobId: number; label: st
     // it would restart the poll on every render.
   }, [jobId]);
 
-  if (!job) return <div className="job"><span className="job-label">{label}</span><span className="job-state">starting…</span></div>;
+  if (!job)
+    return (
+      <div className="job">
+        <span className="job-label">{label}</span>
+        <span className="job-state">starting…</span>
+      </div>
+    );
 
   const pct = job.progress?.percent ?? 0;
   const done = job.state === "SUCCESS";
@@ -144,12 +184,12 @@ export function JobProgress({ jobId, label, onDone }: { jobId: number; label: st
     <div className={`job ${failed ? "failed" : done ? "done" : ""}`}>
       <div className="job-top">
         <span className="job-label">{label}</span>
-        <span className="job-state">
-          {done ? "done" : failed ? "failed" : `${pct.toFixed(0)}%`}
-        </span>
+        <span className="job-state">{done ? "done" : failed ? "failed" : `${pct.toFixed(0)}%`}</span>
       </div>
       {!done && !failed && (
-        <div className="bar"><i style={{ width: `${Math.max(3, pct)}%` }} /></div>
+        <div className="bar">
+          <i style={{ width: `${Math.max(3, pct)}%` }} />
+        </div>
       )}
       {job.progress?.description && !done && !failed && <div className="job-desc">{job.progress.description}</div>}
       {failed && <div className="job-desc job-error">{job.error ?? "The NAS did not say why."}</div>}
@@ -186,7 +226,11 @@ export function useSubmit<T>(fn: (v: T) => Promise<void>) {
  * arrival a choice between thirteen things. Related screens now sit behind one
  * sidebar entry and switch here instead.
  */
-export function Tabs<T extends string>({ tabs, active, onChange }: {
+export function Tabs<T extends string>({
+  tabs,
+  active,
+  onChange,
+}: {
   tabs: ReadonlyArray<{ id: T; label: string; badge?: number }>;
   active: T;
   onChange: (id: T) => void;

@@ -1,15 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
-  base64Command, decodeFindOutput, findCommand, hitFor, matches, parseFindOutput, walkFor,
-  type Hit, type Limits,
+  base64Command,
+  decodeFindOutput,
+  findCommand,
+  hitFor,
+  matches,
+  parseFindOutput,
+  walkFor,
+  type Hit,
+  type Limits,
 } from "../server/search.js";
 
 const LIMITS: Limits = { maxResults: 500, maxMs: 60_000 };
 
 /** A fake filesystem: directory path -> its entries. */
 function fakeListdir(tree: Record<string, Array<[string, "DIRECTORY" | "FILE"]>>) {
-  return async (dir: string) =>
-    (tree[dir] ?? []).map(([name, type]) => ({ name, path: `${dir}/${name}`, type }));
+  return async (dir: string) => (tree[dir] ?? []).map(([name, type]) => ({ name, path: `${dir}/${name}`, type }));
 }
 
 async function collect(gen: AsyncGenerator<Hit>): Promise<string[]> {
@@ -26,8 +32,11 @@ describe("matches", () => {
 
 describe("hitFor", () => {
   it("splits a path into its name and its folder", () => {
-    expect(hitFor("/mnt/tank/docs/tax.pdf"))
-      .toEqual({ path: "/mnt/tank/docs/tax.pdf", name: "tax.pdf", dir: "/mnt/tank/docs" });
+    expect(hitFor("/mnt/tank/docs/tax.pdf")).toEqual({
+      path: "/mnt/tank/docs/tax.pdf",
+      name: "tax.pdf",
+      dir: "/mnt/tank/docs",
+    });
   });
 });
 
@@ -48,8 +57,7 @@ describe("parseFindOutput", () => {
 
 describe("findCommand", () => {
   it("quotes the root and the pattern", () => {
-    expect(findCommand("/mnt/tank", "holiday"))
-      .toBe("find '/mnt/tank' -iname '*holiday*' -print0 2>/dev/null");
+    expect(findCommand("/mnt/tank", "holiday")).toBe("find '/mnt/tank' -iname '*holiday*' -print0 2>/dev/null");
   });
 
   it("neutralises a query that tries to end the command", () => {
@@ -57,8 +65,9 @@ describe("findCommand", () => {
     // searched for. What matters is that every quote in it became '\'' , so
     // the shell sees one contiguous argument to -iname and never a second
     // command. Asserting the exact string is the only way to say that.
-    expect(findCommand("/mnt/tank", "'; rm -rf / #"))
-      .toBe("find '/mnt/tank' -iname '*'\\''; rm -rf / #*' -print0 2>/dev/null");
+    expect(findCommand("/mnt/tank", "'; rm -rf / #")).toBe(
+      "find '/mnt/tank' -iname '*'\\''; rm -rf / #*' -print0 2>/dev/null",
+    );
   });
 
   it("escapes glob metacharacters so they match literally", () => {
@@ -75,39 +84,54 @@ describe("findCommand", () => {
 describe("walkFor", () => {
   it("finds a match in a subdirectory", async () => {
     const listdir = fakeListdir({
-      "/mnt/tank": [["photos", "DIRECTORY"], ["notes.txt", "FILE"]],
-      "/mnt/tank/photos": [["holiday.jpg", "FILE"], ["cat.png", "FILE"]],
+      "/mnt/tank": [
+        ["photos", "DIRECTORY"],
+        ["notes.txt", "FILE"],
+      ],
+      "/mnt/tank/photos": [
+        ["holiday.jpg", "FILE"],
+        ["cat.png", "FILE"],
+      ],
     });
-    expect(await collect(walkFor(listdir, "/mnt/tank", "holiday", LIMITS)))
-      .toEqual(["/mnt/tank/photos/holiday.jpg"]);
+    expect(await collect(walkFor(listdir, "/mnt/tank", "holiday", LIMITS))).toEqual(["/mnt/tank/photos/holiday.jpg"]);
   });
 
   it("stops at maxResults", async () => {
     const listdir = fakeListdir({
       "/mnt/tank": Array.from({ length: 50 }, (_, i) => [`a${i}.txt`, "FILE"] as [string, "FILE"]),
     });
-    expect(await collect(walkFor(listdir, "/mnt/tank", "a", { maxResults: 10, maxMs: 60_000 })))
-      .toHaveLength(10);
+    expect(await collect(walkFor(listdir, "/mnt/tank", "a", { maxResults: 10, maxMs: 60_000 }))).toHaveLength(10);
   });
 
   it("stops when the time budget runs out", async () => {
     const listdir = fakeListdir({
-      "/mnt/tank": [["a.txt", "FILE"], ["b.txt", "FILE"], ["c.txt", "FILE"]],
+      "/mnt/tank": [
+        ["a.txt", "FILE"],
+        ["b.txt", "FILE"],
+        ["c.txt", "FILE"],
+      ],
     });
     // A clock that jumps a minute every reading: the first hit is yielded and
     // the budget is spent before the second.
     let t = 0;
     const now = () => (t += 60_000);
-    expect((await collect(walkFor(listdir, "/mnt/tank", "txt", { maxResults: 500, maxMs: 1000 }, now))).length)
-      .toBeLessThan(3);
+    expect(
+      (await collect(walkFor(listdir, "/mnt/tank", "txt", { maxResults: 500, maxMs: 1000 }, now))).length,
+    ).toBeLessThan(3);
   });
 
   it("does not follow a directory that loops back on itself", async () => {
     // A bind mount or a symlink can make /mnt/tank/self resolve to /mnt/tank.
     // Without visited-tracking this recurses until the stack gives out.
     const listdir = fakeListdir({
-      "/mnt/tank": [["self", "DIRECTORY"], ["found.txt", "FILE"]],
-      "/mnt/tank/self": [["self", "DIRECTORY"], ["found.txt", "FILE"]],
+      "/mnt/tank": [
+        ["self", "DIRECTORY"],
+        ["found.txt", "FILE"],
+      ],
+      "/mnt/tank/self": [
+        ["self", "DIRECTORY"],
+        ["found.txt", "FILE"],
+      ],
       "/mnt/tank/self/self": [["self", "DIRECTORY"]],
     });
     const hits = await collect(walkFor(listdir, "/mnt/tank", "found", { maxResults: 500, maxMs: 5000 }));
@@ -131,8 +155,7 @@ describe("walkFor", () => {
     };
     // One unreadable folder is the normal state of a NAS with per-user folders
     // on it, not a reason to abandon the search.
-    expect(await collect(walkFor(listdir, "/mnt/tank", "found", LIMITS)))
-      .toEqual(["/mnt/tank/open/found.txt"]);
+    expect(await collect(walkFor(listdir, "/mnt/tank", "found", LIMITS))).toEqual(["/mnt/tank/open/found.txt"]);
   });
 
   it("reports the containing folder alongside each hit", async () => {
@@ -149,12 +172,17 @@ describe("walkFor", () => {
     // The file someone half-remembers is usually near the top. Depth-first
     // would exhaust one deep branch before looking at the sibling next to it.
     const listdir = fakeListdir({
-      "/mnt/tank": [["deep", "DIRECTORY"], ["shallow-match.txt", "FILE"]],
+      "/mnt/tank": [
+        ["deep", "DIRECTORY"],
+        ["shallow-match.txt", "FILE"],
+      ],
       "/mnt/tank/deep": [["deeper", "DIRECTORY"]],
       "/mnt/tank/deep/deeper": [["deep-match.txt", "FILE"]],
     });
-    expect(await collect(walkFor(listdir, "/mnt/tank", "match", LIMITS)))
-      .toEqual(["/mnt/tank/shallow-match.txt", "/mnt/tank/deep/deeper/deep-match.txt"]);
+    expect(await collect(walkFor(listdir, "/mnt/tank", "match", LIMITS))).toEqual([
+      "/mnt/tank/shallow-match.txt",
+      "/mnt/tank/deep/deeper/deep-match.txt",
+    ]);
   });
 
   it("does not match a directory whose name contains the query", async () => {
@@ -189,8 +217,7 @@ describe("base64Command", () => {
 describe("decodeFindOutput", () => {
   it("decodes and splits what the NAS sent", () => {
     const raw = "/mnt/a.txt\0/mnt/b.txt\0";
-    expect(decodeFindOutput(Buffer.from(raw, "utf8").toString("base64")))
-      .toEqual(["/mnt/a.txt", "/mnt/b.txt"]);
+    expect(decodeFindOutput(Buffer.from(raw, "utf8").toString("base64"))).toEqual(["/mnt/a.txt", "/mnt/b.txt"]);
   });
 
   it("survives whitespace the terminal may have inserted", () => {
@@ -204,14 +231,12 @@ describe("decodeFindOutput", () => {
 
   it("keeps a UTF-8 filename intact", () => {
     const raw = "/mnt/caf\u00e9.txt\0";
-    expect(decodeFindOutput(Buffer.from(raw, "utf8").toString("base64")))
-      .toEqual(["/mnt/café.txt"]);
+    expect(decodeFindOutput(Buffer.from(raw, "utf8").toString("base64"))).toEqual(["/mnt/café.txt"]);
   });
 
   it("keeps a filename containing a newline intact", () => {
     const raw = "/mnt/two\nline.txt\0";
-    expect(decodeFindOutput(Buffer.from(raw, "utf8").toString("base64")))
-      .toEqual(["/mnt/two\nline.txt"]);
+    expect(decodeFindOutput(Buffer.from(raw, "utf8").toString("base64"))).toEqual(["/mnt/two\nline.txt"]);
   });
 
   it("returns nothing rather than throwing on output that is not base64", () => {

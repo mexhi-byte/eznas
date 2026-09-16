@@ -6,9 +6,22 @@ import { Field, Input, JobProgress, Modal, Select, Toggle, useSubmit } from "./u
 /* --------------------------------------------------------------------- data */
 
 interface Overview {
-  system: { version: string; hostname: string; uptime: number | string; cores: number; model: string; memoryBytes: number; loadavg: number[] };
+  system: {
+    version: string;
+    hostname: string;
+    uptime: number | string;
+    cores: number;
+    model: string;
+    memoryBytes: number;
+    loadavg: number[];
+  };
   pools: Array<{
-    name: string; status: string; healthy: boolean; size: number; allocated: number; free: number;
+    name: string;
+    status: string;
+    healthy: boolean;
+    size: number;
+    allocated: number;
+    free: number;
     scan: { function?: string; state?: string; percentage?: number } | null;
     vdevs: Array<{ type: string; disks: Array<{ disk: string; status?: string }> }>;
   }>;
@@ -18,15 +31,28 @@ interface Overview {
 }
 
 interface App {
-  name: string; title: string; state: string; icon: string | null; custom?: boolean;
-  updatable: boolean; portals: Record<string, string>;
+  name: string;
+  title: string;
+  state: string;
+  icon: string | null;
+  custom?: boolean;
+  updatable: boolean;
+  portals: Record<string, string>;
   /** Every published port, addressed — derived when TrueNAS gave no portal. */
   links?: Array<{ port: number; url: string }>;
 }
 
-interface Alert { uuid: string; level: string; text: string; at: number }
+interface Alert {
+  uuid: string;
+  level: string;
+  text: string;
+  at: number;
+}
 
-interface Names { server: string; pools: Record<string, { label?: string; icon?: string }> }
+interface Names {
+  server: string;
+  pools: Record<string, { label?: string; icon?: string }>;
+}
 
 interface UpdateInfo {
   currentVersion: string;
@@ -70,7 +96,9 @@ export function HomePage({ go }: { go: Go }) {
 
   const cpu = now?.cpu?.cpu?.usage ?? 0;
   const mem = now?.memory;
-  const memPct = mem ? ((mem.physical_memory_total - mem.physical_memory_available) / mem.physical_memory_total) * 100 : 0;
+  const memPct = mem
+    ? ((mem.physical_memory_total - mem.physical_memory_available) / mem.physical_memory_total) * 100
+    : 0;
   const nics = Object.values(now?.interfaces ?? {});
   const rx = nics.reduce((s, n) => s + n.received_bytes_rate, 0);
   const tx = nics.reduce((s, n) => s + n.sent_bytes_rate, 0);
@@ -115,9 +143,24 @@ export function HomePage({ go }: { go: Go }) {
 
       <Section title="What would you like to do?">
         <div className="launchers">
-          <Launcher emoji="📁" title="Create a share" sub="Put a folder on the network" onClick={() => setAction("share")} />
-          <Launcher emoji="🐳" title="Install an app" sub="Plex, Nextcloud, and the rest" onClick={() => go("apps", "catalog")} />
-          <Launcher emoji="🛡️" title="Check the drives" sub="Verify every byte on a pool" onClick={() => setAction("scan")} />
+          <Launcher
+            emoji="📁"
+            title="Create a share"
+            sub="Put a folder on the network"
+            onClick={() => setAction("share")}
+          />
+          <Launcher
+            emoji="🐳"
+            title="Install an app"
+            sub="Plex, Nextcloud, and the rest"
+            onClick={() => go("apps", "catalog")}
+          />
+          <Launcher
+            emoji="🛡️"
+            title="Check the drives"
+            sub="Verify every byte on a pool"
+            onClick={() => setAction("scan")}
+          />
         </div>
       </Section>
 
@@ -180,7 +223,9 @@ export function HomePage({ go }: { go: Go }) {
       >
         {apps ? (
           <div className="app-tiles">
-            {apps.map((a) => <AppTile key={a.name} app={a} />)}
+            {apps.map((a) => (
+              <AppTile key={a.name} app={a} />
+            ))}
             <button className="app-tile add" onClick={() => go("apps", "catalog")}>
               <span className="tile-icon">＋</span>
               <span className="tile-name">Install an app</span>
@@ -213,9 +258,12 @@ export function HomePage({ go }: { go: Go }) {
       {renaming && (
         <RenameThing
           what={renaming}
-          current={renaming === "server" ? { label: names.server } : names.pools[renaming] ?? {}}
+          current={renaming === "server" ? { label: names.server } : (names.pools[renaming] ?? {})}
           onClose={() => setRenaming(null)}
-          onSaved={() => { setRenaming(null); void reloadSettings(); }}
+          onSaved={() => {
+            setRenaming(null);
+            void reloadSettings();
+          }}
         />
       )}
 
@@ -224,7 +272,10 @@ export function HomePage({ go }: { go: Go }) {
         <RunScan
           pools={pools.map((p) => ({ name: p.name, label: names.pools[p.name]?.label }))}
           onClose={() => setAction(null)}
-          onStarted={(id, label) => { setAction(null); setJobs((j) => [...j, { id, label }]); }}
+          onStarted={(id, label) => {
+            setAction(null);
+            setJobs((j) => [...j, { id, label }]);
+          }}
         />
       )}
 
@@ -246,15 +297,27 @@ export function HomePage({ go }: { go: Go }) {
 
 /* ------------------------------------------------------------------- pieces */
 
-function Section({ title, hint, onMore, children }: {
-  title: string; hint?: string; onMore?: () => void; children: React.ReactNode;
+function Section({
+  title,
+  hint,
+  onMore,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  onMore?: () => void;
+  children: React.ReactNode;
 }) {
   return (
     <section className="home-section">
       <div className="home-section-head">
         <h2>{title}</h2>
         {hint && <span>{hint}</span>}
-        {onMore && <button className="link-btn inline" onClick={onMore}>Manage</button>}
+        {onMore && (
+          <button className="link-btn inline" onClick={onMore}>
+            Manage
+          </button>
+        )}
       </div>
       {children}
     </section>
@@ -275,7 +338,12 @@ function Launcher({ emoji, title, sub, onClick }: { emoji: string; title: string
 
 const POOL_EMOJI = ["💾", "🎬", "📸", "🏦", "📦", "🗄️", "🎵", "🧾", "🖥️", "🧪"];
 
-function PoolCard({ pool, nick, onOpen, onRename }: {
+function PoolCard({
+  pool,
+  nick,
+  onOpen,
+  onRename,
+}: {
   pool: Overview["pools"][number];
   nick?: { label?: string; icon?: string };
   onOpen: () => void;
@@ -307,16 +375,18 @@ function PoolCard({ pool, nick, onOpen, onRename }: {
 
         <div className="pool-foot">
           <b>{bytes(pool.free)} free</b>
-          <span>{pct.toFixed(0)}% used of {bytes(pool.size)}</span>
+          <span>
+            {pct.toFixed(0)}% used of {bytes(pool.size)}
+          </span>
         </div>
 
         {scanning && (
-          <div className="pool-scan">
-            Checking the drives — {(pool.scan?.percentage ?? 0).toFixed(0)}% through
-          </div>
+          <div className="pool-scan">Checking the drives — {(pool.scan?.percentage ?? 0).toFixed(0)}% through</div>
         )}
       </button>
-      <button className="pool-rename" onClick={onRename} title="Rename this pool for the household">✎</button>
+      <button className="pool-rename" onClick={onRename} title="Rename this pool for the household">
+        ✎
+      </button>
     </div>
   );
 }
@@ -349,17 +419,29 @@ interface History {
  * history TrueNAS already keeps, so a container that leaked memory overnight
  * shows up as a shape rather than having to be caught in the act.
  */
-function HealthCard({ label, metric, value, verdict, points, color, foot, unit }: {
-  label: string; metric: string; value: string; verdict: string;
-  points: number[]; color: string; foot: string; unit?: string;
+function HealthCard({
+  label,
+  metric,
+  value,
+  verdict,
+  points,
+  color,
+  foot,
+  unit,
+}: {
+  label: string;
+  metric: string;
+  value: string;
+  verdict: string;
+  points: number[];
+  color: string;
+  foot: string;
+  unit?: string;
 }) {
   const [range, setRange] = useState<"live" | "day">("live");
   // Only fetched once the toggle is used: three history calls on every home
   // screen load would be three seconds of NAS work nobody asked for.
-  const { data, loading } = useResource<History>(
-    range === "day" ? `/api/history?metric=${metric}&unit=DAY` : "",
-    0,
-  );
+  const { data, loading } = useResource<History>(range === "day" ? `/api/history?metric=${metric}&unit=DAY` : "", 0);
 
   const historic = (data?.points ?? []).map((p) => p.v[0] ?? 0);
   const summary = data?.summary;
@@ -400,8 +482,7 @@ function HealthCard({ label, metric, value, verdict, points, color, foot, unit }
 }
 
 /** Percentages to one place; throughput back to human units. */
-const fmt = (n: number, unit?: string): string =>
-  unit === "rate" ? rate(n * 1024) : `${n.toFixed(0)}%`;
+const fmt = (n: number, unit?: string): string => (unit === "rate" ? rate(n * 1024) : `${n.toFixed(0)}%`);
 
 /**
  * A stable colour for an app with no logo.
@@ -454,9 +535,13 @@ function AppTile({ app }: { app: App }) {
   // An app with a web interface is something to open; one without is only
   // something to look at, so it does not pretend to be a link.
   return portal && running ? (
-    <a className="app-tile" href={portal} target="_blank" rel="noreferrer" title={`Open ${portal}`}>{body}</a>
+    <a className="app-tile" href={portal} target="_blank" rel="noreferrer" title={`Open ${portal}`}>
+      {body}
+    </a>
   ) : (
-    <div className="app-tile" title={running ? "No web interface" : `${app.title} is ${app.state.toLowerCase()}`}>{body}</div>
+    <div className="app-tile" title={running ? "No web interface" : `${app.title} is ${app.state.toLowerCase()}`}>
+      {body}
+    </div>
   );
 }
 
@@ -474,16 +559,24 @@ function UpdateBanner({ onStarted }: { onStarted: (jobId: number, label: string)
       <div className="update-banner">
         <div>
           <b>A new version of TrueNAS is ready</b>
-          <span>{data.currentVersion} → {version}</span>
+          <span>
+            {data.currentVersion} → {version}
+          </span>
         </div>
-        <button className="btn primary big" onClick={() => setAsking(true)}>Update the server now</button>
+        <button className="btn primary big" onClick={() => setAsking(true)}>
+          Update the server now
+        </button>
       </div>
       {asking && <ConfirmUpdate version={version} onClose={() => setAsking(false)} onStarted={onStarted} />}
     </>
   );
 }
 
-function ConfirmUpdate({ version, onClose, onStarted }: {
+function ConfirmUpdate({
+  version,
+  onClose,
+  onStarted,
+}: {
   version: string;
   onClose: () => void;
   onStarted: (jobId: number, label: string) => void;
@@ -505,7 +598,9 @@ function ConfirmUpdate({ version, onClose, onStarted }: {
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Not now</button>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Not now
+          </button>
           <button className="btn primary" disabled={busy} onClick={() => void submit(undefined as void)}>
             {busy ? "Starting…" : "Start the download"}
           </button>
@@ -514,17 +609,27 @@ function ConfirmUpdate({ version, onClose, onStarted }: {
     >
       <p className="modal-text">
         The download runs in the background and changes nothing while it does. When it finishes, install it from
-        Settings → Updates{reboot ? " — the server reboots, so anything streaming from it will stop for a few minutes." : "."}
+        Settings → Updates
+        {reboot ? " — the server reboots, so anything streaming from it will stop for a few minutes." : "."}
       </p>
       <Toggle checked={reboot} onChange={setReboot} label="Reboot when it installs (recommended)" />
-      {error && <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>{error}</div>}
+      {error && (
+        <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>
+          {error}
+        </div>
+      )}
     </Modal>
   );
 }
 
 /* ------------------------------------------------------------------ renaming */
 
-function RenameThing({ what, current, onClose, onSaved }: {
+function RenameThing({
+  what,
+  current,
+  onClose,
+  onSaved,
+}: {
   what: string;
   current: { label?: string; icon?: string };
   onClose: () => void;
@@ -535,7 +640,10 @@ function RenameThing({ what, current, onClose, onSaved }: {
   const isServer = what === "server";
 
   const { busy, error, submit } = useSubmit(async () => {
-    await put("/api/settings", isServer ? { names: { server: label } } : { names: { pools: { [what]: { label, icon } } } });
+    await put(
+      "/api/settings",
+      isServer ? { names: { server: label } } : { names: { pools: { [what]: { label, icon } } } },
+    );
     onSaved();
   });
 
@@ -546,28 +654,44 @@ function RenameThing({ what, current, onClose, onSaved }: {
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
           <button className="btn primary" disabled={busy} onClick={() => void submit(undefined as void)}>
             {busy ? "Saving…" : "Save"}
           </button>
         </>
       }
     >
-      <Field label={isServer ? "Name" : "What you call it"} hint={isServer ? "" : "Leave empty to go back to the pool's real name."}>
-        <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={isServer ? "My home server" : "Main media pool"} autoFocus />
+      <Field
+        label={isServer ? "Name" : "What you call it"}
+        hint={isServer ? "" : "Leave empty to go back to the pool's real name."}
+      >
+        <Input
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder={isServer ? "My home server" : "Main media pool"}
+          autoFocus
+        />
       </Field>
 
       {!isServer && (
         <Field label="Icon">
           <div className="emoji-row">
             {POOL_EMOJI.map((e) => (
-              <button key={e} className={`emoji ${icon === e ? "on" : ""}`} onClick={() => setIcon(e)}>{e}</button>
+              <button key={e} className={`emoji ${icon === e ? "on" : ""}`} onClick={() => setIcon(e)}>
+                {e}
+              </button>
             ))}
           </div>
         </Field>
       )}
 
-      {error && <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>{error}</div>}
+      {error && (
+        <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>
+          {error}
+        </div>
+      )}
     </Modal>
   );
 }
@@ -590,11 +714,7 @@ function CreateShare({ onClose }: { onClose: () => void }) {
       path: chosen,
       readOnly,
     });
-    setDone(
-      r.startedService
-        ? "Share created, and Windows file sharing was switched on for you."
-        : "Share created.",
-    );
+    setDone(r.startedService ? "Share created, and Windows file sharing was switched on for you." : "Share created.");
   });
 
   return (
@@ -604,10 +724,14 @@ function CreateShare({ onClose }: { onClose: () => void }) {
       onClose={onClose}
       footer={
         done ? (
-          <button className="btn primary" onClick={onClose}>Done</button>
+          <button className="btn primary" onClick={onClose}>
+            Done
+          </button>
         ) : (
           <>
-            <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+            <button className="btn" onClick={onClose} disabled={busy}>
+              Cancel
+            </button>
             <button className="btn primary" disabled={busy || !chosen} onClick={() => void submit(undefined as void)}>
               {busy ? "Creating…" : "Create the share"}
             </button>
@@ -619,15 +743,22 @@ function CreateShare({ onClose }: { onClose: () => void }) {
         <>
           <p className="modal-text">{done}</p>
           <p className="modal-text">
-            On Windows it is <strong className="mono">\\{location.hostname}\{name || chosen.split("/").pop()}</strong>; on a
-            Mac, Go → Connect to Server.
+            On Windows it is{" "}
+            <strong className="mono">
+              \\{location.hostname}\{name || chosen.split("/").pop()}
+            </strong>
+            ; on a Mac, Go → Connect to Server.
           </p>
         </>
       ) : (
         <>
           <Field label="Folder" hint="Only datasets can be shared — each one is its own filesystem.">
             <Select value={chosen} onChange={(e) => setPath(e.target.value)}>
-              {usable.map((d) => <option key={d.id} value={d.mountpoint}>{d.id}</option>)}
+              {usable.map((d) => (
+                <option key={d.id} value={d.mountpoint}>
+                  {d.id}
+                </option>
+              ))}
             </Select>
           </Field>
 
@@ -639,20 +770,32 @@ function CreateShare({ onClose }: { onClose: () => void }) {
             />
           </Field>
 
-          <Toggle checked={readOnly} onChange={setReadOnly} label="Read-only — people can look but not change anything" />
+          <Toggle
+            checked={readOnly}
+            onChange={setReadOnly}
+            label="Read-only — people can look but not change anything"
+          />
 
           <p className="modal-text" style={{ marginTop: 12 }}>
             Who can open it is decided by the accounts on this server. Add people under Household accounts.
           </p>
 
-          {error && <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>{error}</div>}
+          {error && (
+            <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>
+              {error}
+            </div>
+          )}
         </>
       )}
     </Modal>
   );
 }
 
-function RunScan({ pools, onClose, onStarted }: {
+function RunScan({
+  pools,
+  onClose,
+  onStarted,
+}: {
   pools: Array<{ name: string; label?: string }>;
   onClose: () => void;
   onStarted: (jobId: number, label: string) => void;
@@ -671,7 +814,9 @@ function RunScan({ pools, onClose, onStarted }: {
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
           <button className="btn primary" disabled={busy || !pool} onClick={() => void submit(undefined as void)}>
             {busy ? "Starting…" : "Start the check"}
           </button>
@@ -680,14 +825,22 @@ function RunScan({ pools, onClose, onStarted }: {
     >
       <Field label="Which pool">
         <Select value={pool} onChange={(e) => setPool(e.target.value)}>
-          {pools.map((p) => <option key={p.name} value={p.name}>{p.label ? `${p.label} (${p.name})` : p.name}</option>)}
+          {pools.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.label ? `${p.label} (${p.name})` : p.name}
+            </option>
+          ))}
         </Select>
       </Field>
       <p className="modal-text" style={{ marginTop: 12 }}>
         It runs in the background and is safe to leave. On a full pool of spinning disks it takes hours and everything
         else on the server will feel slower while it does. Once a month is plenty.
       </p>
-      {error && <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>{error}</div>}
+      {error && (
+        <div className="error-banner" style={{ marginTop: 14, marginBottom: 0 }}>
+          {error}
+        </div>
+      )}
     </Modal>
   );
 }

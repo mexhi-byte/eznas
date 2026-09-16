@@ -82,10 +82,7 @@ export async function run(conn: store.Connection, command: string): Promise<Comm
       fn();
     };
 
-    const timer = setTimeout(
-      () => finish(() => reject(new Error("The NAS did not answer in time."))),
-      TIMEOUT,
-    );
+    const timer = setTimeout(() => finish(() => reject(new Error("The NAS did not answer in time."))), TIMEOUT);
 
     ws.on("open", () => {
       ws.send(JSON.stringify({ token, options: { command: "", tty_size: { rows: 24, cols: 400 } } }));
@@ -115,9 +112,7 @@ export async function run(conn: store.Connection, command: string): Promise<Comm
     });
 
     ws.on("error", (e) => finish(() => reject(new Error(`Could not reach the NAS shell: ${e.message}`))));
-    ws.on("close", () =>
-      finish(() => reject(new Error("The NAS closed the shell before the command finished."))),
-    );
+    ws.on("close", () => finish(() => reject(new Error("The NAS closed the shell before the command finished."))));
   });
 }
 
@@ -137,11 +132,7 @@ export async function run(conn: store.Connection, command: string): Promise<Comm
  * pseudo-terminal, which mangles anything that looks like a control code. See
  * base64Command in search.ts.
  */
-export async function runCapture(
-  conn: store.Connection,
-  command: string,
-  timeoutMs = TIMEOUT,
-): Promise<CommandResult> {
+export async function runCapture(conn: store.Connection, command: string, timeoutMs = TIMEOUT): Promise<CommandResult> {
   const token = await store.clientFor(conn).call<string>("auth.generate_token", [300, {}, false]);
   const target = conn.url.replace(/\/api\/current$/, "/websocket/shell");
 
@@ -160,10 +151,7 @@ export async function runCapture(
       fn();
     };
 
-    const timer = setTimeout(
-      () => finish(() => reject(new Error("The NAS did not answer in time."))),
-      timeoutMs,
-    );
+    const timer = setTimeout(() => finish(() => reject(new Error("The NAS did not answer in time."))), timeoutMs);
 
     ws.on("open", () => {
       ws.send(JSON.stringify({ token, options: { command: "", tty_size: { rows: 24, cols: 400 } } }));
@@ -180,9 +168,7 @@ export async function runCapture(
           // Same two-piece marker as run(): the shell echoes the command line
           // itself, and a one-piece marker in that echo would look like the
           // command having already finished.
-          send(
-            `${command}; __rc=$?; stty echo; printf '\\n__TNUI'; printf '_RC_%s__\\n' "$__rc"\r`,
-          );
+          send(`${command}; __rc=$?; stty echo; printf '\\n__TNUI'; printf '_RC_%s__\\n' "$__rc"\r`);
         }, CONNECT_WAIT + STEP_WAIT);
         return;
       }
@@ -195,9 +181,7 @@ export async function runCapture(
     });
 
     ws.on("error", (e) => finish(() => reject(new Error(`Could not reach the NAS shell: ${e.message}`))));
-    ws.on("close", () =>
-      finish(() => reject(new Error("The NAS closed the shell before the command finished."))),
-    );
+    ws.on("close", () => finish(() => reject(new Error("The NAS closed the shell before the command finished."))));
   });
 }
 
@@ -212,12 +196,14 @@ export async function runCapture(
 function between(raw: string): string {
   const end = raw.indexOf("__TNUI_RC_");
   const body = end === -1 ? raw : raw.slice(0, end);
-  return body
-    // eslint-disable-next-line no-control-regex
-    .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "")
-    // eslint-disable-next-line no-control-regex
-    .replace(/\x1b[>=]/g, "")
-    .replace(/\r/g, "");
+  return (
+    body
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "")
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b[>=]/g, "")
+      .replace(/\r/g, "")
+  );
 }
 
 /**
@@ -229,17 +215,20 @@ function between(raw: string): string {
  * this string must never be the thing that leaks it.
  */
 function clean(raw: string, password: string): string {
-  return raw
-    .split(password).join("********")
-    // eslint-disable-next-line no-control-regex
-    .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "")
-    // eslint-disable-next-line no-control-regex
-    .replace(/\x1b[>=]/g, "")
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l && !l.includes("__TNUI") && !/^%?\s*$/.test(l) && !/\[~\]\$/.test(l))
-    .slice(-4)
-    .join("; ");
+  return (
+    raw
+      .split(password)
+      .join("********")
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, "")
+      // eslint-disable-next-line no-control-regex
+      .replace(/\x1b[>=]/g, "")
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.includes("__TNUI") && !/^%?\s*$/.test(l) && !/\[~\]\$/.test(l))
+      .slice(-4)
+      .join("; ")
+  );
 }
 
 /**
@@ -276,7 +265,7 @@ export const moveCommand = (from: string, to: string): string =>
  * must not lose the first one.
  */
 const RECYCLE_SCRIPT = [
-  'set -e',
+  "set -e",
   'dst="$2"',
   'mkdir -p "$(dirname "$dst")"',
   'if [ -e "$dst" ]; then dst="$dst.$(date +%Y%m%d-%H%M%S)"; fi',

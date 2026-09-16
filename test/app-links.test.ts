@@ -6,8 +6,7 @@ describe("hostOf", () => {
   // The NAS's own idea of its hostname is frequently not that.
   it("takes the host out of a websocket url", () =>
     expect(hostOf("wss://192.168.1.50/api/current")).toBe("192.168.1.50"));
-  it("takes the host out of an https url", () =>
-    expect(hostOf("https://nas.local/api/current")).toBe("nas.local"));
+  it("takes the host out of an https url", () => expect(hostOf("https://nas.local/api/current")).toBe("nas.local"));
   it("drops the NAS's own port, which is not the app's", () =>
     expect(hostOf("https://192.168.1.50:444/api/current")).toBe("192.168.1.50"));
   it("keeps an IPv6 host bracketed so a port can be appended", () =>
@@ -26,14 +25,11 @@ describe("portLinks", () => {
     ]);
   });
 
-  it("has no links at all when the host is unknown", () =>
-    expect(portLinks(null, ports)).toEqual([]));
+  it("has no links at all when the host is unknown", () => expect(portLinks(null, ports)).toEqual([]));
 
-  it("has no links when nothing is exposed", () =>
-    expect(portLinks("192.168.1.50", [])).toEqual([]));
+  it("has no links when nothing is exposed", () => expect(portLinks("192.168.1.50", [])).toEqual([]));
 
-  it("survives a workload that lists no host ports", () =>
-    expect(portLinks("192.168.1.50", [{}])).toEqual([]));
+  it("survives a workload that lists no host ports", () => expect(portLinks("192.168.1.50", [{}])).toEqual([]));
 
   it("drops a duplicate port rather than offering it twice", () => {
     const dupes = [{ host_ports: [{ host_port: 80 }] }, { host_ports: [{ host_port: 80 }] }];
@@ -41,8 +37,9 @@ describe("portLinks", () => {
   });
 
   it("brackets an IPv6 host so the port is not read as part of the address", () =>
-    expect(portLinks("[fd00::1]", [{ host_ports: [{ host_port: 80 }] }]))
-      .toEqual([{ port: 80, url: "http://[fd00::1]:80" }]));
+    expect(portLinks("[fd00::1]", [{ host_ports: [{ host_port: 80 }] }])).toEqual([
+      { port: 80, url: "http://[fd00::1]:80" },
+    ]));
 });
 
 describe("catalogIconIndex", () => {
@@ -52,8 +49,7 @@ describe("catalogIconIndex", () => {
     { name: "no-icon", icon_url: null },
   ];
 
-  it("keys apps by name", () =>
-    expect(catalogIconIndex(rows).get("nextcloud")).toBe("https://media/nextcloud.png"));
+  it("keys apps by name", () => expect(catalogIconIndex(rows).get("nextcloud")).toBe("https://media/nextcloud.png"));
 
   // The app is called "qbittorrent" on the system and "qBittorrent" in the
   // catalog. Matching case-sensitively finds neither.
@@ -81,6 +77,5 @@ describe("iconFor", () => {
   it("stays null for an app the catalog has never heard of", () =>
     expect(iconFor("monitoring", null, index)).toBeNull());
 
-  it("stays null when there is no catalog to consult", () =>
-    expect(iconFor("nextcloud", null, null)).toBeNull());
+  it("stays null when there is no catalog to consult", () => expect(iconFor("nextcloud", null, null)).toBeNull());
 });

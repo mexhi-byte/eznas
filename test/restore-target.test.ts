@@ -22,8 +22,7 @@ describe("restoreTarget", () => {
 
   describe("renaming", () => {
     it("uses the name given, in the original folder", () =>
-      expect(restoreTarget({ from, bin, name: "holiday-2026.jpg" }).path)
-        .toBe("/mnt/tank/photos/holiday-2026.jpg"));
+      expect(restoreTarget({ from, bin, name: "holiday-2026.jpg" }).path).toBe("/mnt/tank/photos/holiday-2026.jpg"));
 
     it("refuses a name containing a slash, which would move it elsewhere", () =>
       expect(() => restoreTarget({ from, bin, name: "a/b.jpg" })).toThrow(/name/i));
@@ -42,16 +41,15 @@ describe("restoreTarget", () => {
 
   describe("restoring somewhere else", () => {
     it("uses the folder given, keeping the name", () =>
-      expect(restoreTarget({ from, bin, toDir: "/mnt/tank/sorted" }).path)
-        .toBe("/mnt/tank/sorted/holiday.jpg"));
+      expect(restoreTarget({ from, bin, toDir: "/mnt/tank/sorted" }).path).toBe("/mnt/tank/sorted/holiday.jpg"));
 
     it("takes a folder and a new name together", () =>
-      expect(restoreTarget({ from, bin, toDir: "/mnt/tank/sorted", name: "x.jpg" }).path)
-        .toBe("/mnt/tank/sorted/x.jpg"));
+      expect(restoreTarget({ from, bin, toDir: "/mnt/tank/sorted", name: "x.jpg" }).path).toBe(
+        "/mnt/tank/sorted/x.jpg",
+      ));
 
     it("drops a trailing slash rather than producing a doubled one", () =>
-      expect(restoreTarget({ from, bin, toDir: "/mnt/tank/sorted/" }).path)
-        .toBe("/mnt/tank/sorted/holiday.jpg"));
+      expect(restoreTarget({ from, bin, toDir: "/mnt/tank/sorted/" }).path).toBe("/mnt/tank/sorted/holiday.jpg"));
 
     it("refuses a destination outside /mnt", () =>
       expect(() => restoreTarget({ from, bin, toDir: "/etc" })).toThrow(/\/mnt/));
@@ -78,7 +76,6 @@ describe("restoreTarget", () => {
     it("refuses an item that is not in the bin at all", () =>
       expect(() => restoreTarget({ from: "/mnt/tank/photos/a.jpg", bin })).toThrow(/bin/i));
 
-    it("refuses the bin itself", () =>
-      expect(() => restoreTarget({ from: bin, bin })).toThrow(/bin/i));
+    it("refuses the bin itself", () => expect(() => restoreTarget({ from: bin, bin })).toThrow(/bin/i));
   });
 });

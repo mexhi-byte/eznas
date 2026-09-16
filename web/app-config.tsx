@@ -5,7 +5,12 @@ import { Field, Input, Modal, Select, Toggle } from "./ui";
 
 /* -------------------------------------------------------------------- types */
 
-interface Credential { path: string; key: string; value: string; secret: boolean }
+interface Credential {
+  path: string;
+  key: string;
+  value: string;
+  secret: boolean;
+}
 
 /** One question from a catalog app's schema. The shape is recursive. */
 interface Question {
@@ -44,7 +49,11 @@ interface AppConfig {
 
 type Tab = "settings" | "credentials";
 
-export function AppConfigModal({ name, onClose, onSaved }: {
+export function AppConfigModal({
+  name,
+  onClose,
+  onSaved,
+}: {
   name: string;
   onClose: () => void;
   onSaved: (jobId: number, label: string) => void;
@@ -74,7 +83,9 @@ export function AppConfigModal({ name, onClose, onSaved }: {
           return;
         }
       }
-      const { jobId } = await put<{ jobId: number }>(`/api/apps/${encodeURIComponent(name)}/config`, { values: payload });
+      const { jobId } = await put<{ jobId: number }>(`/api/apps/${encodeURIComponent(name)}/config`, {
+        values: payload,
+      });
       onSaved(jobId, `Updating ${name}`);
       onClose();
     } catch (e) {
@@ -94,11 +105,19 @@ export function AppConfigModal({ name, onClose, onSaved }: {
       footer={
         <>
           {portal && (
-            <a className="btn" href={portal} target="_blank" rel="noreferrer" style={{ flex: "none", marginRight: "auto", textAlign: "center" }}>
+            <a
+              className="btn"
+              href={portal}
+              target="_blank"
+              rel="noreferrer"
+              style={{ flex: "none", marginRight: "auto", textAlign: "center" }}
+            >
               Open {data?.title ?? name} ↗
             </a>
           )}
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
           <button className="btn primary" disabled={busy || !dirty} onClick={() => void save()}>
             {busy ? "Saving…" : "Save and redeploy"}
           </button>
@@ -112,7 +131,9 @@ export function AppConfigModal({ name, onClose, onSaved }: {
       {data && (
         <>
           <div className="seg" style={{ marginBottom: 16 }}>
-            <button className={tab === "settings" ? "on" : ""} onClick={() => setTab("settings")}>Settings</button>
+            <button className={tab === "settings" ? "on" : ""} onClick={() => setTab("settings")}>
+              Settings
+            </button>
             <button className={tab === "credentials" ? "on" : ""} onClick={() => setTab("credentials")}>
               Passwords{data.credentials.length ? ` (${data.credentials.length})` : ""}
             </button>
@@ -130,7 +151,10 @@ export function AppConfigModal({ name, onClose, onSaved }: {
                 initial={data.values}
                 text={raw}
                 error={rawError}
-                onChange={(t) => { setRaw(t); setRawError(null); }}
+                onChange={(t) => {
+                  setRaw(t);
+                  setRawError(null);
+                }}
               />
             )
           ) : (
@@ -157,7 +181,11 @@ export function AppConfigModal({ name, onClose, onSaved }: {
  * walks it rather than hard-coding any app, so an app the console has never
  * seen still gets a real form instead of a JSON blob.
  */
-function QuestionList({ questions, values, onChange }: {
+function QuestionList({
+  questions,
+  values,
+  onChange,
+}: {
   questions: Question[];
   values: Record<string, unknown>;
   onChange: (next: Record<string, unknown>) => void;
@@ -186,21 +214,31 @@ function QuestionList({ questions, values, onChange }: {
   };
 
   const readAt = (pathParts: string[]): unknown =>
-    pathParts.reduce<unknown>((acc, p) => (acc && typeof acc === "object" ? (acc as Record<string, unknown>)[p] : undefined), values);
+    pathParts.reduce<unknown>(
+      (acc, p) => (acc && typeof acc === "object" ? (acc as Record<string, unknown>)[p] : undefined),
+      values,
+    );
 
   return (
     <>
       {groups.map(([group, qs]) => (
         <div key={group} className="dh-section">
           <h3>{group}</h3>
-          {qs.map((q) => <QuestionNode key={q.variable} q={q} path={[q.variable]} read={readAt} write={setAt} />)}
+          {qs.map((q) => (
+            <QuestionNode key={q.variable} q={q} path={[q.variable]} read={readAt} write={setAt} />
+          ))}
         </div>
       ))}
     </>
   );
 }
 
-function QuestionNode({ q, path, read, write }: {
+function QuestionNode({
+  q,
+  path,
+  read,
+  write,
+}: {
   q: Question;
   path: string[];
   read: (p: string[]) => unknown;
@@ -231,7 +269,11 @@ function QuestionNode({ q, path, read, write }: {
       <Field label={label} hint={strip(q.description)}>
         <div className="q-list">
           {items.length ? (
-            items.map((it, i) => <div key={i} className="mono">{JSON.stringify(it)}</div>)
+            items.map((it, i) => (
+              <div key={i} className="mono">
+                {JSON.stringify(it)}
+              </div>
+            ))
           ) : (
             <span style={{ color: "var(--faint)" }}>empty</span>
           )}
@@ -245,7 +287,11 @@ function QuestionNode({ q, path, read, write }: {
     return (
       <div style={{ margin: "10px 0" }}>
         <Toggle checked={current === true} onChange={(v) => write(path, v)} label={label} />
-        {q.description && <div className="field-hint" style={{ marginTop: 3 }}>{strip(q.description)}</div>}
+        {q.description && (
+          <div className="field-hint" style={{ marginTop: 3 }}>
+            {strip(q.description)}
+          </div>
+        )}
       </div>
     );
   }
@@ -255,7 +301,9 @@ function QuestionNode({ q, path, read, write }: {
       <Field label={label} hint={strip(q.description)}>
         <Select value={String(current ?? s.default ?? "")} onChange={(e) => write(path, e.target.value)}>
           {s.enum.map((o) => (
-            <option key={o.value} value={o.value}>{o.description || o.value || "None"}</option>
+            <option key={o.value} value={o.value}>
+              {o.description || o.value || "None"}
+            </option>
           ))}
         </Select>
       </Field>
@@ -289,11 +337,22 @@ function QuestionNode({ q, path, read, write }: {
 
 /** Schema descriptions are written in HTML, and it shows if it is not removed. */
 const strip = (html?: string): string | undefined =>
-  html ? html.replace(/<\/?[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 220) : undefined;
+  html
+    ? html
+        .replace(/<\/?[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 220)
+    : undefined;
 
 /* ---------------------------------------------------------- compose editing */
 
-function ComposeEditor({ initial, text, error, onChange }: {
+function ComposeEditor({
+  initial,
+  text,
+  error,
+  onChange,
+}: {
   initial: Record<string, unknown>;
   text: string | null;
   error: string | null;
@@ -314,7 +373,11 @@ function ComposeEditor({ initial, text, error, onChange }: {
         onChange={(e) => onChange(e.target.value)}
         rows={20}
       />
-      {error && <div className="error-banner" style={{ marginTop: 12, marginBottom: 0 }}>Not valid JSON — {error}</div>}
+      {error && (
+        <div className="error-banner" style={{ marginTop: 12, marginBottom: 0 }}>
+          Not valid JSON — {error}
+        </div>
+      )}
     </>
   );
 }
@@ -340,8 +403,8 @@ function Credentials({ list }: { list: Credential[] }) {
   if (!list.length) {
     return (
       <p className="modal-text">
-        This app's settings hold no passwords. Either it does not need one, or it keeps its accounts in its own
-        database — check inside the app itself.
+        This app's settings hold no passwords. Either it does not need one, or it keeps its accounts in its own database
+        — check inside the app itself.
       </p>
     );
   }
@@ -358,7 +421,11 @@ function Credentials({ list }: { list: Credential[] }) {
             <div style={{ minWidth: 0 }}>
               <div className="cred-key">
                 {c.key}
-                {c.secret && <span className="pill warn" style={{ marginLeft: 8 }}>secret</span>}
+                {c.secret && (
+                  <span className="pill warn" style={{ marginLeft: 8 }}>
+                    secret
+                  </span>
+                )}
               </div>
               <div className="cred-path mono">{c.path}</div>
             </div>
@@ -371,7 +438,9 @@ function Credentials({ list }: { list: Credential[] }) {
                   {shown[c.path] ? "Hide" : "Show"}
                 </button>
               )}
-              <button className="btn" onClick={() => void copy(c)}>{copied === c.path ? "Copied" : "Copy"}</button>
+              <button className="btn" onClick={() => void copy(c)}>
+                {copied === c.path ? "Copied" : "Copy"}
+              </button>
             </div>
           </div>
         ))}

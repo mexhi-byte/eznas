@@ -43,12 +43,7 @@ export interface UploadEnvelope {
   contentType: string;
 }
 
-export function uploadForm(
-  boundary: string,
-  target: string,
-  filename: string,
-  size: number,
-): UploadEnvelope {
+export function uploadForm(boundary: string, target: string, filename: string, size: number): UploadEnvelope {
   const name = safeName(filename);
   // 420 is 0o644. JSON has no octal, and a decimal that looks like a mistake is
   // better than an 0o644 literal that arrives as the string "0o644".
@@ -100,8 +95,7 @@ export async function uploadTo(
   const filename = target.split("/").pop() ?? "";
   // Built first: a name this console will not send is a failure that should
   // cost neither a token nor a connection.
-  const { prologue, epilogue, contentLength, contentType } =
-    uploadForm(boundary, target, filename, size);
+  const { prologue, epilogue, contentLength, contentType } = uploadForm(boundary, target, filename, size);
 
   const token = await nas.call<string>("auth.generate_token", [300, {}, false]);
   const socket = await connectPinned(conn);
@@ -158,7 +152,8 @@ export async function uploadTo(
      * earlier; something about this transfer ended it.
      */
     req.on("error", (e: Error) =>
-      reject(new HttpError(`the NAS closed the connection while receiving the file (${e.message})`, 400)));
+      reject(new HttpError(`the NAS closed the connection while receiving the file (${e.message})`, 400)),
+    );
     // A browser that hangs up mid-upload must tear down the NAS side too,
     // rather than leave it waiting for a body that will never finish.
     body.on("error", (e: Error) => req.destroy(e));
@@ -183,11 +178,13 @@ export async function uploadTo(
     body.on("end", () => {
       if (seen !== size) {
         req.destroy();
-        reject(new HttpError(
-          `the file arrived here as ${seen} bytes but was announced as ${size}. ` +
-            "Something between the browser and this console changed the request.",
-          400,
-        ));
+        reject(
+          new HttpError(
+            `the file arrived here as ${seen} bytes but was announced as ${size}. ` +
+              "Something between the browser and this console changed the request.",
+            400,
+          ),
+        );
         return;
       }
       req.end(epilogue);

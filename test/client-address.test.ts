@@ -13,7 +13,9 @@ describe("clientAddress", () => {
   });
 
   it("prefers cf-connecting-ip behind a trusted proxy", () =>
-    expect(clientAddress({ "cf-connecting-ip": "1.2.3.4", "x-forwarded-for": "9.9.9.9" }, "10.0.0.9", true)).toBe("1.2.3.4"));
+    expect(clientAddress({ "cf-connecting-ip": "1.2.3.4", "x-forwarded-for": "9.9.9.9" }, "10.0.0.9", true)).toBe(
+      "1.2.3.4",
+    ));
 
   it("takes the first x-forwarded-for entry, which is the original client", () =>
     expect(clientAddress({ "x-forwarded-for": "1.2.3.4, 10.0.0.1" }, "10.0.0.9", true)).toBe("1.2.3.4"));

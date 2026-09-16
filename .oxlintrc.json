@@ -1,9 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": [
-    "typescript",
-    "react"
-  ],
+  "plugins": ["typescript", "react"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
@@ -34,11 +31,5 @@
     "react/exhaustive-effect-dependencies": "warn",
     "react/iframe-missing-sandbox": "warn"
   },
-  "ignorePatterns": [
-    "dist/",
-    "dist.prev/",
-    "node_modules/",
-    "data/",
-    "coverage/"
-  ]
+  "ignorePatterns": ["dist/", "dist.prev/", "node_modules/", "data/", "coverage/"]
 }

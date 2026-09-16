@@ -66,7 +66,10 @@ export interface Release {
 
 /** "v0.4.0" and "0.4" both mean the same thing; compare them as numbers. */
 function parse(v: string): number[] {
-  return v.replace(/^v/i, "").split(/[.-]/).map((p) => Number(p) || 0);
+  return v
+    .replace(/^v/i, "")
+    .split(/[.-]/)
+    .map((p) => Number(p) || 0);
 }
 
 export function isNewer(candidate: string, current: string): boolean {

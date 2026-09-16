@@ -62,19 +62,14 @@ export function temperatureOf(v: number | null | undefined): number | null {
  * lookup that checks only one of them silently reports "no failed tests" for
  * every drive, which reads as a clean bill of health.
  */
-export function testsForDisk(
-  results: Array<Record<string, unknown>>,
-  name: string,
-): Array<Record<string, unknown>> {
+export function testsForDisk(results: Array<Record<string, unknown>>, name: string): Array<Record<string, unknown>> {
   const row = results.find((r) => r.disk === name || r.name === name);
   return ((row?.tests as Array<Record<string, unknown>>) ?? []).slice(0, 12);
 }
 
 /** Self-tests that did not finish cleanly. */
 export function failedTestCount(tests: Array<Record<string, unknown>>): number {
-  return tests.filter(
-    (t) => !/without error|completed/i.test(String(t.status_verbose ?? t.status ?? "")),
-  ).length;
+  return tests.filter((t) => !/without error|completed/i.test(String(t.status_verbose ?? t.status ?? ""))).length;
 }
 
 const bytesish = (n: number | undefined): string => {

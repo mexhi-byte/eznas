@@ -29,7 +29,9 @@ export function ConsoleUsersTab({ meUsername }: { meUsername: string }) {
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 12 }}>
+      <div
+        style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 12 }}
+      >
         <span className="card-title">
           People who can sign in here. Administrators can change things; viewers can only look.
         </span>
@@ -60,7 +62,11 @@ export function ConsoleUsersTab({ meUsername }: { meUsername: string }) {
                   <tr key={a.id}>
                     <td style={{ fontWeight: 600 }}>
                       {a.username}
-                      {a.username === meUsername && <span className="pill info" style={{ marginLeft: 8 }}>you</span>}
+                      {a.username === meUsername && (
+                        <span className="pill info" style={{ marginLeft: 8 }}>
+                          you
+                        </span>
+                      )}
                     </td>
                     <td>
                       <span className={`pill ${a.role === "admin" ? "warn" : "mute"}`}>
@@ -73,7 +79,9 @@ export function ConsoleUsersTab({ meUsername }: { meUsername: string }) {
                     <td style={{ color: "var(--muted)" }}>{a.lastSeen ? when(a.lastSeen) : "never"}</td>
                     <td>
                       <div className="row-actions">
-                        <button className="btn" onClick={() => setEditing(a)}>Edit</button>
+                        <button className="btn" onClick={() => setEditing(a)}>
+                          Edit
+                        </button>
                         <button
                           className="btn danger"
                           disabled={a.username === meUsername || (a.role === "admin" && admins === 1)}
@@ -92,7 +100,13 @@ export function ConsoleUsersTab({ meUsername }: { meUsername: string }) {
                     </td>
                   </tr>
                 ))}
-                {!data?.length && <tr><td colSpan={5}><Empty>Nobody yet.</Empty></td></tr>}
+                {!data?.length && (
+                  <tr>
+                    <td colSpan={5}>
+                      <Empty>Nobody yet.</Empty>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -105,7 +119,10 @@ export function ConsoleUsersTab({ meUsername }: { meUsername: string }) {
           isMe={editing !== "new" && editing.username === meUsername}
           onlyAdmin={editing !== "new" && editing.role === "admin" && admins === 1}
           onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); void reload(); }}
+          onSaved={() => {
+            setEditing(null);
+            void reload();
+          }}
         />
       )}
 
@@ -130,7 +147,13 @@ export function ConsoleUsersTab({ meUsername }: { meUsername: string }) {
   );
 }
 
-function AccountForm({ account, isMe, onlyAdmin, onClose, onSaved }: {
+function AccountForm({
+  account,
+  isMe,
+  onlyAdmin,
+  onClose,
+  onSaved,
+}: {
   account: ConsoleAccount | null;
   isMe: boolean;
   onlyAdmin: boolean;
@@ -156,16 +179,23 @@ function AccountForm({ account, isMe, onlyAdmin, onClose, onSaved }: {
   });
 
   const needCurrent = isMe && !!password;
-  const ready = username.trim().length >= 2 && (account ? true : password.length >= 8) && (!needCurrent || !!currentPassword);
+  const ready =
+    username.trim().length >= 2 && (account ? true : password.length >= 8) && (!needCurrent || !!currentPassword);
 
   return (
     <Modal
       title={account ? `Edit ${account.username}` : "Add someone"}
-      subtitle={account ? "Leave the password empty to keep the current one." : "They will sign in with this username and password."}
+      subtitle={
+        account
+          ? "Leave the password empty to keep the current one."
+          : "They will sign in with this username and password."
+      }
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
           <button className="btn primary" disabled={busy || !ready} onClick={() => void submit(undefined as void)}>
             {busy ? "Saving…" : account ? "Save" : "Create"}
           </button>
@@ -178,7 +208,12 @@ function AccountForm({ account, isMe, onlyAdmin, onClose, onSaved }: {
 
       {needCurrent && (
         <Field label="Your current password" hint="Proof it is really you, not just an unlocked browser.">
-          <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" />
+          <Input
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            autoComplete="current-password"
+          />
         </Field>
       )}
 

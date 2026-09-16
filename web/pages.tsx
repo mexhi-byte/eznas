@@ -27,12 +27,13 @@ function Glance({ label, value, sub, bad }: { label: string; value: string; sub:
   return (
     <div className="stat">
       <span className="stat-label">{label}</span>
-      <span className="stat-value" style={bad ? { color: "var(--bad)" } : undefined}>{value}</span>
+      <span className="stat-value" style={bad ? { color: "var(--bad)" } : undefined}>
+        {value}
+      </span>
       <span className="stat-foot">{sub}</span>
     </div>
   );
 }
-
 
 export function StoragePage() {
   const { data, error, loading, reload } = useResource<PoolSummary[]>("/api/pools", 30_000);
@@ -74,20 +75,31 @@ export function StoragePage() {
                 </div>
                 <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
                   <span className={`pill ${level(pct) || "mute"}`}>{pct.toFixed(0)}% used</span>
-                  <button className="btn" style={{ flex: "none" }} onClick={() => void scrub(pool.name)}>Scrub</button>
-                  <button className="btn danger" style={{ flex: "none" }} onClick={() => setExporting(pool)}>Export</button>
+                  <button className="btn" style={{ flex: "none" }} onClick={() => void scrub(pool.name)}>
+                    Scrub
+                  </button>
+                  <button className="btn danger" style={{ flex: "none" }} onClick={() => setExporting(pool)}>
+                    Export
+                  </button>
                 </div>
               </div>
 
               <Bar pct={pct} />
-              <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 12, margin: "14px 0 4px" }}>
+              <div
+                className="grid"
+                style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 12, margin: "14px 0 4px" }}
+              >
                 <Glance label="Capacity" value={bytes(pool.size)} sub="total" />
                 <Glance label="Used" value={bytes(pool.allocated)} sub={`${pct.toFixed(1)}%`} />
                 <Glance label="Free" value={bytes(pool.free)} sub="available" />
                 <Glance
                   label="Last scrub"
                   value={pool.scan?.endedAt ? when(pool.scan.endedAt) : "never"}
-                  sub={pool.scan?.state === "SCANNING" ? `running ${(pool.scan.percentage ?? 0).toFixed(0)}%` : (pool.scan?.state ?? "").toLowerCase() || "—"}
+                  sub={
+                    pool.scan?.state === "SCANNING"
+                      ? `running ${(pool.scan.percentage ?? 0).toFixed(0)}%`
+                      : (pool.scan?.state ?? "").toLowerCase() || "—"
+                  }
                 />
               </div>
 
@@ -98,7 +110,11 @@ export function StoragePage() {
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                       <span className="pill info">{v.type.toLowerCase()}</span>
                       {v.disks.map((d) => (
-                        <span key={d.disk} className="mono" style={{ fontSize: 12.5, color: d.status === "ONLINE" ? "var(--muted)" : "var(--bad)" }}>
+                        <span
+                          key={d.disk}
+                          className="mono"
+                          style={{ fontSize: 12.5, color: d.status === "ONLINE" ? "var(--muted)" : "var(--bad)" }}
+                        >
                           {d.disk}
                         </span>
                       ))}
@@ -116,7 +132,14 @@ export function StoragePage() {
       </div>
 
       {creating && (
-        <CreatePool onClose={() => setCreating(false)} onStarted={(id, label) => { addJob(id, label); setCreating(false); void reload(); }} />
+        <CreatePool
+          onClose={() => setCreating(false)}
+          onStarted={(id, label) => {
+            addJob(id, label);
+            setCreating(false);
+            void reload();
+          }}
+        />
       )}
 
       {exporting && (
@@ -126,7 +149,10 @@ export function StoragePage() {
           verb="Export"
           onCancel={() => setExporting(null)}
           onConfirm={async (confirm) => {
-            const { jobId } = await del<{ jobId: number }>(`/api/pools/${encodeURIComponent(exporting.name)}`, { confirm, destroy: false });
+            const { jobId } = await del<{ jobId: number }>(`/api/pools/${encodeURIComponent(exporting.name)}`, {
+              confirm,
+              destroy: false,
+            });
             addJob(jobId, `Exporting ${exporting.name}`);
             await reload();
           }}
@@ -142,8 +168,12 @@ export function StoragePage() {
       {!!jobs.length && (
         <div className="job-tray">
           {jobs.map((j) => (
-            <JobProgress key={j.id} jobId={j.id} label={j.label}
-              onDone={() => setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 6000)} />
+            <JobProgress
+              key={j.id}
+              jobId={j.id}
+              label={j.label}
+              onDone={() => setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 6000)}
+            />
           ))}
         </div>
       )}
@@ -151,9 +181,21 @@ export function StoragePage() {
   );
 }
 
-interface UnusedDisk { name: string; model: string; size: number; serial: string; inUse?: boolean }
+interface UnusedDisk {
+  name: string;
+  model: string;
+  size: number;
+  serial: string;
+  inUse?: boolean;
+}
 
-function CreatePool({ onClose, onStarted }: { onClose: () => void; onStarted: (jobId: number, label: string) => void }) {
+function CreatePool({
+  onClose,
+  onStarted,
+}: {
+  onClose: () => void;
+  onStarted: (jobId: number, label: string) => void;
+}) {
   const { data: disks, reload } = useResource<UnusedDisk[]>("/api/disks", 0);
   const [name, setName] = useState("");
   const [layout, setLayout] = useState("MIRROR");
@@ -189,9 +231,17 @@ function CreatePool({ onClose, onStarted }: { onClose: () => void; onStarted: (j
       wide
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="btn" onClick={() => void rescan()} disabled={scanning}>{scanning ? "Scanning…" : "Scan for disks"}</button>
-          <button className="btn primary" disabled={busy || !name || !enough} onClick={() => void submit(undefined as void)}>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button className="btn" onClick={() => void rescan()} disabled={scanning}>
+            {scanning ? "Scanning…" : "Scan for disks"}
+          </button>
+          <button
+            className="btn primary"
+            disabled={busy || !name || !enough}
+            onClick={() => void submit(undefined as void)}
+          >
             {busy ? "Starting…" : "Create"}
           </button>
         </>
@@ -201,7 +251,10 @@ function CreatePool({ onClose, onStarted }: { onClose: () => void; onStarted: (j
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="tank2" autoFocus />
       </Field>
 
-      <Field label="Layout" hint={`${layout} needs at least ${need[layout] ?? 1} disk${(need[layout] ?? 1) > 1 ? "s" : ""}.`}>
+      <Field
+        label="Layout"
+        hint={`${layout} needs at least ${need[layout] ?? 1} disk${(need[layout] ?? 1) > 1 ? "s" : ""}.`}
+      >
         <Select value={layout} onChange={(e) => setLayout(e.target.value)}>
           <option value="STRIPE">Stripe — no redundancy, any disk lost loses the pool</option>
           <option value="MIRROR">Mirror — every disk holds a full copy</option>
@@ -222,9 +275,13 @@ function CreatePool({ onClose, onStarted }: { onClose: () => void; onStarted: (j
                   checked={on}
                   onChange={() => setPicked((p) => (on ? p.filter((x) => x !== d.name) : [...p, d.name]))}
                 />
-                <span className="mono" style={{ minWidth: 46 }}>{d.name}</span>
+                <span className="mono" style={{ minWidth: 46 }}>
+                  {d.name}
+                </span>
                 <span style={{ flex: 1, color: "var(--muted)", fontSize: 12.5 }}>{d.model}</span>
-                <span className="num" style={{ fontSize: 12.5 }}>{bytes(d.size)}</span>
+                <span className="num" style={{ fontSize: 12.5 }}>
+                  {bytes(d.size)}
+                </span>
               </label>
             );
           })}
@@ -240,7 +297,9 @@ function CreatePool({ onClose, onStarted }: { onClose: () => void; onStarted: (j
 const Extra = ({ label, disks }: { label: string; disks: string[] }) => (
   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
     <span className="pill mute">{label}</span>
-    <span className="mono" style={{ fontSize: 12.5, color: "var(--muted)" }}>{disks.join(", ")}</span>
+    <span className="mono" style={{ fontSize: 12.5, color: "var(--muted)" }}>
+      {disks.join(", ")}
+    </span>
   </div>
 );
 
@@ -283,8 +342,17 @@ export function DatasetsPage() {
           <div className="page-sub">{data ? `${data.length} datasets and volumes` : " "}</div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <Input style={{ maxWidth: 220 }} placeholder="Filter…" value={filter} onChange={(e) => setFilter(e.target.value)} />
-          <button className="btn primary" style={{ flex: "none", padding: "8px 16px" }} onClick={() => setCreating(true)}>
+          <Input
+            style={{ maxWidth: 220 }}
+            placeholder="Filter…"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+          <button
+            className="btn primary"
+            style={{ flex: "none", padding: "8px 16px" }}
+            onClick={() => setCreating(true)}
+          >
             New dataset
           </button>
         </div>
@@ -319,19 +387,35 @@ export function DatasetsPage() {
                       <td>
                         <span className="tree-name">
                           <span className="tree-indent" style={{ width: depth * 14 }} />
-                          <span style={{ color: depth ? "var(--text)" : "var(--accent)", fontWeight: depth ? 400 : 600 }}>{leaf}</span>
+                          <span
+                            style={{ color: depth ? "var(--text)" : "var(--accent)", fontWeight: depth ? 400 : 600 }}
+                          >
+                            {leaf}
+                          </span>
                           {d.encrypted && <span className="pill mute">encrypted</span>}
                         </span>
                       </td>
                       <td style={{ color: "var(--muted)" }}>{d.type === "VOLUME" ? "zvol" : "dataset"}</td>
                       <td className="num">{bytes(d.used)}</td>
-                      <td className="num" style={{ color: "var(--muted)" }}>{bytes(d.available)}</td>
-                      <td className="num" style={{ color: "var(--muted)" }}>{bytes(d.referenced)}</td>
-                      <td className="num" style={{ color: "var(--muted)" }}>{d.quota ? bytes(d.quota) : "—"}</td>
-                      <td className="num" style={{ color: "var(--muted)" }}>{d.compression ?? "—"}</td>
+                      <td className="num" style={{ color: "var(--muted)" }}>
+                        {bytes(d.available)}
+                      </td>
+                      <td className="num" style={{ color: "var(--muted)" }}>
+                        {bytes(d.referenced)}
+                      </td>
+                      <td className="num" style={{ color: "var(--muted)" }}>
+                        {d.quota ? bytes(d.quota) : "—"}
+                      </td>
+                      <td className="num" style={{ color: "var(--muted)" }}>
+                        {d.compression ?? "—"}
+                      </td>
                       <td>
                         {depth > 0 && (
-                          <button className="btn danger" style={{ flex: "none", padding: "4px 10px" }} onClick={() => setRemoving(d)}>
+                          <button
+                            className="btn danger"
+                            style={{ flex: "none", padding: "4px 10px" }}
+                            onClick={() => setRemoving(d)}
+                          >
                             Delete
                           </button>
                         )}
@@ -356,7 +440,10 @@ export function DatasetsPage() {
         <CreateDataset
           pools={[...new Set((data ?? []).map((d) => d.pool))]}
           onClose={() => setCreating(false)}
-          onSaved={() => { setCreating(false); void reload(); }}
+          onSaved={() => {
+            setCreating(false);
+            void reload();
+          }}
         />
       )}
 
@@ -405,8 +492,14 @@ function CreateDataset({ pools, onClose, onSaved }: { pools: string[]; onClose: 
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
-          <button className="btn primary" disabled={busy || !pool || !name} onClick={() => void submit(undefined as void)}>
+          <button className="btn" onClick={onClose} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className="btn primary"
+            disabled={busy || !pool || !name}
+            onClick={() => void submit(undefined as void)}
+          >
             {busy ? "Creating…" : "Create"}
           </button>
         </>
@@ -415,7 +508,11 @@ function CreateDataset({ pools, onClose, onSaved }: { pools: string[]; onClose: 
       <div className="row">
         <Field label="Pool">
           <Select value={pool} onChange={(e) => setPool(e.target.value)}>
-            {pools.map((p) => <option key={p} value={p}>{p}</option>)}
+            {pools.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
           </Select>
         </Field>
         <Field label="Name" hint="Use a/b to nest.">
@@ -423,7 +520,10 @@ function CreateDataset({ pools, onClose, onSaved }: { pools: string[]; onClose: 
         </Field>
       </div>
 
-      <Field label="Compression" hint="LZ4 is the sensible default: it costs almost nothing and usually wins space back.">
+      <Field
+        label="Compression"
+        hint="LZ4 is the sensible default: it costs almost nothing and usually wins space back."
+      >
         <Select value={compression} onChange={(e) => setCompression(e.target.value)}>
           <option value="LZ4">LZ4</option>
           <option value="ZSTD">ZSTD — smaller, more CPU</option>
@@ -433,7 +533,13 @@ function CreateDataset({ pools, onClose, onSaved }: { pools: string[]; onClose: 
       </Field>
 
       <Field label="Quota in GB (optional)" hint="Blank means it can use whatever the pool has.">
-        <Input type="number" min="0" value={quotaGb} onChange={(e) => setQuotaGb(e.target.value)} placeholder="unlimited" />
+        <Input
+          type="number"
+          min="0"
+          value={quotaGb}
+          onChange={(e) => setQuotaGb(e.target.value)}
+          placeholder="unlimited"
+        />
       </Field>
 
       <Field label="Comment (optional)">
@@ -530,7 +636,9 @@ export function AppsPage() {
     }
   }
 
-  const apps = [...(data ?? [])].sort((a, b) => Number(b.state === "RUNNING") - Number(a.state === "RUNNING") || a.name.localeCompare(b.name));
+  const apps = [...(data ?? [])].sort(
+    (a, b) => Number(b.state === "RUNNING") - Number(a.state === "RUNNING") || a.name.localeCompare(b.name),
+  );
 
   return (
     <>
@@ -538,10 +646,14 @@ export function AppsPage() {
         <div>
           <h1>Apps</h1>
           <div className="page-sub">
-            {data ? `${data.filter((a) => a.state === "RUNNING").length} running · ${data.filter((a) => a.updatable).length} with updates` : " "}
+            {data
+              ? `${data.filter((a) => a.state === "RUNNING").length} running · ${data.filter((a) => a.updatable).length} with updates`
+              : " "}
           </div>
         </div>
-        <button className="link-btn" onClick={() => void reload()}>Refresh</button>
+        <button className="link-btn" onClick={() => void reload()}>
+          Refresh
+        </button>
       </div>
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
@@ -566,9 +678,14 @@ export function AppsPage() {
                 <AppIcon app={a} />
                 <div style={{ minWidth: 0 }}>
                   <div className="app-name">{a.name}</div>
-                  <div className="app-meta">{a.version}{a.containers ? ` · ${a.containers} container${a.containers > 1 ? "s" : ""}` : ""}</div>
+                  <div className="app-meta">
+                    {a.version}
+                    {a.containers ? ` · ${a.containers} container${a.containers > 1 ? "s" : ""}` : ""}
+                  </div>
                 </div>
-                <span style={{ marginLeft: "auto" }}><Pill state={a.state} /></span>
+                <span style={{ marginLeft: "auto" }}>
+                  <Pill state={a.state} />
+                </span>
               </div>
 
               {(a.updatable || a.ports.length > 0) && (
@@ -582,31 +699,48 @@ export function AppsPage() {
                       button labelled Open: several of these are databases, and
                       a chip promises far less about what is behind it. */}
                   {a.links.slice(0, 4).map((l) => (
-                    <a key={l.port} className="pill mute mono port-link" href={l.url}
-                       target="_blank" rel="noreferrer" title={`Open ${l.url}`}>:{l.port}</a>
+                    <a
+                      key={l.port}
+                      className="pill mute mono port-link"
+                      href={l.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={`Open ${l.url}`}
+                    >
+                      :{l.port}
+                    </a>
                   ))}
-                  {!a.links.length && a.ports.slice(0, 4).map((p) => (
-                    <span key={p} className="pill mute mono">:{p}</span>
-                  ))}
+                  {!a.links.length &&
+                    a.ports.slice(0, 4).map((p) => (
+                      <span key={p} className="pill mute mono">
+                        :{p}
+                      </span>
+                    ))}
                 </div>
               )}
 
               {/*
-                * Only the actions that apply.
-                *
-                * This was seven controls in a row that could not wrap, so they
-                * overlapped each other and the ones underneath could not be
-                * clicked. Start and Stop are mutually exclusive — one of them
-                * was always present only to be greyed out — and Restart means
-                * nothing for an app that is not running, so each card now
-                * carries at most five.
-                */}
+               * Only the actions that apply.
+               *
+               * This was seven controls in a row that could not wrap, so they
+               * overlapped each other and the ones underneath could not be
+               * clicked. Start and Stop are mutually exclusive — one of them
+               * was always present only to be greyed out — and Restart means
+               * nothing for an app that is not running, so each card now
+               * carries at most five.
+               */}
               <div className="app-actions">
                 {portalOf(a) && running && (
-                  <a className="btn primary" href={portalOf(a)} target="_blank" rel="noreferrer">Open</a>
+                  <a className="btn primary" href={portalOf(a)} target="_blank" rel="noreferrer">
+                    Open
+                  </a>
                 )}
-                <button className="btn" onClick={() => setDetailing(a)}>Details</button>
-                <button className="btn" onClick={() => setEditing(a.name)}>Settings</button>
+                <button className="btn" onClick={() => setDetailing(a)}>
+                  Details
+                </button>
+                <button className="btn" onClick={() => setEditing(a.name)}>
+                  Settings
+                </button>
                 {running ? (
                   <>
                     <button className="btn" disabled={working} onClick={() => void act(a.name, "restart")}>
@@ -646,9 +780,13 @@ export function AppsPage() {
           onClose={() => setDetailing(null)}
           footer={
             <>
-              <button className="btn" onClick={() => setDetailing(null)}>Close</button>
+              <button className="btn" onClick={() => setDetailing(null)}>
+                Close
+              </button>
               {portalOf(detailing) && detailing.state === "RUNNING" && (
-                <a className="btn primary" href={portalOf(detailing)} target="_blank" rel="noreferrer">Open</a>
+                <a className="btn primary" href={portalOf(detailing)} target="_blank" rel="noreferrer">
+                  Open
+                </a>
               )}
             </>
           }
@@ -659,7 +797,10 @@ export function AppsPage() {
         <AppConfigModal
           name={editing}
           onClose={() => setEditing(null)}
-          onSaved={(id, label) => { setJobs((j) => [...j, { id, label }]); setTimeout(() => void reload(), 4000); }}
+          onSaved={(id, label) => {
+            setJobs((j) => [...j, { id, label }]);
+            setTimeout(() => void reload(), 4000);
+          }}
         />
       )}
 
@@ -670,7 +811,9 @@ export function AppsPage() {
           verb="Delete"
           onCancel={() => setRemoving(null)}
           onConfirm={async (confirm) => {
-            const { jobId } = await del<{ jobId: number }>(`/api/apps/${encodeURIComponent(removing.name)}`, { confirm });
+            const { jobId } = await del<{ jobId: number }>(`/api/apps/${encodeURIComponent(removing.name)}`, {
+              confirm,
+            });
             setJobs((j) => [...j, { id: jobId, label: `Deleting ${removing.name}` }]);
             setTimeout(() => void reload(), 3000);
           }}
@@ -685,8 +828,15 @@ export function AppsPage() {
       {!!jobs.length && (
         <div className="job-tray">
           {jobs.map((j) => (
-            <JobProgress key={j.id} jobId={j.id} label={j.label}
-              onDone={() => { void reload(); setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 6000); }} />
+            <JobProgress
+              key={j.id}
+              jobId={j.id}
+              label={j.label}
+              onDone={() => {
+                void reload();
+                setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 6000);
+              }}
+            />
           ))}
         </div>
       )}

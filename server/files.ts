@@ -34,22 +34,51 @@ const MAX_CACHE_TOTAL = 2 * 1024 * 1024 * 1024;
 export const MAX_INLINE = 64 * 1024 * 1024;
 
 const TYPES: Record<string, string> = {
-  ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif",
-  ".webp": "image/webp", ".bmp": "image/bmp", ".svg": "image/svg+xml", ".avif": "image/avif",
-  ".heic": "image/heic", ".heif": "image/heif", ".ico": "image/x-icon", ".tif": "image/tiff", ".tiff": "image/tiff",
-  ".mp4": "video/mp4", ".m4v": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime",
-  ".mkv": "video/x-matroska", ".avi": "video/x-msvideo", ".mpg": "video/mpeg", ".mpeg": "video/mpeg",
-  ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".flac": "audio/flac", ".wav": "audio/wav",
-  ".ogg": "audio/ogg", ".opus": "audio/opus", ".aac": "audio/aac",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+  ".svg": "image/svg+xml",
+  ".avif": "image/avif",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+  ".ico": "image/x-icon",
+  ".tif": "image/tiff",
+  ".tiff": "image/tiff",
+  ".mp4": "video/mp4",
+  ".m4v": "video/mp4",
+  ".webm": "video/webm",
+  ".mov": "video/quicktime",
+  ".mkv": "video/x-matroska",
+  ".avi": "video/x-msvideo",
+  ".mpg": "video/mpeg",
+  ".mpeg": "video/mpeg",
+  ".mp3": "audio/mpeg",
+  ".m4a": "audio/mp4",
+  ".flac": "audio/flac",
+  ".wav": "audio/wav",
+  ".ogg": "audio/ogg",
+  ".opus": "audio/opus",
+  ".aac": "audio/aac",
   ".pdf": "application/pdf",
-  ".txt": "text/plain; charset=utf-8", ".log": "text/plain; charset=utf-8",
-  ".md": "text/markdown; charset=utf-8", ".json": "application/json; charset=utf-8",
-  ".yaml": "text/plain; charset=utf-8", ".yml": "text/plain; charset=utf-8",
-  ".xml": "text/xml; charset=utf-8", ".csv": "text/csv; charset=utf-8",
-  ".sh": "text/plain; charset=utf-8", ".conf": "text/plain; charset=utf-8",
-  ".ts": "text/plain; charset=utf-8", ".js": "text/plain; charset=utf-8",
-  ".py": "text/plain; charset=utf-8", ".html": "text/plain; charset=utf-8",
-  ".css": "text/plain; charset=utf-8", ".sql": "text/plain; charset=utf-8",
+  ".txt": "text/plain; charset=utf-8",
+  ".log": "text/plain; charset=utf-8",
+  ".md": "text/markdown; charset=utf-8",
+  ".json": "application/json; charset=utf-8",
+  ".yaml": "text/plain; charset=utf-8",
+  ".yml": "text/plain; charset=utf-8",
+  ".xml": "text/xml; charset=utf-8",
+  ".csv": "text/csv; charset=utf-8",
+  ".sh": "text/plain; charset=utf-8",
+  ".conf": "text/plain; charset=utf-8",
+  ".ts": "text/plain; charset=utf-8",
+  ".js": "text/plain; charset=utf-8",
+  ".py": "text/plain; charset=utf-8",
+  ".html": "text/plain; charset=utf-8",
+  ".css": "text/plain; charset=utf-8",
+  ".sql": "text/plain; charset=utf-8",
 };
 
 export type Kind = "image" | "video" | "audio" | "pdf" | "text" | "other";
@@ -65,8 +94,7 @@ export function kindOf(name: string): Kind {
   return "other";
 }
 
-export const contentType = (name: string): string =>
-  TYPES[extname(name).toLowerCase()] ?? "application/octet-stream";
+export const contentType = (name: string): string => TYPES[extname(name).toLowerCase()] ?? "application/octet-stream";
 
 /* ------------------------------------------------------------------- cache */
 
@@ -110,12 +138,11 @@ function evict(): void {
 
 /** Fetch a fresh single-use URL for a path. */
 async function downloadUrl(nas: TrueNas, path: string): Promise<string> {
-  const result = await nas.call<[number, string]>("core.download", [
-    "filesystem.get",
-    [path],
-    basename(path),
-    false,
-  ], 30_000);
+  const result = await nas.call<[number, string]>(
+    "core.download",
+    ["filesystem.get", [path], basename(path), false],
+    30_000,
+  );
   if (!Array.isArray(result) || !result[1]) throw new Error("the NAS did not return a download URL");
   return result[1];
 }
@@ -134,36 +161,38 @@ async function downloadUrl(nas: TrueNas, path: string): Promise<string> {
  * its certificate was wrong.
  */
 function fetchFromNas(nas: TrueNas, conn: Connection, path: string): Promise<IncomingMessage> {
-  return Promise.all([downloadUrl(nas, path), connectPinned(conn)])
-    .then(([urlPath, socket]) => new Promise<IncomingMessage>((resolve, reject) => {
-      const base = httpBase(conn);
-      const req = request(
-        {
-          protocol: base.protocol,
-          hostname: base.hostname,
-          port: base.port || (base.protocol === "https:" ? 443 : 80),
-          path: urlPath,
-          method: "GET",
-          timeout: 30_000,
-          // Already connected and already verified. A fresh one per transfer:
-          // on a reused keep-alive socket the peer certificate is no longer
-          // retrievable, so it could not be checked at all.
-          createConnection: () => socket,
-          agent: false,
-        },
-        (res) => {
-          if ((res.statusCode ?? 500) >= 400) {
-            res.resume();
-            reject(new Error(`the NAS refused the transfer (${res.statusCode})`));
-            return;
-          }
-          resolve(res);
-        },
-      );
-      req.on("timeout", () => req.destroy(new Error("the NAS took too long to start the transfer")));
-      req.on("error", reject);
-      req.end();
-    }));
+  return Promise.all([downloadUrl(nas, path), connectPinned(conn)]).then(
+    ([urlPath, socket]) =>
+      new Promise<IncomingMessage>((resolve, reject) => {
+        const base = httpBase(conn);
+        const req = request(
+          {
+            protocol: base.protocol,
+            hostname: base.hostname,
+            port: base.port || (base.protocol === "https:" ? 443 : 80),
+            path: urlPath,
+            method: "GET",
+            timeout: 30_000,
+            // Already connected and already verified. A fresh one per transfer:
+            // on a reused keep-alive socket the peer certificate is no longer
+            // retrievable, so it could not be checked at all.
+            createConnection: () => socket,
+            agent: false,
+          },
+          (res) => {
+            if ((res.statusCode ?? 500) >= 400) {
+              res.resume();
+              reject(new Error(`the NAS refused the transfer (${res.statusCode})`));
+              return;
+            }
+            resolve(res);
+          },
+        );
+        req.on("timeout", () => req.destroy(new Error("the NAS took too long to start the transfer")));
+        req.on("error", reject);
+        req.end();
+      }),
+  );
 }
 
 /* ----------------------------------------------------------------- serving */
@@ -208,9 +237,11 @@ export async function streamMedia(
     if (size > MAX_CACHE_FILE) {
       // Better to say so than to spend ten minutes copying and then fail.
       res.writeHead(413, { "content-type": "application/json" });
-      res.end(JSON.stringify({
-        error: `This file is ${(size / 1024 ** 3).toFixed(1)} GB. Files above ${(MAX_CACHE_FILE / 1024 ** 3).toFixed(0)} GB cannot be previewed in the browser — download it instead.`,
-      }));
+      res.end(
+        JSON.stringify({
+          error: `This file is ${(size / 1024 ** 3).toFixed(1)} GB. Files above ${(MAX_CACHE_FILE / 1024 ** 3).toFixed(0)} GB cannot be previewed in the browser — download it instead.`,
+        }),
+      );
       return;
     }
     mkdirSync(CACHE_DIR, { recursive: true });
@@ -223,7 +254,11 @@ export async function streamMedia(
       const { renameSync } = await import("node:fs");
       renameSync(tmp, local);
     } catch (e) {
-      try { unlinkSync(tmp); } catch { /* nothing to clean */ }
+      try {
+        unlinkSync(tmp);
+      } catch {
+        /* nothing to clean */
+      }
       throw e;
     }
     evict();
@@ -267,7 +302,11 @@ export function cacheStats(): { files: number; bytes: number } {
   const files = readdirSync(CACHE_DIR);
   let bytes = 0;
   for (const f of files) {
-    try { bytes += statSync(join(CACHE_DIR, f)).size; } catch { /* gone */ }
+    try {
+      bytes += statSync(join(CACHE_DIR, f)).size;
+    } catch {
+      /* gone */
+    }
   }
   return { files: files.length, bytes };
 }
@@ -275,6 +314,10 @@ export function cacheStats(): { files: number; bytes: number } {
 export function clearCache(): void {
   if (!existsSync(CACHE_DIR)) return;
   for (const f of readdirSync(CACHE_DIR)) {
-    try { unlinkSync(join(CACHE_DIR, f)); } catch { /* in use */ }
+    try {
+      unlinkSync(join(CACHE_DIR, f));
+    } catch {
+      /* in use */
+    }
   }
 }

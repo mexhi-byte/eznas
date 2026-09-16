@@ -25,11 +25,25 @@ let available = true;
 beforeAll(async () => {
   dir = mkdtempSync(join(tmpdir(), "eznas-tls-"));
   try {
-    execFileSync("openssl", [
-      "req", "-x509", "-newkey", "rsa:2048", "-nodes",
-      "-keyout", join(dir, "key.pem"), "-out", join(dir, "cert.pem"),
-      "-days", "2", "-subj", "/CN=localhost",
-    ], { stdio: "ignore" });
+    execFileSync(
+      "openssl",
+      [
+        "req",
+        "-x509",
+        "-newkey",
+        "rsa:2048",
+        "-nodes",
+        "-keyout",
+        join(dir, "key.pem"),
+        "-out",
+        join(dir, "cert.pem"),
+        "-days",
+        "2",
+        "-subj",
+        "/CN=localhost",
+      ],
+      { stdio: "ignore" },
+    );
   } catch {
     available = false;
     return;
@@ -37,18 +51,14 @@ beforeAll(async () => {
 
   const cert = readFileSync(join(dir, "cert.pem"));
   // The same digest Node reports as fingerprint256, in the same shape.
-  const der = Buffer.from(
-    cert.toString().replace(/-----(BEGIN|END) CERTIFICATE-----|\s/g, ""),
-    "base64",
-  );
+  const der = Buffer.from(cert.toString().replace(/-----(BEGIN|END) CERTIFICATE-----|\s/g, ""), "base64");
   fingerprint = createHash("sha256").update(der).digest("hex");
 
-  server = createServer(
-    { key: readFileSync(join(dir, "key.pem")), cert },
-    (socket) => {
-      socket.on("data", (c: Buffer) => { bytesReceived += c.length; });
-    },
-  );
+  server = createServer({ key: readFileSync(join(dir, "key.pem")), cert }, (socket) => {
+    socket.on("data", (c: Buffer) => {
+      bytesReceived += c.length;
+    });
+  });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
   port = (server.address() as { port: number }).port;
 });
@@ -71,8 +81,7 @@ describe("connectPinned", () => {
 
   it("refuses a peer whose certificate does not match", async () => {
     if (!available) return;
-    await expect(connectPinned(conn("00".repeat(32)), 5000))
-      .rejects.toThrow(/does not match the pin/);
+    await expect(connectPinned(conn("00".repeat(32)), 5000)).rejects.toThrow(/does not match the pin/);
   });
 
   it("sends nothing at all to a peer it refused", async () => {

@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 import { clashingNames, nextFreeName } from "../web/upload-names.js";
 
 describe("nextFreeName", () => {
-  it("leaves a name alone when nothing is in the way", () =>
-    expect(nextFreeName("a.txt", new Set())).toBe("a.txt"));
+  it("leaves a name alone when nothing is in the way", () => expect(nextFreeName("a.txt", new Set())).toBe("a.txt"));
 
   // What every desktop does, so the result is not a surprise.
-  it("adds (2) when the name is taken", () =>
-    expect(nextFreeName("a.txt", new Set(["a.txt"]))).toBe("a (2).txt"));
+  it("adds (2) when the name is taken", () => expect(nextFreeName("a.txt", new Set(["a.txt"]))).toBe("a (2).txt"));
 
   it("counts past the copies that already exist", () =>
     expect(nextFreeName("a.txt", new Set(["a.txt", "a (2).txt", "a (3).txt"]))).toBe("a (4).txt"));
@@ -36,15 +34,12 @@ describe("nextFreeName", () => {
 describe("clashingNames", () => {
   const here = ["a.txt", "b.txt", "photos"];
 
-  it("finds the names already present", () =>
-    expect(clashingNames(["a.txt", "c.txt"], here)).toEqual(["a.txt"]));
+  it("finds the names already present", () => expect(clashingNames(["a.txt", "c.txt"], here)).toEqual(["a.txt"]));
 
-  it("finds nothing when everything is new", () =>
-    expect(clashingNames(["c.txt"], here)).toEqual([]));
+  it("finds nothing when everything is new", () => expect(clashingNames(["c.txt"], here)).toEqual([]));
 
   it("clashes with a folder of the same name, which would also fail", () =>
     expect(clashingNames(["photos"], here)).toEqual(["photos"]));
 
-  it("finds nothing in an empty folder", () =>
-    expect(clashingNames(["a.txt"], [])).toEqual([]));
+  it("finds nothing in an empty folder", () => expect(clashingNames(["a.txt"], [])).toEqual([]));
 });

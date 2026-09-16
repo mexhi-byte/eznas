@@ -38,14 +38,16 @@ async function request<T>(rawPath: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-export const get = <T,>(path: string) => request<T>(path);
+export const get = <T>(path: string) => request<T>(path);
 
-const withBody = (method: string) => <T,>(path: string, body?: unknown) =>
-  request<T>(path, {
-    method,
-    headers: { "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+const withBody =
+  (method: string) =>
+  <T>(path: string, body?: unknown) =>
+    request<T>(path, {
+      method,
+      headers: { "content-type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
 
 export const post = withBody("POST");
 export const put = withBody("PUT");
@@ -81,7 +83,9 @@ export function watchJob(jobId: number, onUpdate: (j: Job) => void): () => void 
       await new Promise((r) => setTimeout(r, 1500));
     }
   })();
-  return () => { stop = true; };
+  return () => {
+    stop = true;
+  };
 }
 
 /**
@@ -120,7 +124,10 @@ export function useResource<T>(path: string, intervalMs = 10_000) {
     alive.current = true;
     setLoading(true);
     void reload();
-    if (!intervalMs) return () => { alive.current = false; };
+    if (!intervalMs)
+      return () => {
+        alive.current = false;
+      };
     const t = setInterval(() => void reload(), intervalMs);
     return () => {
       alive.current = false;
@@ -132,7 +139,10 @@ export function useResource<T>(path: string, intervalMs = 10_000) {
 }
 
 export interface Realtime {
-  cpu?: { cpu?: { usage: number; temp: number | null } } & Record<string, { usage: number; temp: number | null } | undefined>;
+  cpu?: { cpu?: { usage: number; temp: number | null } } & Record<
+    string,
+    { usage: number; temp: number | null } | undefined
+  >;
   memory?: { physical_memory_total: number; physical_memory_available: number; arc_size: number };
   interfaces?: Record<string, { link_state: string; received_bytes_rate: number; sent_bytes_rate: number }>;
   disks?: { read_bytes: number; write_bytes: number; read_ops: number; write_ops: number; busy: number };
@@ -150,7 +160,10 @@ export function useRealtime() {
   const [now, setNow] = useState<Realtime | null>(null);
   const [live, setLive] = useState(false);
   const history = useRef<{ cpu: number[]; mem: number[]; rx: number[]; tx: number[] }>({
-    cpu: [], mem: [], rx: [], tx: [],
+    cpu: [],
+    mem: [],
+    rx: [],
+    tx: [],
   });
 
   useEffect(() => {
@@ -172,8 +185,14 @@ export function useRealtime() {
         const m = r.memory;
         push(h.mem, m ? ((m.physical_memory_total - m.physical_memory_available) / m.physical_memory_total) * 100 : 0);
         const nics = Object.values(r.interfaces ?? {});
-        push(h.rx, nics.reduce((s, n) => s + n.received_bytes_rate, 0));
-        push(h.tx, nics.reduce((s, n) => s + n.sent_bytes_rate, 0));
+        push(
+          h.rx,
+          nics.reduce((s, n) => s + n.received_bytes_rate, 0),
+        );
+        push(
+          h.tx,
+          nics.reduce((s, n) => s + n.sent_bytes_rate, 0),
+        );
       };
       source.onerror = () => {
         setLive(false);
@@ -311,7 +330,11 @@ export function uploadFile(
 
 /* -------------------------------------------------------------- searching */
 
-export interface SearchHit { path: string; name: string; dir: string }
+export interface SearchHit {
+  path: string;
+  name: string;
+  dir: string;
+}
 
 export interface SearchHandlers {
   hit: (h: SearchHit) => void;
@@ -327,9 +350,7 @@ export interface SearchHandlers {
  * after the whole pool has been walked.
  */
 export function searchFiles(root: string, query: string, on: SearchHandlers): () => void {
-  const url = withConn(
-    `/api/files/search?root=${encodeURIComponent(root)}&q=${encodeURIComponent(query)}`,
-  );
+  const url = withConn(`/api/files/search?root=${encodeURIComponent(root)}&q=${encodeURIComponent(query)}`);
   const source = new EventSource(url);
   let closed = false;
   const close = () => {

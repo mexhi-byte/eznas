@@ -41,7 +41,9 @@ export function DriveMapPage() {
   const claimed = new Set(
     (pools ?? []).flatMap((p) => [
       ...p.vdevs.flatMap((v) => v.disks.map((d) => d.disk)),
-      ...p.cache, ...p.log, ...p.spare,
+      ...p.cache,
+      ...p.log,
+      ...p.spare,
     ]),
   );
   const spare = (disks ?? []).filter((d) => !claimed.has(d.name) && !d.inUse);
@@ -57,9 +59,7 @@ export function DriveMapPage() {
         <div>
           <h1>Drive array map</h1>
           <div className="page-sub">
-            {disks
-              ? `${disks.length} drives · ${bytes(total)} of raw capacity · click any drive for its health`
-              : " "}
+            {disks ? `${disks.length} drives · ${bytes(total)} of raw capacity · click any drive for its health` : " "}
           </div>
         </div>
       </div>
@@ -107,16 +107,28 @@ export function DriveMapPage() {
                 />
               ))}
               {!!pool.cache.length && (
-                <VdevGroup label="cache" hint="Read cache. Losing it costs speed, never data."
-                  disks={pool.cache.map((n) => ({ ...byName.get(n), name: n }))} onPick={setInspecting} />
+                <VdevGroup
+                  label="cache"
+                  hint="Read cache. Losing it costs speed, never data."
+                  disks={pool.cache.map((n) => ({ ...byName.get(n), name: n }))}
+                  onPick={setInspecting}
+                />
               )}
               {!!pool.log.length && (
-                <VdevGroup label="log" hint="Write log for synchronous writes."
-                  disks={pool.log.map((n) => ({ ...byName.get(n), name: n }))} onPick={setInspecting} />
+                <VdevGroup
+                  label="log"
+                  hint="Write log for synchronous writes."
+                  disks={pool.log.map((n) => ({ ...byName.get(n), name: n }))}
+                  onPick={setInspecting}
+                />
               )}
               {!!pool.spare.length && (
-                <VdevGroup label="spare" hint="Idle, ready to take over from a failed drive."
-                  disks={pool.spare.map((n) => ({ ...byName.get(n), name: n }))} onPick={setInspecting} />
+                <VdevGroup
+                  label="spare"
+                  hint="Idle, ready to take over from a failed drive."
+                  disks={pool.spare.map((n) => ({ ...byName.get(n), name: n }))}
+                  onPick={setInspecting}
+                />
               )}
               {!pool.vdevs.length && <Empty>The NAS did not report a layout for this pool.</Empty>}
             </div>
@@ -127,7 +139,9 @@ export function DriveMapPage() {
       {!!system.length && (
         <section className="map-pool">
           <div className="map-pool-head">
-            <div><h2>The server itself</h2></div>
+            <div>
+              <h2>The server itself</h2>
+            </div>
             <span className="map-cap">not part of your storage</span>
           </div>
           <div className="vdevs">
@@ -143,7 +157,9 @@ export function DriveMapPage() {
 
       <section className="map-pool">
         <div className="map-pool-head">
-          <div><h2>Not in any pool</h2></div>
+          <div>
+            <h2>Not in any pool</h2>
+          </div>
           <span className="map-cap">{spare.length ? `${spare.length} free to use` : "none"}</span>
         </div>
         <div className="vdevs">
@@ -161,10 +177,18 @@ export function DriveMapPage() {
       </section>
 
       <div className="map-legend">
-        <span><i className="swatch ok" /> healthy</span>
-        <span><i className="swatch warn" /> degraded</span>
-        <span><i className="swatch bad" /> faulted or missing</span>
-        <span><i className="swatch mute" /> unused</span>
+        <span>
+          <i className="swatch ok" /> healthy
+        </span>
+        <span>
+          <i className="swatch warn" /> degraded
+        </span>
+        <span>
+          <i className="swatch bad" /> faulted or missing
+        </span>
+        <span>
+          <i className="swatch mute" /> unused
+        </span>
       </div>
 
       {inspecting && <DiskHealthModal name={inspecting} onClose={() => setInspecting(null)} />}
@@ -180,8 +204,12 @@ export function DriveMapPage() {
       {!!jobs.length && (
         <div className="job-tray">
           {jobs.map((j) => (
-            <JobProgress key={j.id} jobId={j.id} label={j.label}
-              onDone={() => setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 8000)} />
+            <JobProgress
+              key={j.id}
+              jobId={j.id}
+              label={j.label}
+              onDone={() => setTimeout(() => setJobs((all) => all.filter((x) => x.id !== j.id)), 8000)}
+            />
           ))}
         </div>
       )}
@@ -192,7 +220,8 @@ export function DriveMapPage() {
 /** What this vdev shape actually buys you, in one line. */
 function explainVdev(type: string, members: number): string {
   const t = type.toUpperCase();
-  if (t === "MIRROR") return `${members} copies of everything. Survives ${members - 1} drive${members === 2 ? "" : "s"} failing.`;
+  if (t === "MIRROR")
+    return `${members} copies of everything. Survives ${members - 1} drive${members === 2 ? "" : "s"} failing.`;
   if (t === "RAIDZ1") return "Survives one drive failing.";
   if (t === "RAIDZ2") return "Survives two drives failing.";
   if (t === "RAIDZ3") return "Survives three drives failing.";
@@ -202,7 +231,12 @@ function explainVdev(type: string, members: number): string {
 
 type Tile = Partial<Disk> & { name: string; status?: string | null };
 
-function VdevGroup({ label, hint, disks, onPick }: {
+function VdevGroup({
+  label,
+  hint,
+  disks,
+  onPick,
+}: {
   label: string;
   hint: string;
   disks: Tile[];
@@ -215,7 +249,9 @@ function VdevGroup({ label, hint, disks, onPick }: {
         <span>{hint}</span>
       </div>
       <div className="drive-row">
-        {disks.map((d) => <DriveTile key={d.name} disk={d} onPick={onPick} />)}
+        {disks.map((d) => (
+          <DriveTile key={d.name} disk={d} onPick={onPick} />
+        ))}
       </div>
     </div>
   );
@@ -233,13 +269,7 @@ function DriveTile({ disk, onPick }: { disk: Tile; onPick: (name: string) => voi
    * same verdict the health dialog shows, computed by the same function, so a
    * drive cannot be green here and amber once it is opened.
    */
-  const state = missing
-    ? "bad"
-    : disk.health
-      ? disk.health.level
-      : disk.inUse === false
-        ? "mute"
-        : "ok";
+  const state = missing ? "bad" : disk.health ? disk.health.level : disk.inUse === false ? "mute" : "ok";
 
   const temp = disk.tempC != null ? `${disk.tempC}°C` : null;
   const status = disk.status && disk.status !== "ONLINE" ? disk.status.toLowerCase() : null;
@@ -250,7 +280,9 @@ function DriveTile({ disk, onPick }: { disk: Tile; onPick: (name: string) => voi
     `${disk.model ?? ""} ${disk.serial ?? ""}`.trim(),
     ...(disk.health?.reasons ?? []),
     temp === null ? disk.tempNote : null,
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   return (
     <button className={`drive ${state}`} onClick={() => onPick(disk.name)} title={title}>

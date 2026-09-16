@@ -29,16 +29,27 @@ class FakeXhr {
   headers: Record<string, string> = {};
   sent: unknown = null;
   aborted = false;
-  constructor() { FakeXhr.last = this; }
-  open(method: string, url: string): void { this.method = method; this.url = url; }
-  setRequestHeader(k: string, v: string): void { this.headers[k] = v; }
-  send(body: unknown): void { this.sent = body; }
-  abort(): void { this.aborted = true; this.onabort?.(); }
+  constructor() {
+    FakeXhr.last = this;
+  }
+  open(method: string, url: string): void {
+    this.method = method;
+    this.url = url;
+  }
+  setRequestHeader(k: string, v: string): void {
+    this.headers[k] = v;
+  }
+  send(body: unknown): void {
+    this.sent = body;
+  }
+  abort(): void {
+    this.aborted = true;
+    this.onabort?.();
+  }
 }
 
 const make = () => new FakeXhr() as unknown as XMLHttpRequest;
-const fileOf = (name: string, text: string) =>
-  ({ name, size: text.length, type: "text/plain" }) as unknown as File;
+const fileOf = (name: string, text: string) => ({ name, size: text.length, type: "text/plain" }) as unknown as File;
 
 describe("uploadFile", () => {
   it("POSTs to the upload route with the folder and name in the query", () => {

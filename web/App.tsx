@@ -81,10 +81,16 @@ function useHashRoute(): [PageId, string, (p: PageId, sub?: string) => void] {
   ];
 }
 
-export interface Me { username: string; role: "admin" | "viewer" }
+export interface Me {
+  username: string;
+  role: "admin" | "viewer";
+}
 
 /** What the running build calls itself, filled in from /api/session. */
-interface Build { version: string; channel: string }
+interface Build {
+  version: string;
+  channel: string;
+}
 
 interface Session {
   authenticated: boolean;
@@ -111,9 +117,7 @@ export default function App() {
           if (s.version) setBuild({ version: s.version, channel: s.channel ?? "" });
           if (s.authenticated && s.username && s.role) setMe({ username: s.username, role: s.role });
           setForced(
-            s.mustChangePassword && s.accountId && s.username
-              ? { id: s.accountId, username: s.username }
-              : null,
+            s.mustChangePassword && s.accountId && s.username ? { id: s.accountId, username: s.username } : null,
           );
           // Only when this browser has no preference of its own.
           if (s.theme && !localStorage.getItem("tnui:theme")) document.documentElement.dataset.theme = s.theme;
@@ -124,7 +128,11 @@ export default function App() {
 
   useEffect(() => {
     void readSession();
-    const out = () => { setAuthed(false); setMe(null); setForced(null); };
+    const out = () => {
+      setAuthed(false);
+      setMe(null);
+      setForced(null);
+    };
     window.addEventListener("tnui:signed-out", out);
     return () => window.removeEventListener("tnui:signed-out", out);
   }, [readSession]);
@@ -139,7 +147,16 @@ export default function App() {
    * the same message. This asks once, in the one place it can be acted on.
    */
   if (forced) return <ForcedPasswordChange account={forced} onDone={() => void readSession()} />;
-  return <Shell me={me} build={build} onOut={() => { setAuthed(false); setMe(null); }} />;
+  return (
+    <Shell
+      me={me}
+      build={build}
+      onOut={() => {
+        setAuthed(false);
+        setMe(null);
+      }}
+    />
+  );
 }
 
 /**
@@ -149,10 +166,7 @@ export default function App() {
  * suggestion — until it is done the server refuses every request that would
  * change anything.
  */
-function ForcedPasswordChange({ account, onDone }: {
-  account: { id: string; username: string };
-  onDone: () => void;
-}) {
+function ForcedPasswordChange({ account, onDone }: { account: { id: string; username: string }; onDone: () => void }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [again, setAgain] = useState("");
@@ -183,24 +197,26 @@ function ForcedPasswordChange({ account, onDone }: {
       <form className="login-card" onSubmit={submit}>
         <h1>Choose a password</h1>
         <p className="login-sub">
-          This console generated the password for <strong>{account.username}</strong> and printed it
-          in its own log. Replace it before going any further — anyone who can read that log can sign
-          in as you.
+          This console generated the password for <strong>{account.username}</strong> and printed it in its own log.
+          Replace it before going any further — anyone who can read that log can sign in as you.
         </p>
         <label>
           The generated password
-          <input type="password" value={current} onChange={(e) => setCurrent(e.target.value)}
-                 autoComplete="current-password" autoFocus />
+          <input
+            type="password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            autoComplete="current-password"
+            autoFocus
+          />
         </label>
         <label>
           New password
-          <input type="password" value={next} onChange={(e) => setNext(e.target.value)}
-                 autoComplete="new-password" />
+          <input type="password" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" />
         </label>
         <label>
           New password again
-          <input type="password" value={again} onChange={(e) => setAgain(e.target.value)}
-                 autoComplete="new-password" />
+          <input type="password" value={again} onChange={(e) => setAgain(e.target.value)} autoComplete="new-password" />
         </label>
         {mismatch && <div className="login-error">Those two do not match.</div>}
         {error && <div className="login-error">{error}</div>}
@@ -225,10 +241,11 @@ function Login({ build, onIn }: { build: Build | null; onIn: (me: Me) => void })
     setBusy(true);
     setError(null);
     try {
-      const r = await post<{ username: string; role: Me["role"] }>(
-        "/api/login",
-        { username, password, ...(code ? { code } : {}) },
-      );
+      const r = await post<{ username: string; role: Me["role"] }>("/api/login", {
+        username,
+        password,
+        ...(code ? { code } : {}),
+      });
       onIn({ username: r.username, role: r.role });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -245,7 +262,9 @@ function Login({ build, onIn }: { build: Build | null; onIn: (me: Me) => void })
     <div className="login-wrap">
       <form className="login" onSubmit={submit}>
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-          <div className="brand-mark"><Logo /></div>
+          <div className="brand-mark">
+            <Logo />
+          </div>
           <div>
             <h1>EzNAS</h1>
             <p>Sign in to continue</p>
@@ -275,9 +294,16 @@ function Login({ build, onIn }: { build: Build | null; onIn: (me: Me) => void })
           />
         )}
         {error && <span className="err">{error}</span>}
-        <button type="submit" disabled={busy || !username || !password}>{busy ? "Checking…" : "Sign in"}</button>
+        <button type="submit" disabled={busy || !username || !password}>
+          {busy ? "Checking…" : "Sign in"}
+        </button>
         <p className="tagline">{TAGLINE}</p>
-        {build && <p className="tagline" style={{ marginTop: 2 }}>v{build.version}{build.channel ? ` · ${build.channel}` : ""}</p>}
+        {build && (
+          <p className="tagline" style={{ marginTop: 2 }}>
+            v{build.version}
+            {build.channel ? ` · ${build.channel}` : ""}
+          </p>
+        )}
       </form>
     </div>
   );
@@ -307,9 +333,7 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
    * subOf falls back to the first tab whenever the requested one is not listed.
    */
   const tabsFor = (group: keyof typeof SUBS): ReadonlyArray<{ id: string; label: string }> =>
-    group === "advanced" && me.role !== "admin"
-      ? SUBS.advanced.filter((t) => t.id !== "terminal")
-      : SUBS[group];
+    group === "advanced" && me.role !== "admin" ? SUBS.advanced.filter((t) => t.id !== "terminal") : SUBS[group];
 
   const subOf = (group: keyof typeof SUBS): string => {
     const list = tabsFor(group);
@@ -321,7 +345,9 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
       {menu && <div className="scrim" onClick={() => setMenu(false)} />}
       <aside className={`sidebar ${menu ? "open" : ""}`}>
         <div className="brand">
-          <div className="brand-mark"><Logo /></div>
+          <div className="brand-mark">
+            <Logo />
+          </div>
           <div style={{ minWidth: 0 }}>
             <div className="brand-name">EzNAS</div>
             <div className="brand-host">{active ? active.name : "no server yet"}</div>
@@ -332,10 +358,16 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
           <select
             className="picker"
             value={active?.id ?? ""}
-            onChange={(e) => { setConnection(e.target.value); window.location.reload(); }}
+            onChange={(e) => {
+              setConnection(e.target.value);
+              window.location.reload();
+            }}
           >
             {conns!.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}{c.connected ? "" : " (offline)"}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {c.connected ? "" : " (offline)"}
+              </option>
             ))}
           </select>
         )}
@@ -346,7 +378,10 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
               key={p.id}
               href={`#/${p.id}`}
               className={page === p.id ? "active" : ""}
-              onClick={() => { go(p.id); setMenu(false); }}
+              onClick={() => {
+                go(p.id);
+                setMenu(false);
+              }}
             >
               {p.icon}
               {p.label}
@@ -356,7 +391,9 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
 
         <div className="sidebar-foot">
           {health && !health.connected && (
-            <span className="pill bad" title={health.error ?? ""}>NAS unreachable</span>
+            <span className="pill bad" title={health.error ?? ""}>
+              NAS unreachable
+            </span>
           )}
           {active && (
             <a
@@ -380,10 +417,17 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
               onClick={() => go("settings")}
               title="What is running, and whether there is anything newer"
             >
-              v{build.version}{build.channel ? ` · ${build.channel}` : ""}
+              v{build.version}
+              {build.channel ? ` · ${build.channel}` : ""}
             </a>
           )}
-          <button className="link-btn" onClick={async () => { await post("/api/logout"); onOut(); }}>
+          <button
+            className="link-btn"
+            onClick={async () => {
+              await post("/api/logout");
+              onOut();
+            }}
+          >
             Sign out
           </button>
         </div>
@@ -392,17 +436,37 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
       <main className="main">
         <div className="topbar">
           <button className="menu-btn" onClick={() => setMenu(true)} aria-label="Menu">
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <svg
+              viewBox="0 0 24 24"
+              width="17"
+              height="17"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+            >
               <path d="M4 7h16M4 12h16M4 17h16" />
             </svg>
           </button>
           <button
             className="menu-btn bell"
-            onClick={() => { setShowNotifs(true); void post("/api/events").then(() => reloadEvents()); }}
+            onClick={() => {
+              setShowNotifs(true);
+              void post("/api/events").then(() => reloadEvents());
+            }}
             aria-label="Notifications"
             title="Alerts and disk notifications"
           >
-            <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              width="17"
+              height="17"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M12 3a6 6 0 0 0-6 6c0 4-2 5-2 7h16c0-2-2-3-2-7a6 6 0 0 0-6-6z" />
               <path d="M10 20a2 2 0 0 0 4 0" />
             </svg>
@@ -444,7 +508,11 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
 
         {page === "advanced" && (
           <>
-            <Tabs tabs={tabsFor("advanced") as ReadonlyArray<{ id: "alerts"; label: string }>} active={subOf("advanced") as "alerts"} onChange={(id) => go("advanced", id)} />
+            <Tabs
+              tabs={tabsFor("advanced") as ReadonlyArray<{ id: "alerts"; label: string }>}
+              active={subOf("advanced") as "alerts"}
+              onChange={(id) => go("advanced", id)}
+            />
             {subOf("advanced") === "alerts" && <AlertsPage />}
             {subOf("advanced") === "network" && <NetworkPage />}
             {subOf("advanced") === "terminal" && me.role === "admin" && <TerminalPage />}
@@ -464,12 +532,26 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
 }
 
 interface Notice {
-  id: string; at: number; level: "info" | "warn" | "bad";
-  category: string; key: string; title: string; detail: string;
-  server: string; seen: boolean;
+  id: string;
+  at: number;
+  level: "info" | "warn" | "bad";
+  category: string;
+  key: string;
+  title: string;
+  detail: string;
+  server: string;
+  seen: boolean;
 }
 
-function Notifications({ events, onClose, onCleared }: { events: Notice[]; onClose: () => void; onCleared: () => void }) {
+function Notifications({
+  events,
+  onClose,
+  onCleared,
+}: {
+  events: Notice[];
+  onClose: () => void;
+  onCleared: () => void;
+}) {
   const [checking, setChecking] = useState(false);
 
   const when = (ms: number) => {
@@ -499,13 +581,29 @@ function Notifications({ events, onClose, onCleared }: { events: Notice[]; onClo
             disabled={checking}
             onClick={async () => {
               setChecking(true);
-              try { await post("/api/events/check"); onCleared(); } finally { setChecking(false); }
+              try {
+                await post("/api/events/check");
+                onCleared();
+              } finally {
+                setChecking(false);
+              }
             }}
           >
             {checking ? "Checking…" : "Check now"}
           </button>
-          <button className="btn" onClick={async () => { await del("/api/events"); onCleared(); onClose(); }}>Clear all</button>
-          <button className="btn primary" onClick={onClose}>Close</button>
+          <button
+            className="btn"
+            onClick={async () => {
+              await del("/api/events");
+              onCleared();
+              onClose();
+            }}
+          >
+            Clear all
+          </button>
+          <button className="btn primary" onClick={onClose}>
+            Close
+          </button>
         </>
       }
     >
@@ -536,7 +634,16 @@ function Notifications({ events, onClose, onCleared }: { events: Notice[]; onClo
 }
 
 const Logo = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="var(--accent-ink)"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
     <ellipse cx="12" cy="6" rx="8" ry="3" />
     <path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6" />
     <path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />

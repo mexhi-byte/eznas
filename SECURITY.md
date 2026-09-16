@@ -10,7 +10,7 @@ Please treat a vulnerability here as you would one in the NAS itself.
 **Please do not open a public issue.**
 
 Use GitHub's private reporting — the **Security** tab on this repository, then
-*Report a vulnerability*. That opens a private thread visible only to the
+_Report a vulnerability_. That opens a private thread visible only to the
 maintainers.
 
 Include what you were running (version, bare metal or VM, how you installed),

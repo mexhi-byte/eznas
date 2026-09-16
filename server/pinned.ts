@@ -56,9 +56,7 @@ export function connectPinned(conn: Connection, timeoutMs = 30_000): Promise<TLS
           resolve(socket);
           return;
         }
-        const seen =
-          socket.getPeerX509Certificate?.()?.fingerprint256 ??
-          socket.getPeerCertificate?.()?.fingerprint256;
+        const seen = socket.getPeerX509Certificate?.()?.fingerprint256 ?? socket.getPeerCertificate?.()?.fingerprint256;
         if (!seen) {
           socket.destroy();
           reject(new Error("could not read the NAS certificate to check it against the pin"));

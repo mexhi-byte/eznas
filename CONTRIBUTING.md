@@ -58,7 +58,7 @@ pass.**
 Prefer pure functions for anything with rules in it — path handling, name
 collisions, validation — and test those directly. Route logic is testable
 against a fake NAS object that records what it was asked to do; see
-`test/nfs.test.ts` for the pattern. What matters there is often the *order*:
+`test/nfs.test.ts` for the pattern. What matters there is often the _order_:
 that a bad request reaches the NAS not at all, rather than merely failing.
 
 ## Commits

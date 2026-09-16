@@ -30,15 +30,18 @@ describe("isHost", () => {
 
 describe("nfsPayload", () => {
   const base = {
-    path: "/mnt/tank/media", networks: ["192.168.1.0/24"], hosts: [],
-    readOnly: false, comment: "", maproot: false,
+    path: "/mnt/tank/media",
+    networks: ["192.168.1.0/24"],
+    hosts: [],
+    readOnly: false,
+    comment: "",
+    maproot: false,
   };
 
   it("refuses an export with no networks and no hosts", () => {
     // TrueNAS accepts this and exports to every machine that can reach the
     // NAS. Refusing it here is the whole reason this function exists.
-    expect(() => nfsPayload({ ...base, networks: [], hosts: [] }))
-      .toThrow(/which machines/i);
+    expect(() => nfsPayload({ ...base, networks: [], hosts: [] })).toThrow(/which machines/i);
   });
 
   it("accepts hosts alone", () => {
@@ -47,13 +50,11 @@ describe("nfsPayload", () => {
   });
 
   it("rejects a malformed network rather than passing it through", () => {
-    expect(() => nfsPayload({ ...base, networks: ["192.168.1.0"] }))
-      .toThrow(/192\.168\.1\.0/);
+    expect(() => nfsPayload({ ...base, networks: ["192.168.1.0"] })).toThrow(/192\.168\.1\.0/);
   });
 
   it("names the bad entry in the error, not just that one was bad", () => {
-    expect(() => nfsPayload({ ...base, networks: ["10.0.0.0/8", "nonsense/24"] }))
-      .toThrow(/nonsense\/24/);
+    expect(() => nfsPayload({ ...base, networks: ["10.0.0.0/8", "nonsense/24"] })).toThrow(/nonsense\/24/);
   });
 
   it("carries the read-only flag through as ro", () => {
@@ -113,8 +114,13 @@ function fakeRes() {
   const out: { status?: number; body?: unknown } = {};
   return {
     out,
-    writeHead(status: number) { out.status = status; return this; },
-    end(s: string) { out.body = JSON.parse(s); },
+    writeHead(status: number) {
+      out.status = status;
+      return this;
+    },
+    end(s: string) {
+      out.body = JSON.parse(s);
+    },
   };
 }
 
@@ -193,7 +199,10 @@ describe("the NFS route", () => {
 });
 
 describe("removing an export", () => {
-  function fakeDelete(body: Record<string, unknown>, existing: Array<{ path: string }> = [{ path: "/mnt/tank/media" }]) {
+  function fakeDelete(
+    body: Record<string, unknown>,
+    existing: Array<{ path: string }> = [{ path: "/mnt/tank/media" }],
+  ) {
     const calls: Array<{ method: string; params: unknown[] }> = [];
     const nas = {
       calls,

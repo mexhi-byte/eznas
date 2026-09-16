@@ -62,7 +62,9 @@ function safeUrl(v: unknown): string | null {
 }
 
 const safeUrls = (v: unknown): string[] =>
-  strings(v).map((u) => safeUrl(u)).filter((u): u is string => u !== null);
+  strings(v)
+    .map((u) => safeUrl(u))
+    .filter((u): u is string => u !== null);
 
 /** Either a list of versions or a map keyed by version, depending on the NAS. */
 function countVersions(v: unknown): number {
