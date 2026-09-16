@@ -1,0 +1,45 @@
+# EzNAS as a TrueNAS Custom App.
+#
+# TrueNAS SCALE 25.04 and later: Apps → Discover → Custom App → "Install via
+# YAML", paste this, change the one line marked below, save. TrueNAS pulls the
+# image, starts it, restarts it with the machine, and shows it under Apps.
+# Updating is Apps → EzNAS → Update, or re-saving with a newer tag.
+#
+# Then open http://<nas>:8080. The console has created an admin account and
+# printed its password once in the app's log (Apps → EzNAS → Logs); it will
+# ask you to replace that password before anything else.
+#
+# What is not here, on purpose:
+#   SESSION_SECRET — generated on first start and kept in the data directory,
+#                    so there is nothing to invent and nothing to lose.
+#   UI_PASSWORD    — same. Set both if you would rather choose them.
+#   TRUENAS_URL and TRUENAS_API_KEY — add your NAS in the console instead,
+#                    under Settings → Servers; the key is stored encrypted.
+services:
+  eznas:
+    image: ghcr.io/mexhi-byte/eznas:latest
+    container_name: eznas
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # CHANGE THIS: a folder on one of your pools. It holds the console's
+      # own state — servers, accounts, settings, the preview cache — and is
+      # what survives updates. Under /mnt, so a TrueNAS update cannot wipe it.
+      - /mnt/tank/eznas/data:/data
+    environment:
+      # The container fixes the folder's ownership to this user on start, so
+      # there is nothing to chown by hand. Change only if 1000 is taken by
+      # someone who should not be able to read the console's data.
+      PUID: "1000"
+      PGID: "1000"
+      # Notification timestamps in your own time.
+      TZ: "Etc/UTC"
+      # Set to "1" if the console will sit behind a reverse proxy or tunnel.
+      TRUST_PROXY: "0"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/session').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
