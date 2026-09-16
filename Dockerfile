@@ -1,7 +1,13 @@
 # syntax=docker/dockerfile:1
 
 # ---------------------------------------------------------------- build
-FROM node:22-alpine AS build
+#
+# Built on the machine doing the building, whatever the image is for. The
+# build is TypeScript and Vite — pure JavaScript in, JavaScript out — and the
+# runtime dependencies have no native code, so the output is the same for
+# every architecture. Running the build under emulation for arm64 instead
+# took several minutes and produced identical files.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /app
 
 # Dependencies first, so an edit to the source does not reinstall them.
@@ -20,37 +26,28 @@ RUN npm prune --omit=dev
 FROM node:22-alpine
 WORKDIR /app
 
-# git, because the in-place updater under Settings shells out to it. Without
-# it the console reports that it cannot update itself, which is true but
-# avoidable.
 # tzdata, so notification timestamps are in the household's own time.
-RUN apk add --no-cache git tzdata
+# su-exec, so the entrypoint can drop from root to the console's user.
+RUN apk add --no-cache tzdata su-exec
 
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 # index.ts reads package.json at startup for the version it reports and
 # compares against the published releases.
 COPY package.json ./
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint
 
 # Everything the console knows about itself lives under one mounted volume,
 # because a container that keeps its accounts and forgets its API keys is
-# worse than one that keeps neither. The file names inside it are the ones
-# earlier images set one variable at a time, so an existing volume carries on.
+# worse than one that keeps neither. RELEASE_CHANNEL tells the console it is
+# running from an image, so it points at the image for updates rather than
+# trying to rebuild itself in place.
 ENV DATA_DIR=/data \
     PORT=8080 \
-    NODE_ENV=production
+    NODE_ENV=production \
+    RELEASE_CHANNEL=container
 
-# Unprivileged: this process needs to read its own data directory and talk to
-# the NAS over the network, and nothing else. The node image ships a `node`
-# user for exactly this.
-#
-# Ordering matters and is easy to get wrong: anything written to a path after
-# VOLUME has declared it is discarded, so a chown placed below would vanish and
-# the container would start as node against a root-owned /data. A bind mount
-# overrides image ownership regardless, which is why install.sh chowns the
-# dataset to the same uid.
 RUN mkdir -p /data && chown -R node:node /data /app
-USER node
 
 VOLUME /data
 EXPOSE 8080
@@ -58,4 +55,7 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8080)+'/api/session').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
+# No USER line: the entrypoint drops privileges itself, after making /data
+# writable. See docker-entrypoint.sh for why.
+ENTRYPOINT ["docker-entrypoint"]
 CMD ["node", "dist/server/index.js"]
