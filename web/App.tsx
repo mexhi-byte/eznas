@@ -247,7 +247,7 @@ function Login({ build, onIn }: { build: Build | null; onIn: (me: Me) => void })
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
           <div className="brand-mark"><Logo /></div>
           <div>
-            <h1>Storage console</h1>
+            <h1>EzNAS</h1>
             <p>Sign in to continue</p>
           </div>
         </div>
@@ -323,7 +323,7 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
         <div className="brand">
           <div className="brand-mark"><Logo /></div>
           <div style={{ minWidth: 0 }}>
-            <div className="brand-name">Storage console</div>
+            <div className="brand-name">EzNAS</div>
             <div className="brand-host">{active ? active.name : "no server yet"}</div>
           </div>
         </div>

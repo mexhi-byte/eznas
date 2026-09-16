@@ -54,7 +54,7 @@ threshold you set, drive temperature, ZFS read/write/checksum errors, apps stopp
 scrub results, updates, and the NAS not answering. A standing condition is reported once, not once a
 minute, and clears when it resolves.
 
-**Also** — four themes, per-account 2FA, a web terminal, network configuration with a rollback
+**Also** — seven themes, per-account 2FA, a web terminal, network configuration with a rollback
 countdown, and SMTP.
 
 ## Requirements

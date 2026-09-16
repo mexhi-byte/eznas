@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { firstRunNotice, generatedPassword } from "./accounts-bootstrap.js";
 import { createHash } from "node:crypto";
 import { encrypt, decrypt } from "./store.js";
+import { dataFile } from "./paths.js";
 
 /**
  * Who may sign in to this console.
@@ -49,7 +50,7 @@ export interface PublicAccount {
   lastSeen: number | null;
 }
 
-const FILE = process.env.ACCOUNTS_FILE ?? "/opt/truenas-ui/data/accounts.json";
+const FILE = dataFile("ACCOUNTS_FILE", "accounts.json");
 const SCRYPT_KEYLEN = 64;
 
 let accounts: Account[] = [];

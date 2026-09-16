@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { dataFile } from "./paths.js";
 import { createReadStream, createWriteStream, existsSync, mkdirSync, readdirSync, statSync, unlinkSync } from "node:fs";
 import { join, extname, basename } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -24,7 +25,7 @@ import type { Connection } from "./store.js";
  * are small enough to stream straight through and are not worth the disk.
  */
 
-const CACHE_DIR = process.env.PREVIEW_CACHE ?? "/opt/truenas-ui/data/cache";
+const CACHE_DIR = dataFile("PREVIEW_CACHE", "cache");
 /** Per file. Above this, previewing would cost more than it is worth. */
 const MAX_CACHE_FILE = 1024 * 1024 * 1024;
 /** Whole cache. The container's root filesystem is not large. */

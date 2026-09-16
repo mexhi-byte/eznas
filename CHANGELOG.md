@@ -20,6 +20,12 @@ Anything that does is called out under **Changed** or **Upgrading**.
 
 ### Changed
 
+- **The data directory defaults to `/opt/eznas/data`**, set in one place with
+  `DATA_DIR`. An install that already has `/opt/truenas-ui/data` keeps using
+  it; nothing moves. The per-file variables still work and still win.
+- **The session cookie is now `eznas_session`.** Everyone signs in once more
+  after this update. Other traces of the project's first name — the log
+  prefix and the browser tab's title — are gone with it.
 - **The default port is 8080**, matching the Dockerfile, the development
   proxy and the contributing guide, which between them had said 80, 8080 and
   8778. Set `PORT` if you relied on 80; the container is unaffected.

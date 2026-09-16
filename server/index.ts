@@ -2045,7 +2045,7 @@ server.on("upgrade", (req, socket, head) => {
   socket.destroy();
 });
 
-server.listen(PORT, () => console.log(`[truenas-ui] listening on :${PORT}`));
+server.listen(PORT, () => console.log(`[eznas] ${VERSION} listening on :${PORT}`));
 
 for (const sig of ["SIGTERM", "SIGINT"] as const) {
   process.on(sig, () => {

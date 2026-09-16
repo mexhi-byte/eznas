@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { TrueNas } from "./truenas.js";
 import { LEGACY_DEV_SECRET, keyFrom, resolveSecret } from "./secret.js";
+import { dataFile } from "./paths.js";
 
 /**
  * Where TrueNAS servers are configured.
@@ -39,7 +40,7 @@ export interface Connection {
 export type PublicConnection = Omit<Connection, "apiKeyEnc" | "sudoEnc"> &
   { hasKey: boolean; hasSudo: boolean; connected: boolean; error: string | null };
 
-const FILE = process.env.DATA_FILE ?? "/opt/truenas-ui/data/connections.json";
+const FILE = dataFile("DATA_FILE", "connections.json");
 
 /**
  * Resolved once, because generating one twice would write two different keys
