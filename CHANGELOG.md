@@ -6,7 +6,11 @@ Versions follow [semantic versioning](https://semver.org/), loosely: the
 console is pre-1.0, so a minor bump may still change behaviour you relied on.
 Anything that does is called out under **Changed** or **Upgrading**.
 
-## Unreleased
+## 0.6.0 — 2026-09-16
+
+The first ten minutes. Install from TrueNAS itself, sign in, and a setup
+wizard takes you to a working Home page. Then groups, app logs, a NAS that
+is not there to try it against, and the browser test 0.5.0 lacked.
 
 ### Added
 
