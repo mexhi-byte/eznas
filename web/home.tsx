@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { bytes, duration, post, put, rate, useRealtime, useResource, when } from "./api";
 import { Empty, ErrorBanner, Loading, Sparkline } from "./components";
+import { describeSchedule, type Safety } from "./safety";
 import { Field, Input, JobProgress, Modal, Select, Toggle, useSubmit } from "./ui";
 
 /* --------------------------------------------------------------------- data */
@@ -216,6 +217,8 @@ export function HomePage({ go }: { go: Go }) {
           />
         </div>
       </Section>
+
+      <SafetyCard go={go} />
 
       <Section
         title="Your apps"
@@ -842,5 +845,74 @@ function RunScan({
         </div>
       )}
     </Modal>
+  );
+}
+
+/**
+ * Your data is safe because… — or is not, and here is why.
+ *
+ * The one card on Home that says whether the reason the NAS was bought is
+ * being served: snapshots taken, pools scrubbed, drives tested, a copy
+ * somewhere else. Each line is a fact with a date, not a green tick.
+ */
+function SafetyCard({ go }: { go: Go }) {
+  const { data } = useResource<Safety>("/api/safety", 60_000);
+  if (!data) return null;
+  const lines: Array<{ ok: boolean; text: string }> = [];
+  lines.push(
+    data.snapshotTasks
+      ? {
+          ok: true,
+          text: `Snapshots are taken on ${data.snapshotTasks} schedule${data.snapshotTasks === 1 ? "" : "s"}.`,
+        }
+      : { ok: false, text: "No snapshot schedule. A deleted file is gone for good." },
+  );
+  for (const p of data.pools) {
+    const sched = data.scrubs.find((s) => s.pool === p.name && s.enabled);
+    const stale = !p.lastScrub || Date.now() - p.lastScrub > 45 * 86_400_000;
+    lines.push({
+      ok: !stale && !p.scrubErrors,
+      text: `${p.name} was ${p.lastScrub ? `scrubbed ${when(p.lastScrub)}` : "never scrubbed"}${p.scrubErrors ? ` and found ${p.scrubErrors} errors` : ""}${sched ? `; next ${describeSchedule(sched.schedule)}` : "; no scrub is scheduled"}.`,
+    });
+  }
+  lines.push(
+    data.smartTests.length
+      ? {
+          ok: true,
+          text: `Drives test themselves ${data.smartTests.map((t) => describeSchedule(t.schedule)).join(" and ")}.`,
+        }
+      : { ok: false, text: "Drives never test themselves. A failing drive is found when it fails." },
+  );
+  const copies = [...data.cloud, ...data.replication];
+  lines.push(
+    copies.length
+      ? {
+          ok: copies.some((c) => c.lastAt && Date.now() - c.lastAt < 3 * 86_400_000),
+          text: `${copies.length} cop${copies.length === 1 ? "y" : "ies"} elsewhere; the newest ran ${when(Math.max(...copies.map((c) => c.lastAt ?? 0)) || null)}.`,
+        }
+      : { ok: false, text: "Nothing is copied off this NAS. One fire is all the data." },
+  );
+  if (data.encrypted.length) {
+    const locked = data.encrypted.filter((d) => d.locked).length;
+    lines.push({
+      ok: true,
+      text: `${data.encrypted.length} encrypted folder${data.encrypted.length === 1 ? "" : "s"}, ${locked} locked.`,
+    });
+  }
+  return (
+    <Section
+      title="Is your data safe?"
+      hint={`${lines.filter((l) => l.ok).length} of ${lines.length} in place`}
+      onMore={() => go("safety")}
+    >
+      <div className="notice-list">
+        {lines.map((l, i) => (
+          <div key={i} className={`notice ${l.ok ? "" : "bad"}`}>
+            <span>{l.ok ? "✅" : "⚠️"}</span>
+            <div>{l.text}</div>
+          </div>
+        ))}
+      </div>
+    </Section>
   );
 }

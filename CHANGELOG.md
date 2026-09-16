@@ -6,6 +6,25 @@ Versions follow [semantic versioning](https://semver.org/), loosely: the
 console is pre-1.0, so a minor bump may still change behaviour you relied on.
 Anything that does is called out under **Changed** or **Upgrading**.
 
+## Unreleased
+
+### Added
+
+- **Backups & checks**, one page for what keeps the data safe: scrub
+  schedules, drive self-test schedules, copies off the NAS to Backblaze B2
+  or S3, copies to a second pool by replication, locked folders, and whether
+  the UPS service is on. Each gets the two-or-three-field version of itself;
+  the full versions stay in TrueNAS.
+- **"Is your data safe?" on Home.** Snapshots scheduled, each pool's last
+  scrub and next, drives testing themselves, the newest copy elsewhere —
+  each a fact with a date rather than a green tick.
+- **Encrypted folders.** Create a folder with a passphrase, lock it, unlock
+  it, export its key.
+- **Time Machine** as a switch on the share dialog.
+- **Back up and restore this console** from Settings → About: one file with
+  the servers, their encrypted keys and the key that decrypts them, accounts
+  and settings. The warning about the key file is now a button.
+
 ## 0.6.0 — 2026-09-16
 
 The first ten minutes. Install from TrueNAS itself, sign in, and a setup

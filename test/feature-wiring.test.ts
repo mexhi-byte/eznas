@@ -80,6 +80,32 @@ describe("every shipped feature is reachable from the interface", () => {
     expect(page?.text).toContain("QuestionList");
   });
 
+  it("backups and checks have a page and a card on Home", () => {
+    expect(mentions("SafetyPage")).toContain("App.tsx");
+    expect(componentSources().find((s) => s.file === "home.tsx")?.text).toContain("/api/safety");
+    const page = componentSources().find((s) => s.file === "safety.tsx")?.text ?? "";
+    for (const route of [
+      "/api/safety/scrubs",
+      "/api/safety/smart-tests",
+      "/api/safety/cloud",
+      "/api/safety/replication",
+      "/api/datasets/unlock",
+    ]) {
+      expect(page).toContain(route);
+    }
+  });
+
+  it("time machine is a switch on the share dialog, and encryption one on the folder dialog", () => {
+    expect(componentSources().find((s) => s.file === "shares.tsx")?.text).toContain("timeMachine");
+    expect(componentSources().find((s) => s.file === "storage.tsx")?.text).toContain("passphrase");
+  });
+
+  it("the console can be backed up and restored from Settings", () => {
+    const page = componentSources().find((s) => s.file === "settings.tsx")?.text ?? "";
+    expect(page).toContain("/api/console/export");
+    expect(page).toContain("/api/console/import");
+  });
+
   it("app logs and a container shell are buttons on the app card", () => {
     expect(mentions("AppConsoleModal")).toContain("apps.tsx");
     const modal = componentSources().find((s) => s.file === "app-console.tsx");

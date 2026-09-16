@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { bytes, del, level, post, useResource, when } from "./api";
 import { Bar, Card, Empty, ErrorBanner, Loading, Pill } from "./components";
-import { DangerConfirm, Field, Input, JobProgress, Modal, Select, useSubmit } from "./ui";
+import { DangerConfirm, Field, Input, JobProgress, Modal, Select, Toggle, useSubmit } from "./ui";
 
 /* ------------------------------------------------------------------- pools */
 
@@ -309,6 +309,7 @@ interface Dataset {
   pool: string;
   type: string;
   encrypted: boolean;
+  locked?: boolean;
   used: number | null;
   available: number | null;
   referenced: number | null;
@@ -472,6 +473,8 @@ function CreateDataset({ pools, onClose, onSaved }: { pools: string[]; onClose: 
   const [compression, setCompression] = useState("LZ4");
   const [quotaGb, setQuotaGb] = useState("");
   const [comments, setComments] = useState("");
+  const [encrypt, setEncrypt] = useState(false);
+  const [passphrase, setPassphrase] = useState("");
 
   const { busy, error, submit } = useSubmit(async () => {
     await post("/api/datasets", {
@@ -480,6 +483,8 @@ function CreateDataset({ pools, onClose, onSaved }: { pools: string[]; onClose: 
       compression,
       quota: quotaGb ? Number(quotaGb) * 1024 ** 3 : undefined,
       comments: comments || undefined,
+      encrypt,
+      passphrase: encrypt ? passphrase : undefined,
     });
     onSaved();
   });
@@ -530,6 +535,22 @@ function CreateDataset({ pools, onClose, onSaved }: { pools: string[]; onClose: 
         </Select>
       </Field>
 
+      <div style={{ display: "grid", gap: 8, margin: "6px 0 10px" }}>
+        <Toggle checked={encrypt} onChange={setEncrypt} label="Encrypt with a passphrase, so it can be locked" />
+        {encrypt && (
+          <Field
+            label="Passphrase"
+            hint="At least 8 characters. Without it the folder's contents cannot be read by anyone, including you."
+          >
+            <Input
+              type="password"
+              value={passphrase}
+              onChange={(e) => setPassphrase(e.target.value)}
+              autoComplete="off"
+            />
+          </Field>
+        )}
+      </div>
       <Field label="Quota in GB (optional)" hint="Blank means it can use whatever the pool has.">
         <Input
           type="number"

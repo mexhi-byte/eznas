@@ -82,6 +82,12 @@ test("every page renders against the mock", async ({ page }) => {
   await expect(page.getByText("family", { exact: true })).toBeVisible();
   if (shots) await page.screenshot({ path: "docs/screenshots/groups.png" });
 
+  await page.goto("/#/safety");
+  await expect(page.getByRole("heading", { name: "Backups and checks" })).toBeVisible();
+  await expect(page.getByText("Family photos to Backblaze")).toBeVisible();
+  await expect(page.getByText("tank/private")).toBeVisible();
+  if (shots) await page.screenshot({ path: "docs/screenshots/safety.png" });
+
   await page.goto("/#/sharing");
   await expect(page.getByText("Family", { exact: true })).toBeVisible();
   if (shots) await page.screenshot({ path: "docs/screenshots/shares.png" });
