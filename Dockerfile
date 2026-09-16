@@ -32,14 +32,11 @@ COPY --from=build /app/dist ./dist
 # compares against the published releases.
 COPY package.json ./
 
-# Every one of these defaults to somewhere under /opt/truenas-ui/data in the
-# source. Pointed at one mounted volume here, because a container that keeps
-# its accounts and forgets its API keys is worse than one that keeps neither.
-ENV DATA_FILE=/data/connections.json \
-    ACCOUNTS_FILE=/data/accounts.json \
-    SETTINGS_FILE=/data/settings.json \
-    EVENTS_FILE=/data/events.json \
-    PREVIEW_CACHE=/data/cache \
+# Everything the console knows about itself lives under one mounted volume,
+# because a container that keeps its accounts and forgets its API keys is
+# worse than one that keeps neither. The file names inside it are the ones
+# earlier images set one variable at a time, so an existing volume carries on.
+ENV DATA_DIR=/data \
     PORT=8080 \
     NODE_ENV=production
 

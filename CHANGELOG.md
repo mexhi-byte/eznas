@@ -13,6 +13,64 @@ A security release. Nothing new to look at; one thing to read under
 
 ### Security
 
+- **The sign-in rate limit can no longer be stepped around with a header.** It
+  keyed on `cf-connecting-ip` whenever the header was present, which is to
+  say whenever the client chose to send one — so eight failed attempts locked
+  out one made-up address and the ninth used another. Forwarded addresses are
+  now believed only with `TRUST_PROXY=1`, for installs that really are behind
+  Cloudflare or a reverse proxy. Set it there, or the limit keys on the
+  proxy's address and locks everyone out together.
+
+### Changed
+
+- **The data directory defaults to `/opt/eznas/data`**, set in one place with
+  `DATA_DIR`. An install that already has `/opt/truenas-ui/data` keeps using
+  it; nothing moves. The per-file variables still work and still win.
+- **The session cookie is now `eznas_session`.** Everyone signs in once more
+  after this update. Other traces of the project's first name — the log
+  prefix and the browser tab's title — are gone with it.
+- **The default port is 8080**, matching the Dockerfile, the development
+  proxy and the contributing guide, which between them had said 80, 8080 and
+  8778. Set `PORT` if you relied on 80; the container is unaffected.
+
+### Fixed
+
+- **Sessions survive a restart when `SESSION_SECRET` is unset.** The store
+  generated a secret once and kept it at `<data file>.key`; the session
+  signer did not know that and made up its own on every start, so each
+  restart signed everyone out. Both now use the kept one.
+
+### Security
+
+- **Every response now carries a content security policy** and the usual
+  companions: no framing by other sites, no MIME sniffing, no referrer
+  leaking past this origin. Scripts run only from the console itself.
+- **Writes are refused when they come from another site.** A request naming
+  an `Origin` other than the host it arrived at gets a 403; a body that is
+  not JSON or an upload gets a 415. The session cookie was already
+  `SameSite=Lax`; this is the second lock. Behind a reverse proxy, set
+  `TRUST_PROXY=1` and pass `x-forwarded-host`, or writes will be refused.
+
+### Added
+
+- **Restart or shut down the NAS** from Settings → Servers. Like every other
+  destructive action, it asks for the machine's hostname typed back, and the
+  server refuses the request without it.
+- **A first run with no `UI_PASSWORD` now works.** It used to log "nobody can
+  sign in" and start anyway, leaving a console that ran and could not be
+  used. There is still no default password — a fixed one would be published
+  with this source, and the console holds a key equivalent to root on the
+  NAS — so one is generated, printed once in the log, and the account is
+  refused every write until that password has been replaced. The refusal is
+  on the server, not in the browser.
+
+## 0.5.2 — 2026-09-16
+
+A security release. Nothing new to look at; one thing to read under
+**Upgrading**.
+
+### Security
+
 - **Stored TrueNAS credentials are no longer encrypted with a key published in
   this repository.** The key derived from `SESSION_SECRET` fell back to a fixed
   string in the source when that was unset, so a `connections.json` obtained

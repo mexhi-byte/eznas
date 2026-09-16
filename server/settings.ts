@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { encrypt, decrypt } from "./store.js";
+import { dataFile } from "./paths.js";
 import type { Webhook } from "./webhooks.js";
 
 /**
@@ -63,7 +64,7 @@ export interface Settings {
   };
 }
 
-const FILE = process.env.SETTINGS_FILE ?? "/opt/truenas-ui/data/settings.json";
+const FILE = dataFile("SETTINGS_FILE", "settings.json");
 
 const DEFAULTS: Settings = {
   theme: "midnight",
@@ -225,7 +226,7 @@ interface LegacyDiskEvent {
   pool: string | null; seen: boolean; emailed: boolean;
 }
 
-const EVENTS_FILE = process.env.EVENTS_FILE ?? "/opt/truenas-ui/data/events.json";
+const EVENTS_FILE = dataFile("EVENTS_FILE", "events.json");
 let events: Notice[] = [];
 
 export function loadEvents(): void {

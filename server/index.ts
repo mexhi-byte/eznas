@@ -19,7 +19,7 @@ import { CHANNEL, VERSION } from "./version.js";
 import { appTitle, isCustomApp } from "./apps.js";
 
 export { VERSION };
-import { bodyOf, confirmed, json, optStr, statusForError, str, underMnt } from "./http.js";
+import { acceptableWriteType, bodyOf, clientAddress, confirmed, json, optStr, sameOrigin, SECURITY_HEADERS, statusForError, str, trustProxy, underMnt } from "./http.js";
 import { levelToPerms, type AclEntry } from "./acl.js";
 import { handleFileRoutes } from "./routes/files.js";
 import { diskVerdict, failedTestCount, temperatureOf, testsForDisk } from "./disk-verdict.js";
@@ -27,7 +27,9 @@ import { catalogIconIndex, hostOf, iconFor, portLinks } from "./app-links.js";
 import { appDetail } from "./catalog-detail.js";
 import { handleShareRoutes } from "./routes/shares.js";
 
-const PORT = Number(process.env.PORT ?? 80);
+// 8080, not 80: the same number the Dockerfile, the Vite proxy and the docs
+// use, and one that does not need root to bind on a laptop.
+const PORT = Number(process.env.PORT ?? 8080);
 
 const WEB_ROOT = join(process.cwd(), "dist", "web");
 
@@ -61,8 +63,8 @@ let pendingMfa: { secret: string; at: number; accountId: string } | null = null;
 /** The session a request carries, if any. */
 const readSession = (req: IncomingMessage) => readSessionCookie(readCookie(req.headers.cookie, COOKIE));
 
-const clientIp = (req: IncomingMessage): string =>
-  (req.headers["cf-connecting-ip"] as string) ?? req.socket.remoteAddress ?? "unknown";
+const TRUST_PROXY = trustProxy(process.env.TRUST_PROXY);
+const clientIp = (req: IncomingMessage): string => clientAddress(req.headers, req.socket.remoteAddress, TRUST_PROXY);
 
 /** The NAS this request is about, chosen by ?c= and falling back to the default. */
 function nasFor(url: URL): TrueNas {
@@ -167,6 +169,28 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
   if (!path.startsWith("/api/")) return false;
   const method = req.method ?? "GET";
 
+  /*
+   * Writes must come from this console's own pages, in one of the two shapes
+   * its client sends. Checked before anything else, including sign-in: a
+   * cross-site sign-in form is how a session gets planted in someone's
+   * browser.
+   */
+  if (method !== "GET" && method !== "HEAD") {
+    if (!sameOrigin(req.headers, TRUST_PROXY)) {
+      json(res, 403, {
+        error:
+          "This request came from a different site than the console is served from, so it was refused. " +
+          "If the console is behind a reverse proxy, set TRUST_PROXY=1 and make sure the proxy passes " +
+          "x-forwarded-host.",
+      });
+      return true;
+    }
+    if (!acceptableWriteType(req.headers["content-type"])) {
+      json(res, 415, { error: "Send JSON. This console does not accept form posts." });
+      return true;
+    }
+  }
+
   /* --- unauthenticated --- */
   if (path === "/api/session") {
     const current = readSession(req);
@@ -175,6 +199,10 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       authenticated: !!who,
       username: who?.username ?? null,
       role: who?.role ?? null,
+      // So the console can put the change in front of the person rather than
+      // letting them find out by having everything they try refused.
+      mustChangePassword: who?.mustChangePassword === true,
+      accountId: who?.id ?? null,
       // The sign-in page needs the theme before there is a session, or it
       // flashes the default theme and then repaints.
       theme: settings.get().theme,
@@ -247,6 +275,26 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
    */
   if (me.role !== "admin" && method !== "GET") {
     json(res, 403, { error: "This account can view the console but not change anything." });
+    return true;
+  }
+
+  /*
+   * An account still using the password the console generated may do one thing.
+   *
+   * Enforced here rather than by showing a dialog, for the same reason the
+   * viewer rule is: the browser is not a boundary. A generated password that
+   * is never changed is a credential sitting in a log file and in whatever
+   * scrollback or terminal history the install left behind.
+   *
+   * Reads are allowed so the console still renders — a change-password form on
+   * an otherwise blank page is harder to act on than one on the page it
+   * belongs to.
+   */
+  if (me.mustChangePassword && method !== "GET" && !(path === `/api/accounts/${me.id}` && method === "PUT")) {
+    json(res, 403, {
+      error: "Change the password this console generated before doing anything else with it.",
+      mustChangePassword: true,
+    });
     return true;
   }
 
@@ -1570,6 +1618,42 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       return true;
   }
 
+  /* --- power --- */
+
+  if (path === "/api/system/power") {
+    const info = await nas.call<{ hostname?: string }>("system.info");
+    const hostname = String(info.hostname ?? "");
+    if (method === "GET") {
+      json(res, 200, { hostname });
+      return true;
+    }
+    if (method === "POST") {
+      const b = await bodyOf(req);
+      const action = b.action === "reboot" || b.action === "shutdown" ? b.action : null;
+      if (!action) throw new Error('"action" must be "reboot" or "shutdown".');
+      // The hostname, not the console's nickname for the server: it is what
+      // the machine calls itself, and the thing about to go dark.
+      confirmed(b, hostname);
+      const reason = `${action === "reboot" ? "Restart" : "Shutdown"} requested from EzNAS by ${me.username}`;
+      try {
+        await nas.call(`system.${action}`, [reason, { delay: 0 }]);
+      } catch (e) {
+        // The NAS may close the socket before its answer arrives. That is the
+        // request taking effect, not failing, and saying "failed" to somebody
+        // watching the lights go off would be the wrong sentence.
+        const message = e instanceof Error ? e.message : String(e);
+        if (!/dropped|not connected|not reachable/i.test(message)) throw e;
+      }
+      settings.addEvent({
+        level: "info", category: "power", key: `power:${action}:${Date.now()}`,
+        title: action === "reboot" ? `${hostname} is restarting` : `${hostname} is shutting down`,
+        detail: `${reason}.`, server: store.get(url.searchParams.get("c"))?.name ?? hostname,
+      });
+      json(res, 200, { ok: true, action, hostname });
+      return true;
+    }
+  }
+
   const alertDismiss = /^\/api\/alerts\/([^/]+)\/dismiss$/.exec(path);
   if (alertDismiss && method === "POST") {
     await nas.call("alert.dismiss", [alertDismiss[1]]);
@@ -1962,6 +2046,7 @@ async function serveStatic(url: URL, res: ServerResponse): Promise<void> {
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+  for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
   try {
     if (await handleApi(req, res, url)) return;
     await serveStatic(url, res);
@@ -1996,7 +2081,7 @@ server.on("upgrade", (req, socket, head) => {
   socket.destroy();
 });
 
-server.listen(PORT, () => console.log(`[truenas-ui] listening on :${PORT}`));
+server.listen(PORT, () => console.log(`[eznas] ${VERSION} listening on :${PORT}`));
 
 for (const sig of ["SIGTERM", "SIGINT"] as const) {
   process.on(sig, () => {

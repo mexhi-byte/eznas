@@ -1,8 +1,10 @@
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { firstRunNotice, generatedPassword } from "./accounts-bootstrap.js";
 import { createHash } from "node:crypto";
 import { encrypt, decrypt } from "./store.js";
+import { dataFile } from "./paths.js";
 
 /**
  * Who may sign in to this console.
@@ -28,6 +30,14 @@ export interface Account {
   mfa: { enabled: boolean; secretEnc: string | null; recoveryHashes: string[] };
   createdAt: number;
   lastSeen: number | null;
+  /**
+   * Set on an account whose password the console chose, not a person.
+   *
+   * Enforced on the server rather than by showing a dialog: a generated
+   * password that is never changed is a password sitting in a log file, and a
+   * prompt the browser can skip is not a requirement.
+   */
+  mustChangePassword?: boolean;
 }
 
 export interface PublicAccount {
@@ -40,7 +50,7 @@ export interface PublicAccount {
   lastSeen: number | null;
 }
 
-const FILE = process.env.ACCOUNTS_FILE ?? "/opt/truenas-ui/data/accounts.json";
+const FILE = dataFile("ACCOUNTS_FILE", "accounts.json");
 const SCRYPT_KEYLEN = 64;
 
 let accounts: Account[] = [];
@@ -88,22 +98,35 @@ export function init(legacyMfa?: Account["mfa"]): void {
   }
   if (accounts.length) return;
 
+  const username = process.env.UI_USERNAME ?? "admin";
   const seed = process.env.UI_PASSWORD;
-  if (!seed) {
-    console.warn("[accounts] no accounts and no UI_PASSWORD — nobody can sign in");
-    return;
-  }
+  /*
+   * No UI_PASSWORD is no longer a dead end.
+   *
+   * It used to log "nobody can sign in" and leave a console that had started
+   * successfully and could not be used, with the fix buried in an env file the
+   * owner had not been told about. There is still no default password — a
+   * fixed one would be published with this source, and the console holds an
+   * API key equivalent to root on the NAS — so one is generated and shown
+   * once, and the account is marked as needing it changed.
+   */
+  const password = seed ?? generatedPassword();
   accounts = [{
     id: randomUUID(),
-    username: process.env.UI_USERNAME ?? "admin",
-    hash: hashPassword(seed),
+    username,
+    hash: hashPassword(password),
     role: "admin",
     mfa: legacyMfa?.enabled ? legacyMfa : { enabled: false, secretEnc: null, recoveryHashes: [] },
     createdAt: Date.now(),
     lastSeen: null,
+    mustChangePassword: !seed,
   }];
   save();
-  console.log(`[accounts] created the first admin "${accounts[0].username}" from UI_PASSWORD`);
+  if (seed) {
+    console.log(`[accounts] created the first admin "${username}" from UI_PASSWORD`);
+  } else {
+    console.log(firstRunNotice(username, password));
+  }
 }
 
 /* ------------------------------------------------------------------ lookup */
@@ -180,6 +203,8 @@ export function update(id: string, patch: { username?: string; password?: string
   if (patch.password) {
     requireStrong(patch.password);
     account.hash = hashPassword(patch.password);
+    // Whoever set this chose it, so the console has nothing left to insist on.
+    delete account.mustChangePassword;
   }
   if (patch.role && patch.role !== account.role) {
     // Demoting the last admin would leave a console nobody can administer, and

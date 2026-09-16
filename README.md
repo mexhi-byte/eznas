@@ -54,8 +54,8 @@ threshold you set, drive temperature, ZFS read/write/checksum errors, apps stopp
 scrub results, updates, and the NAS not answering. A standing condition is reported once, not once a
 minute, and clears when it resolves.
 
-**Also** — four themes, per-account 2FA, a web terminal, network configuration with a rollback
-countdown, and SMTP.
+**Also** — seven themes, per-account 2FA, a web terminal, network configuration with a rollback
+countdown, SMTP, and restart or shutdown with the hostname typed back.
 
 ## Requirements
 
@@ -70,10 +70,12 @@ countdown, and SMTP.
 a container:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/mexhi-byte/eznas/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/mexhi-byte/eznas/main/install.sh | sudo bash -s -- --pool tank
 ```
 
-Re-running it updates an existing install in place.
+Replace `tank` with the pool to install into; leave `--pool` off and the script lists your pools and
+asks. It needs `bash` and root, because it talks to Docker and writes under `/mnt`. Re-running it
+updates an existing install in place, and `--help` lists the other options.
 
 **From source**, for development or if you would rather not pipe a script into a shell:
 
@@ -86,8 +88,10 @@ npm run build
 npm start
 ```
 
-Then open the console, sign in with the username and password from `.env`, and add your NAS under
-Settings → Servers.
+Then open `http://<host>:8080` and sign in. If `.env` sets `UI_USERNAME` and `UI_PASSWORD`, those are the
+first account. If it does not, the console creates an `admin` account with a generated password,
+prints it once in its own log, and refuses to do anything else until you have replaced it. Then add
+your NAS under Settings → Servers.
 
 Run it under systemd for anything permanent:
 
@@ -136,6 +140,9 @@ Read this part.
 - **Certificate pinning** is available per server and is the only way this connection is
   authenticated, since TrueNAS uses a self-signed certificate. Without it the API key travels over a
   link nothing has verified.
+- **Behind a reverse proxy or tunnel, set `TRUST_PROXY=1`** so the sign-in rate limit sees the real
+  client address from `cf-connecting-ip` or `x-forwarded-for`. Without it those headers are ignored,
+  because anything can send them — and a lockout keyed on a header the client chooses is not one.
 - **Destructive actions require typing the name** of what is about to be lost, and the API enforces
   that too — a mis-aimed script fails instead of succeeding on the wrong pool.
 

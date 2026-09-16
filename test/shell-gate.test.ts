@@ -13,7 +13,7 @@ process.env.UI_PASSWORD = "adminadminadmin";
 // Imported after the environment is set: these modules read their file paths at
 // module scope, so an earlier import would bind the production ones.
 const accounts = await import("../server/accounts.js");
-const { issue } = await import("../server/auth.js");
+const { COOKIE, issue } = await import("../server/auth.js");
 const { handleUpgrade } = await import("../server/shell.js");
 
 class FakeSocket extends EventEmitter {
@@ -37,7 +37,7 @@ function upgradeAs(cookie: string | undefined): string {
   return socket.written.split("\r\n")[0] ?? "";
 }
 
-const cookieFor = (id: string) => `tnui_session=${issue(id)}`;
+const cookieFor = (id: string) => `${COOKIE}=${issue(id)}`;
 
 describe("the shell WebSocket upgrade", () => {
   let adminId = "";

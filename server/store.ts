@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { TrueNas } from "./truenas.js";
 import { LEGACY_DEV_SECRET, keyFrom, resolveSecret } from "./secret.js";
+import { dataFile } from "./paths.js";
 
 /**
  * Where TrueNAS servers are configured.
@@ -39,7 +40,7 @@ export interface Connection {
 export type PublicConnection = Omit<Connection, "apiKeyEnc" | "sudoEnc"> &
   { hasKey: boolean; hasSudo: boolean; connected: boolean; error: string | null };
 
-const FILE = process.env.DATA_FILE ?? "/opt/truenas-ui/data/connections.json";
+const FILE = dataFile("DATA_FILE", "connections.json");
 
 /**
  * Resolved once, because generating one twice would write two different keys
@@ -59,6 +60,13 @@ function secret() {
   }
   return resolved;
 }
+
+/**
+ * The secret sessions are signed with — the same one the encryption key is
+ * derived from, so an install without SESSION_SECRET keeps its sessions across
+ * a restart instead of signing everyone out each time the container comes up.
+ */
+export const sessionSecret = (): string => secret().secret;
 
 function secretKey(): Buffer {
   // Derived from the same secret that signs sessions: one thing to protect, and
