@@ -26,8 +26,8 @@ Two consequences worth knowing before you write code:
 
 ```sh
 npm install
-npm run dev:server     # the API, on :8778
-npm run dev:web        # the browser build, on :5173
+npm run dev:server     # the API, on :8080
+npm run dev:web        # the browser build, on :5173, proxying /api to :8080
 ```
 
 You need a TrueNAS box to point it at. Set `SESSION_SECRET` to anything; without

@@ -88,7 +88,7 @@ npm run build
 npm start
 ```
 
-Then open the console and sign in. If `.env` sets `UI_USERNAME` and `UI_PASSWORD`, those are the
+Then open `http://<host>:8080` and sign in. If `.env` sets `UI_USERNAME` and `UI_PASSWORD`, those are the
 first account. If it does not, the console creates an `admin` account with a generated password,
 prints it once in its own log, and refuses to do anything else until you have replaced it. Then add
 your NAS under Settings → Servers.

@@ -27,7 +27,9 @@ import { catalogIconIndex, hostOf, iconFor, portLinks } from "./app-links.js";
 import { appDetail } from "./catalog-detail.js";
 import { handleShareRoutes } from "./routes/shares.js";
 
-const PORT = Number(process.env.PORT ?? 80);
+// 8080, not 80: the same number the Dockerfile, the Vite proxy and the docs
+// use, and one that does not need root to bind on a laptop.
+const PORT = Number(process.env.PORT ?? 8080);
 
 const WEB_ROOT = join(process.cwd(), "dist", "web");
 

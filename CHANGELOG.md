@@ -18,6 +18,12 @@ Anything that does is called out under **Changed** or **Upgrading**.
   Cloudflare or a reverse proxy. Set it there, or the limit keys on the
   proxy's address and locks everyone out together.
 
+### Changed
+
+- **The default port is 8080**, matching the Dockerfile, the development
+  proxy and the contributing guide, which between them had said 80, 8080 and
+  8778. Set `PORT` if you relied on 80; the container is unaffected.
+
 ### Fixed
 
 - **Sessions survive a restart when `SESSION_SECRET` is unset.** The store
