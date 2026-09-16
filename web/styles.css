@@ -706,6 +706,13 @@ th.num {
   font-size: 12.5px;
   color: var(--muted);
 }
+.login-card label.toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+  font-size: 13.5px;
+}
 .login-card input {
   width: 100%;
   padding: 10px 12px;
@@ -732,8 +739,13 @@ th.num {
   flex-wrap: wrap;
   margin-top: 4px;
 }
+.login-card .actions .btn {
+  flex: none;
+}
 .login-card .actions .aside {
   margin-right: auto;
+  border-color: transparent;
+  color: var(--muted);
 }
 
 /* ---------------------------------------------------------------- setup */
