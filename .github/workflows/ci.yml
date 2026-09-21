@@ -48,7 +48,7 @@ jobs:
 
       # The list of files nothing exercises, kept for a fortnight so a
       # reviewer can open it from the run rather than reproducing it locally.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage/lcov.info
@@ -75,7 +75,7 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report
