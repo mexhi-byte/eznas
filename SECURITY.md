@@ -53,3 +53,8 @@ be told so rather than left waiting.
 - **The NAS certificate is pinned** by fingerprint on first connect. A
   certificate change is treated as a failure rather than a prompt.
 - **The shell is admin-only** and gated on the server, not in the browser.
+- **The published image is signed** with cosign using Sigstore keyless OIDC
+  from 1.0.2 onwards, and an SPDX SBOM is attested to the same digest. The
+  certificate ties the signature to this repository and the release workflow,
+  so verification refuses images from any other source. The README shows how
+  to verify a tag before pulling.

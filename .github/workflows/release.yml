@@ -19,6 +19,10 @@ on:
 permissions:
   contents: write
   packages: write
+  # Sigstore keyless signing uses this run's OIDC token as the identity. No
+  # long-lived cosign private key lives in the repo; the certificate issued
+  # against this token is what the user verifies against.
+  id-token: write
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}
@@ -81,7 +85,8 @@ jobs:
             org.opencontainers.image.description=A beautifully simplified, open-source web UI for TrueNAS.
             org.opencontainers.image.licenses=MIT
 
-      - uses: docker/build-push-action@v6
+      - id: push
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -91,6 +96,49 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # Keyless signing of each tag at the digest the push just produced. The
+      # certificate ties the signature to this repository and this workflow
+      # file, so a signature from any other source — a mirror, a fork,
+      # someone's private key — fails to verify under the identity below.
+      - uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: v2.4.1
+
+      - name: Sign the published image
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+          # Non-interactive confirmation for the Rekor transparency log entry.
+          COSIGN_YES: "true"
+        run: |
+          for tag in $TAGS; do
+            cosign sign "${tag}@${DIGEST}"
+          done
+
+      # SPDX because that is what the compliance world asks for and what
+      # cosign's spdxjson attestation predicate expects. Generated from the
+      # pushed image rather than the source tree, so the SBOM lists what is
+      # actually in the layers — build dependencies that never shipped are
+      # correctly absent.
+      - name: Generate an SBOM for the image
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMAGE }}@${{ steps.push.outputs.digest }}
+          format: spdx-json
+          output-file: eznas-${{ github.ref_name }}.sbom.spdx.json
+          upload-release-assets: false
+
+      - name: Attest the SBOM to the image
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+          SBOM: eznas-${{ github.ref_name }}.sbom.spdx.json
+          COSIGN_YES: "true"
+        run: |
+          for tag in $TAGS; do
+            cosign attest --type spdxjson --predicate "$SBOM" "${tag}@${DIGEST}"
+          done
+
       - uses: softprops/action-gh-release@v3
         with:
           name: EzNAS ${{ github.ref_name }}
@@ -99,3 +147,4 @@ jobs:
           files: |
             eznas-${{ github.ref_name }}.tar.gz
             eznas-${{ github.ref_name }}.tar.gz.sha256
+            eznas-${{ github.ref_name }}.sbom.spdx.json
