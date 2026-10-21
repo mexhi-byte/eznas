@@ -67,7 +67,11 @@ export interface Settings {
 const FILE = dataFile("SETTINGS_FILE", "settings.json");
 
 const DEFAULTS: Settings = {
-  theme: "midnight",
+  // Empty means no server-side preference: the browser picks between
+  // daylight and midnight from prefers-color-scheme at first paint, and the
+  // session endpoint stops overriding that pick with a stale default. Once a
+  // user chooses a theme in Settings it is persisted here as its name.
+  theme: "",
   mfa: { enabled: false, secretEnc: null, recoveryHashes: [] },
   notify: {
     watchDisks: true,
