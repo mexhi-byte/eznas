@@ -5,6 +5,7 @@ import type { Realtime, TrueNas } from "./truenas.js";
 import * as store from "./store.js";
 import * as settings from "./settings.js";
 import * as watcher from "./monitors.js";
+import * as log from "./log.js";
 import { handleUpgrade } from "./shell.js";
 import { clearedCookie, cookieHeader, COOKIE, issue, read as readSessionCookie, readCookie } from "./auth.js";
 import * as accounts from "./accounts.js";
@@ -314,7 +315,7 @@ const server = createServer(async (req, res) => {
     await serveStatic(url, res);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error(`[api] ${req.method} ${url.pathname}: ${message}`);
+    log.error("api", `${req.method} ${url.pathname}`, message);
     if (!res.headersSent) {
       /*
        * 400, not 502.
@@ -343,7 +344,7 @@ server.on("upgrade", (req, socket, head) => {
   socket.destroy();
 });
 
-server.listen(PORT, () => console.log(`[eznas] ${VERSION} listening on :${PORT}`));
+server.listen(PORT, () => log.info("eznas", `${VERSION} listening on :${PORT}`));
 
 for (const sig of ["SIGTERM", "SIGINT"] as const) {
   process.on(sig, () => {

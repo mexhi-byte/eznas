@@ -5,6 +5,7 @@ import { firstRunNotice, generatedPassword } from "./accounts-bootstrap.js";
 import { createHash } from "node:crypto";
 import { encrypt, decrypt } from "./store.js";
 import { dataFile } from "./paths.js";
+import * as log from "./log.js";
 
 /**
  * Who may sign in to this console.
@@ -92,7 +93,7 @@ export function init(legacyMfa?: Account["mfa"]): void {
     try {
       accounts = JSON.parse(readFileSync(FILE, "utf8"));
     } catch (e) {
-      console.error("[accounts] unreadable, starting empty:", e);
+      log.error("accounts", "unreadable, starting empty", e);
       accounts = [];
     }
   }
@@ -125,9 +126,12 @@ export function init(legacyMfa?: Account["mfa"]): void {
   ];
   save();
   if (seed) {
-    console.log(`[accounts] created the first admin "${username}" from UI_PASSWORD`);
+    log.info("accounts", `created the first admin "${username}" from UI_PASSWORD`);
   } else {
-    console.log(firstRunNotice(username, password));
+    // The first-run notice is an operator-facing banner, not log data. Keep
+    // it on stdout as-is so a human running `docker logs` sees the box drawing
+    // rather than it folded into a single `msg` field under LOG_FORMAT=json.
+    process.stdout.write(firstRunNotice(username, password) + "\n");
   }
 }
 

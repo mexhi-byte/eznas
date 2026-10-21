@@ -2,6 +2,7 @@ import type { TrueNas } from "../truenas.js";
 import { bodyOf, confirmed, json, str } from "../http.js";
 import { diskVerdict, failedTestCount, temperatureOf, testsForDisk } from "../disk-verdict.js";
 import { poolIdOf, vdevMemberOf, type DiskRow, type PoolRow, type VdevLeaf } from "../nas-shapes.js";
+import * as log from "../log.js";
 import type { NasRouteContext } from "./context.js";
 
 /**
@@ -413,7 +414,7 @@ async function readTemperatures(nas: TrueNas): Promise<{
     };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error(`[disks] could not read temperatures: ${message}`);
+    log.error("disks", "could not read temperatures", message);
     return { values: {}, note: `The NAS could not report temperatures: ${message}` };
   }
 }

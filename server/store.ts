@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { TrueNas } from "./truenas.js";
 import { LEGACY_DEV_SECRET, keyFrom, resolveSecret } from "./secret.js";
 import { dataFile } from "./paths.js";
+import * as log from "./log.js";
 
 /**
  * Where TrueNAS servers are configured.
@@ -56,8 +57,9 @@ function secret() {
   if (!resolved) {
     resolved = resolveSecret(process.env.SESSION_SECRET, `${FILE}.key`);
     if (resolved.source === "generated") {
-      console.log(
-        `[store] no SESSION_SECRET set — generated one and kept it at ${FILE}.key. ` +
+      log.info(
+        "store",
+        `no SESSION_SECRET set — generated one and kept it at ${FILE}.key. ` +
           "Back it up with the data file: without it the stored API keys cannot be read.",
       );
     }
@@ -125,7 +127,7 @@ function load(): void {
   try {
     connections = JSON.parse(readFileSync(FILE, "utf8"));
   } catch (e) {
-    console.error("[store] connections file is unreadable, starting empty:", e);
+    log.error("store", "connections file is unreadable, starting empty", e);
     connections = [];
     return;
   }
@@ -135,7 +137,7 @@ function load(): void {
     // A credential that decrypts under neither key is not a reason to refuse
     // to start: the rest of the console still works, and the connection will
     // report its own failure when something tries to use it.
-    console.error("[store] could not re-encrypt stored credentials:", e);
+    log.error("store", "could not re-encrypt stored credentials", e);
   }
 }
 
@@ -166,8 +168,9 @@ function migrateLegacySecrets(): void {
     if (sudo !== null) conn.sudoEnc = encrypt(sudo);
   }
   save();
-  console.log(
-    `[store] re-encrypted ${rewritten.length} stored credential set(s) with this installation's own key. ` +
+  log.info(
+    "store",
+    `re-encrypted ${rewritten.length} stored credential set(s) with this installation's own key. ` +
       "They were written with the built-in development key, which is public.",
   );
 }
@@ -192,7 +195,7 @@ export function init(): void {
       isDefault: true,
     });
     save();
-    console.log("[store] adopted the server from the environment");
+    log.info("store", "adopted the server from the environment");
   }
 }
 
