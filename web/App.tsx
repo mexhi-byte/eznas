@@ -127,7 +127,9 @@ export default function App() {
           setForced(
             s.mustChangePassword && s.accountId && s.username ? { id: s.accountId, username: s.username } : null,
           );
-          // Only when this browser has no preference of its own.
+          // Only when this browser has no preference of its own. An empty
+          // s.theme is the console's default — the OS preference picked in
+          // main.tsx already stamped the right one, so leave it alone.
           if (s.theme && !localStorage.getItem("tnui:theme")) document.documentElement.dataset.theme = s.theme;
         })
         .catch(() => setAuthed(false)),
