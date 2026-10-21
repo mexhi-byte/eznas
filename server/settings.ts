@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { encrypt, decrypt } from "./store.js";
 import { dataFile } from "./paths.js";
+import * as log from "./log.js";
 import type { Webhook } from "./webhooks.js";
 
 /**
@@ -117,7 +118,7 @@ export function load(): void {
       names: { ...DEFAULTS.names, ...(disk.names ?? {}) },
     };
   } catch (e) {
-    console.error("[settings] unreadable, using defaults:", e);
+    log.error("settings", "unreadable, using defaults", e);
     current = structuredClone(DEFAULTS);
   }
 }

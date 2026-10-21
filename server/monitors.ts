@@ -3,6 +3,7 @@ import * as settings from "./settings.js";
 import type { TrueNas } from "./truenas.js";
 import * as webhooks from "./webhooks.js";
 import * as selfUpdate from "./self-update.js";
+import * as log from "./log.js";
 import { VERSION } from "./version.js";
 
 /**
@@ -81,7 +82,7 @@ async function raise(
 ): Promise<void> {
   if (settings.hasActive(n.key)) return;
   const notice = settings.addEvent({ ...n, server: n.server ?? conn.name });
-  console.log(`[watch] ${conn.name}: ${n.title}`);
+  log.info("watch", `${conn.name}: ${n.title}`);
 
   const cfg = settings.get().notify;
 
@@ -97,7 +98,7 @@ async function raise(
       await webhooks.deliver(hook, { ...n, server: n.server ?? conn.name }, cfg.greetName || undefined);
     } catch (e) {
       // One dead webhook must not stop the others, or the email.
-      console.error(`[watch] webhook ${hook.kind} failed:`, e instanceof Error ? e.message : e);
+      log.error("watch", `webhook ${hook.kind} failed`, e);
     }
   }
 
@@ -118,7 +119,7 @@ async function raise(
     );
     settings.markEmailed(notice.id);
   } catch (e) {
-    console.error("[watch] could not send mail:", e instanceof Error ? e.message : e);
+    log.error("watch", "could not send mail", e);
   }
 }
 
@@ -414,7 +415,7 @@ async function pollOnce(): Promise<void> {
   } catch (e) {
     // GitHub being unreachable is not a problem with the NAS, and must not
     // stop the checks that are.
-    console.error("[watch] release check:", e instanceof Error ? e.message : e);
+    log.error("watch", "release check", e);
   }
 
   for (const conn of store.all()) {
@@ -446,7 +447,7 @@ async function pollOnce(): Promise<void> {
       try {
         await check(conn, nas);
       } catch (e) {
-        console.error(`[watch] ${conn.name} ${check.name}:`, e instanceof Error ? e.message : e);
+        log.error("watch", `${conn.name} ${check.name}`, e);
       }
     }
   }
@@ -458,8 +459,8 @@ export function start(intervalMs = 60_000): void {
   if (timer) return;
   // A short delay so the first poll happens after connections are up, which
   // avoids a baseline built from an empty list.
-  setTimeout(() => void pollOnce().catch((e) => console.error("[watch]", e)), 8000);
-  timer = setInterval(() => void pollOnce().catch((e) => console.error("[watch]", e)), intervalMs);
+  setTimeout(() => void pollOnce().catch((e) => log.error("watch", "poll failed", e)), 8000);
+  timer = setInterval(() => void pollOnce().catch((e) => log.error("watch", "poll failed", e)), intervalMs);
 }
 
 export function stop(): void {

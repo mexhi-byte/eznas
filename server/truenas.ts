@@ -1,6 +1,7 @@
 import WebSocket from "ws";
 import { createHash } from "node:crypto";
 import type { PeerCertificate } from "node:tls";
+import * as log from "./log.js";
 
 /**
  * A client for the TrueNAS JSON-RPC 2.0 API.
@@ -115,7 +116,7 @@ export class TrueNas {
           `the NAS certificate does not match TRUENAS_FINGERPRINT. ` +
           `Presented ${seen || "(none)"}, expected ${want}. ` +
           `If the certificate was renewed, update the pin; if it was not, do not trust this connection.`;
-        console.error(`[truenas] ${this.lastError}`);
+        log.error("truenas", this.lastError);
         // Retrying cannot help: the certificate will not change between
         // attempts, so callers should be told now rather than after the wait.
         this.fatal = true;
@@ -137,7 +138,7 @@ export class TrueNas {
         this.lastError = null;
         this.fatal = false;
         this.backoff = 1000;
-        console.log("[truenas] connected and subscribed");
+        log.info("truenas", "connected and subscribed");
 
         void this.rpc("core.get_methods")
           .then((m) => {
@@ -155,7 +156,7 @@ export class TrueNas {
       } catch (e) {
         this.lastError = e instanceof Error ? e.message : String(e);
         this.fatal = /rejected|fingerprint/i.test(this.lastError);
-        console.error("[truenas] login failed:", this.lastError);
+        log.error("truenas", "login failed", this.lastError);
         ws.close();
       }
     });
