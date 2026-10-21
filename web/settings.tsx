@@ -3,6 +3,7 @@ import { del, get, getConnection, post, put, setConnection, useResource } from "
 import { Card, Empty, ErrorBanner, Loading, Pill, TAGLINE } from "./components";
 import { DangerConfirm, Field, Input, Modal, Toggle, useSubmit } from "./ui";
 import {
+  ActivityTab,
   AppearanceTab,
   ConsoleUpdateTab,
   EmailTab,
@@ -395,9 +396,18 @@ function ConnectionForm({ conn, onClose, onSaved }: { conn: Conn | null; onClose
 }
 
 type TabId =
-  "servers" | "people" | "appearance" | "security" | "notifications" | "email" | "updates" | "console-update" | "about";
+  | "servers"
+  | "people"
+  | "appearance"
+  | "security"
+  | "notifications"
+  | "email"
+  | "updates"
+  | "console-update"
+  | "activity"
+  | "about";
 
-const TABS: Array<{ id: TabId; label: string }> = [
+const TABS: Array<{ id: TabId; label: string; adminOnly?: true }> = [
   { id: "servers", label: "Servers" },
   { id: "people", label: "Console users" },
   { id: "appearance", label: "Appearance" },
@@ -406,6 +416,7 @@ const TABS: Array<{ id: TabId; label: string }> = [
   { id: "email", label: "Email" },
   { id: "updates", label: "NAS updates" },
   { id: "console-update", label: "App updates" },
+  { id: "activity", label: "Activity", adminOnly: true },
   { id: "about", label: "About" },
 ];
 
@@ -446,7 +457,7 @@ export function SettingsPage({ me }: { me: { username: string; role: "admin" | "
       </div>
 
       <div className="tabs">
-        {TABS.map((t) => (
+        {TABS.filter((t) => !t.adminOnly || me.role === "admin").map((t) => (
           <button key={t.id} className={`tab ${tab === t.id ? "on" : ""}`} onClick={() => setTab(t.id)}>
             {t.label}
           </button>
@@ -466,6 +477,7 @@ export function SettingsPage({ me }: { me: { username: string; role: "admin" | "
       {tab === "email" && <EmailTab />}
       {tab === "updates" && <UpdatesTab />}
       {tab === "console-update" && <ConsoleUpdateTab />}
+      {tab === "activity" && me.role === "admin" && <ActivityTab />}
       {tab === "about" && <AboutTab />}
     </>
   );
