@@ -2060,6 +2060,68 @@ a.app-tile:hover {
   background: color-mix(in srgb, var(--bad) 8%, var(--panel-solid));
 }
 
+/* Who did what, and when. One row per audited call. */
+.activity-list {
+  display: grid;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.activity-row {
+  display: grid;
+  grid-template-columns: 90px 140px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 12px;
+  background: var(--panel-solid);
+  font-size: 13px;
+}
+.activity-when {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.activity-who {
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-what {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+.activity-method {
+  color: var(--text);
+  font-weight: 600;
+  margin-right: 4px;
+}
+@media (max-width: 640px) {
+  .activity-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "who status"
+      "what status"
+      "when status";
+    gap: 2px 10px;
+  }
+  .activity-when {
+    grid-area: when;
+  }
+  .activity-who {
+    grid-area: who;
+    font-weight: 600;
+  }
+  .activity-what {
+    grid-area: what;
+  }
+}
+
 .emoji-row {
   display: flex;
   flex-wrap: wrap;

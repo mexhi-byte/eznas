@@ -4,6 +4,86 @@ import { del, post, put, useResource, watchJob, withConn, type Job } from "./api
 import { Card, Empty, ErrorBanner, Loading, Pill } from "./components";
 import { DangerConfirm, Field, Input, JobProgress, Modal, Select, Toggle, useSubmit } from "./ui";
 
+/* --------------------------------------------------------------- activity */
+
+interface AuditEntry {
+  ts: number;
+  accountId: string | null;
+  username: string | null;
+  method: string;
+  path: string;
+  status: number;
+}
+
+/**
+ * Who did what, and when. One line per state-changing API call, newest first.
+ *
+ * Admin-only because it reveals every admin's writes — a viewer who could read
+ * it would know more than the role allows them to see anywhere else. The
+ * server enforces that too; this is only what to show when the tab is here.
+ */
+export function ActivityTab() {
+  const { data, reload } = useResource<AuditEntry[]>("/api/audit?limit=200", 30_000);
+
+  const when = (ts: number) => {
+    const m = Math.round((Date.now() - ts) / 60_000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.round(m / 60);
+    return h < 24 ? `${h}h ago` : `${Math.round(h / 24)}d ago`;
+  };
+
+  // The path is already compact; the method goes in front, and /api is dropped
+  // because every row has it and reading twenty "/api/" prefixes is noise.
+  const prettyPath = (p: string): string => p.replace(/^\/api\//, "");
+
+  const tone = (status: number): "ok" | "warn" | "bad" => {
+    if (status >= 500) return "bad";
+    if (status >= 400) return "warn";
+    return "ok";
+  };
+
+  return (
+    <Card
+      title="Activity"
+      action={
+        <button className="btn" onClick={() => void reload()}>
+          Refresh
+        </button>
+      }
+    >
+      <p className="modal-text" style={{ marginTop: 0 }}>
+        Every state-changing API call this console has handled, newest first. Rotated at five megabytes with one copy
+        kept, so an attacker who could log in long enough to fill the log could overwrite their own trail — anything
+        older than that belongs in an external log drain.
+      </p>
+      {!data ? (
+        <Loading />
+      ) : data.length === 0 ? (
+        <Empty>Nothing has been changed through this console yet.</Empty>
+      ) : (
+        <div className="activity-list">
+          {data.map((e, i) => (
+            <div key={`${e.ts}-${i}`} className="activity-row">
+              <span className="activity-when" title={new Date(e.ts).toLocaleString()}>
+                {when(e.ts)}
+              </span>
+              <span className="activity-who">{e.username ?? "—"}</span>
+              <span className="activity-what">
+                <span className="activity-method">{e.method}</span> {prettyPath(e.path)}
+              </span>
+              <span className={`pill ${tone(e.status)}`}>
+                <i className="dot" />
+                {e.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /* ------------------------------------------------------------- appearance */
 
 const THEMES = [

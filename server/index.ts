@@ -5,6 +5,7 @@ import type { Realtime, TrueNas } from "./truenas.js";
 import * as store from "./store.js";
 import * as settings from "./settings.js";
 import * as watcher from "./monitors.js";
+import * as audit from "./audit.js";
 import { handleUpgrade } from "./shell.js";
 import { clearedCookie, cookieHeader, COOKIE, issue, read as readSessionCookie, readCookie } from "./auth.js";
 import * as accounts from "./accounts.js";
@@ -309,6 +310,32 @@ async function serveStatic(url: URL, res: ServerResponse): Promise<void> {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
   for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
+
+  /*
+   * Audit log, attached before the route runs so the response status at close
+   * is the one the user got — a refused viewer write is a 403, a bad confirm
+   * is a 400, a destroyed pool is a 200. Reads are not recorded: the point is
+   * "who changed what", not "who looked at what", and the log would fill with
+   * sidebar polling in a week. The session is read from the request cookie, so
+   * a successful /api/login shows up with no account attached — the request
+   * had none when it arrived.
+   */
+  const method = req.method ?? "GET";
+  if (url.pathname.startsWith("/api/") && method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+    const session = readSession(req);
+    const who = session ? accounts.byId(session.accountId) : undefined;
+    res.on("close", () => {
+      audit.log({
+        ts: Date.now(),
+        accountId: who?.id ?? null,
+        username: who?.username ?? null,
+        method,
+        path: url.pathname,
+        status: res.statusCode,
+      });
+    });
+  }
+
   try {
     if (await handleApi(req, res, url)) return;
     await serveStatic(url, res);

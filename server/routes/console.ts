@@ -9,6 +9,7 @@ import * as watcher from "../monitors.js";
 import * as selfUpdate from "../self-update.js";
 import * as webhooks from "../webhooks.js";
 import * as accounts from "../accounts.js";
+import * as audit from "../audit.js";
 import { generateSecret, provisioningUri, recoveryCodes, verify as verifyTotp } from "../totp.js";
 import { VERSION } from "../version.js";
 import { bodyOf, json, optStr, str } from "../http.js";
@@ -332,6 +333,22 @@ export async function handleConsoleRoutes(ctx: ConsoleRouteContext): Promise<boo
       json(res, 200, { ok: true });
       return true;
     }
+  }
+
+  /*
+   * The audit log — read-only, admin-only. A viewer who could read it would
+   * see every admin's writes, which is more than the role allows anywhere
+   * else; a non-admin asking for it is treated the same way as asking to
+   * change anything.
+   */
+  if (path === "/api/audit" && method === "GET") {
+    if (me.role !== "admin") {
+      json(res, 403, { error: "Admins only." });
+      return true;
+    }
+    const limit = Number(url.searchParams.get("limit")) || 200;
+    json(res, 200, audit.tail(limit));
+    return true;
   }
 
   /* --- connections (settings) --- */
