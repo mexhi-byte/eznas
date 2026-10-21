@@ -118,6 +118,22 @@ The image is `ghcr.io/mexhi-byte/eznas`, built for amd64 and arm64 on every rele
 `0.6.0`, `0.6` and `latest`. It runs as `PUID`:`PGID` (1000:1000 unless set) and fixes the data
 folder's ownership itself on start, so there is nothing to `chown`.
 
+**Verify the image before trusting it with your NAS.** From 1.0.2 onwards every published tag is
+signed with [cosign](https://docs.sigstore.dev/) using Sigstore keyless OIDC, and an SPDX software
+bill of materials is attested to the same digest. The signature's certificate ties the image to
+this repository and the release workflow in it, so a signature from any other source — a mirror,
+a fork, someone's private key — fails to verify. For version `X.Y.Z`:
+
+```bash
+cosign verify ghcr.io/mexhi-byte/eznas:X.Y.Z \
+  --certificate-identity-regexp '^https://github.com/mexhi-byte/eznas/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+The SBOM is attached to each GitHub release as `eznas-vX.Y.Z.sbom.spdx.json`, and is also
+attested to the image: `cosign verify-attestation --type spdxjson …` with the same identity
+flags fetches it from Sigstore directly.
+
 **Just to look**, without a NAS at all: `npm run demo` builds the console and runs it against a
 TrueNAS that is not there, already connected. Sign in as `demo` with `demo-demo-demo`. Host that on
 anything with Node and you have a public demo; nothing in it is real.
