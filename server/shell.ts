@@ -5,6 +5,7 @@ import * as store from "./store.js";
 import * as accounts from "./accounts.js";
 import { COOKIE, read as readSession, readCookie } from "./auth.js";
 import { commandFor, isAppName, isConsoleMode, isContainerId, type ConsoleMode } from "./app-shell.js";
+import { verifyPinOnUpgrade } from "./pinned.js";
 
 /**
  * A shell on the NAS, proxied to the browser.
@@ -141,9 +142,28 @@ async function bridge(
   const target = conn.url.replace(/\/api\/current$/, "/websocket/shell");
   const nas = new WebSocket(target, { rejectUnauthorized: false });
   let ready = false;
+  // Set when the pin is checked and rejected, so the subsequent "error" and
+  // "close" events can be reported as the pin failure instead of noise.
+  let pinRejected = false;
   // The handshake names the session; resizing needs it, and an empty id
   // resized nothing at all.
   let sessionId = "";
+
+  /*
+   * Pin check, before the token leaves this process.
+   *
+   * The main NAS socket in truenas.ts already does this; the shell proxy did
+   * not. Without it a LAN machine presenting a different self-signed
+   * certificate would receive the auth token on open — enough to open its own
+   * root shell on the real NAS even though this console refused the first one.
+   */
+  verifyPinOnUpgrade(nas, conn.fingerprint, (seen) => {
+    pinRejected = true;
+    say(
+      "The NAS certificate does not match the saved pin. If it was renewed, update the pin in Settings; if it was not, do not trust this connection.",
+    );
+    console.error(`[shell] NAS certificate pin mismatch (saw ${seen.slice(0, 16)}…); refusing to open the shell`);
+  });
 
   nas.on("open", () => {
     // An empty command is a login shell, which is what the Terminal page
@@ -177,7 +197,10 @@ async function bridge(
   });
 
   nas.on("error", (e) => {
-    say(`Shell connection failed: ${e.message}`);
+    // A pin mismatch terminates the socket ourselves, which raises a generic
+    // close-before-established error here. The real reason was already said at
+    // the upgrade; this would otherwise overwrite it with noise.
+    if (!pinRejected) say(`Shell connection failed: ${e.message}`);
     client.close();
   });
   nas.on("close", () => client.close());

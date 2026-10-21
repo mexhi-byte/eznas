@@ -1,4 +1,5 @@
-import { connect, type TLSSocket } from "node:tls";
+import { connect, type TLSSocket, type PeerCertificate } from "node:tls";
+import type { WebSocket } from "ws";
 import type { Connection } from "./store.js";
 
 /**
@@ -80,5 +81,32 @@ export function connectPinned(conn: Connection, timeoutMs = 30_000): Promise<TLS
       clearTimeout(timer);
       reject(new Error(`could not reach the NAS: ${e.message}`));
     });
+  });
+}
+
+/**
+ * Verify the pin on a WebSocket before the client has a chance to send anything.
+ *
+ * The upgrade event fires after the TLS handshake and the HTTP upgrade response
+ * but before the "open" event where ws clients typically send their first
+ * frame. Terminating here is enough to keep an auth token off the wire when the
+ * peer is not the one we pinned. With no fingerprint saved, this is a no-op —
+ * matching the documented "unpinned server" behaviour of connectPinned above.
+ */
+export function verifyPinOnUpgrade(
+  ws: WebSocket,
+  fingerprint: string | null,
+  onMismatch: (seen: string) => void,
+): void {
+  if (!fingerprint) return;
+  ws.on("upgrade", (res) => {
+    const socket = res.socket as unknown as {
+      getPeerX509Certificate?: () => { fingerprint256?: string } | undefined;
+      getPeerCertificate?: () => PeerCertificate;
+    };
+    const seen = socket.getPeerX509Certificate?.()?.fingerprint256 ?? socket.getPeerCertificate?.()?.fingerprint256;
+    if (fingerprintMatches(seen, fingerprint)) return;
+    onMismatch(seen ?? "(none)");
+    ws.terminate();
   });
 }
