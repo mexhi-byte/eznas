@@ -6,6 +6,34 @@ Versions follow [semantic versioning](https://semver.org/), loosely: the
 console is pre-1.0, so a minor bump may still change behaviour you relied on.
 Anything that does is called out under **Changed** or **Upgrading**.
 
+## 1.0.1 — 2026-10-21
+
+A safety net on each page, and the shell proxy pinned the way the main
+socket already was. No changes to how anything is used.
+
+### Fixed
+
+- **One page's bug no longer blanks the console.** A throw in Files or
+  Backups & checks stopped the whole React tree and took the sidebar and
+  sign-out with it. Each page now sits inside an error boundary: the
+  sidebar and the menu stay reachable, what went wrong is shown with a
+  copy button, and switching to another page clears it. The sign-in and
+  first-run screens are wrapped too, so a bug there is at worst a
+  sentence rather than a blank window.
+
+### Security
+
+- **Shell proxy certificate pinned.** The main `/api/current` socket
+  already verified the NAS certificate against the saved pin before
+  anything was sent on it; the `/websocket/shell` proxy, which hands the
+  browser a root shell, did not. A machine on the LAN able to intercept
+  just the shell port could therefore collect the short-lived shell
+  token and open its own real root shell on the NAS, even though every
+  other connection the console made was pinned. The same check now runs
+  at the shell proxy's upgrade event, before the token leaves the
+  process. Setups with no fingerprint saved behave the way the
+  documented unpinned-server state has always behaved.
+
 ## 1.0.0 — 2026-09-16
 
 The console does what it set out to do. A person who owns a TrueNAS box and

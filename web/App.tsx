@@ -18,6 +18,7 @@ import { CatalogPage } from "./catalog";
 import { FilesPage } from "./files-page";
 import { NetworkPage } from "./network";
 import { TerminalPage } from "./terminal";
+import { ErrorBoundary } from "./error-boundary";
 
 /**
  * Named for what people want, not for how TrueNAS is organised.
@@ -146,7 +147,6 @@ export default function App() {
   }, [readSession]);
 
   if (authed === null) return <div className="login-wrap" />;
-  if (!authed || !me) return <Login build={build} onIn={() => void readSession()} />;
   /*
    * Nothing else until the generated password is replaced.
    *
@@ -154,17 +154,25 @@ export default function App() {
    * console render normally would be an interface where everything fails with
    * the same message. This asks once, in the one place it can be acted on.
    */
-  if (forced) return <ForcedPasswordChange account={forced} onDone={() => void readSession()} />;
-  return (
-    <Shell
-      me={me}
-      build={build}
-      onOut={() => {
-        setAuthed(false);
-        setMe(null);
-      }}
-    />
-  );
+  const screen =
+    !authed || !me ? (
+      <Login build={build} onIn={() => void readSession()} />
+    ) : forced ? (
+      <ForcedPasswordChange account={forced} onDone={() => void readSession()} />
+    ) : (
+      <Shell
+        me={me}
+        build={build}
+        onOut={() => {
+          setAuthed(false);
+          setMe(null);
+        }}
+      />
+    );
+  // The outer boundary catches throws in Login, the forced-password screen, and
+  // the Shell chrome itself; the per-page boundary inside Shell handles the
+  // ordinary case of one page breaking without hiding the rest of the console.
+  return <ErrorBoundary>{screen}</ErrorBoundary>;
 }
 
 /**
@@ -507,52 +515,54 @@ function Shell({ me, build, onOut }: { me: Me; build: Build | null; onOut: () =>
           </button>
         </div>
 
-        {page === "home" && <HomePage go={(p, sub) => go(p as PageId, sub)} />}
-        {page === "files" && <FilesPage />}
-        {page === "people" && <UsersPage />}
-        {page === "settings" && <SettingsPage me={me} />}
+        <ErrorBoundary key={`${page}/${sub}`}>
+          {page === "home" && <HomePage go={(p, sub) => go(p as PageId, sub)} />}
+          {page === "files" && <FilesPage />}
+          {page === "people" && <UsersPage />}
+          {page === "settings" && <SettingsPage me={me} />}
 
-        {page === "drives" && (
-          <>
-            <Tabs tabs={SUBS.drives} active={subOf("drives") as "map"} onChange={(id) => go("drives", id)} />
-            {subOf("drives") === "map" && <DriveMapPage />}
-            {subOf("drives") === "pools" && <StoragePage />}
-            {subOf("drives") === "datasets" && <DatasetsPage />}
-            {subOf("drives") === "snapshots" && <SnapshotsPage />}
-            {subOf("drives") === "disks" && <DisksPage />}
-          </>
-        )}
+          {page === "drives" && (
+            <>
+              <Tabs tabs={SUBS.drives} active={subOf("drives") as "map"} onChange={(id) => go("drives", id)} />
+              {subOf("drives") === "map" && <DriveMapPage />}
+              {subOf("drives") === "pools" && <StoragePage />}
+              {subOf("drives") === "datasets" && <DatasetsPage />}
+              {subOf("drives") === "snapshots" && <SnapshotsPage />}
+              {subOf("drives") === "disks" && <DisksPage />}
+            </>
+          )}
 
-        {page === "apps" && (
-          <>
-            <Tabs tabs={SUBS.apps} active={subOf("apps") as "installed"} onChange={(id) => go("apps", id)} />
-            {subOf("apps") === "installed" && <AppsPage admin={me.role === "admin"} />}
-            {subOf("apps") === "catalog" && <CatalogPage />}
-          </>
-        )}
+          {page === "apps" && (
+            <>
+              <Tabs tabs={SUBS.apps} active={subOf("apps") as "installed"} onChange={(id) => go("apps", id)} />
+              {subOf("apps") === "installed" && <AppsPage admin={me.role === "admin"} />}
+              {subOf("apps") === "catalog" && <CatalogPage />}
+            </>
+          )}
 
-        {page === "sharing" && (
-          <>
-            <Tabs tabs={SUBS.sharing} active={subOf("sharing") as "shares"} onChange={(id) => go("sharing", id)} />
-            {subOf("sharing") === "shares" && <SharesPage />}
-            {subOf("sharing") === "services" && <ServicesPage />}
-          </>
-        )}
+          {page === "sharing" && (
+            <>
+              <Tabs tabs={SUBS.sharing} active={subOf("sharing") as "shares"} onChange={(id) => go("sharing", id)} />
+              {subOf("sharing") === "shares" && <SharesPage />}
+              {subOf("sharing") === "services" && <ServicesPage />}
+            </>
+          )}
 
-        {page === "safety" && <SafetyPage />}
+          {page === "safety" && <SafetyPage />}
 
-        {page === "advanced" && (
-          <>
-            <Tabs
-              tabs={tabsFor("advanced") as ReadonlyArray<{ id: "alerts"; label: string }>}
-              active={subOf("advanced") as "alerts"}
-              onChange={(id) => go("advanced", id)}
-            />
-            {subOf("advanced") === "alerts" && <AlertsPage />}
-            {subOf("advanced") === "network" && <NetworkPage />}
-            {subOf("advanced") === "terminal" && me.role === "admin" && <TerminalPage />}
-          </>
-        )}
+          {page === "advanced" && (
+            <>
+              <Tabs
+                tabs={tabsFor("advanced") as ReadonlyArray<{ id: "alerts"; label: string }>}
+                active={subOf("advanced") as "alerts"}
+                onChange={(id) => go("advanced", id)}
+              />
+              {subOf("advanced") === "alerts" && <AlertsPage />}
+              {subOf("advanced") === "network" && <NetworkPage />}
+              {subOf("advanced") === "terminal" && me.role === "admin" && <TerminalPage />}
+            </>
+          )}
+        </ErrorBoundary>
       </main>
 
       {showNotifs && (
